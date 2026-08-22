@@ -27,3 +27,6 @@ coverage/
 
 # npm debug logs from failed installs.
 npm-debug.log*
+
+# Playwright failure artifacts
+test-results/
