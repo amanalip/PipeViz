@@ -5,7 +5,7 @@ Human readable log of every commit on main, plus the planned sequence ahead. Upd
 | | |
 |---|---|
 | Created | Saturday, 22 August 2026 at 01:36 EDT |
-| Last updated | Saturday, 22 August 2026 at 02:15 EDT |
+| Last updated | Saturday, 22 August 2026 at 02:51 EDT |
 | Branch tracked | main |
 | Owner | Aman Ali |
 
@@ -69,6 +69,9 @@ Newest first.
 
 | Hash | Date | Type/scope | Summary |
 |---|---|---|---|
+| 2b597fb | Sat, 22 Aug 2026 at 02:51 EDT | feat(parser) | Declarative interpreter plus scripted fallback producing PipelineModel with diagnostics; knownSteps dictionary, parseJenkinsfile never-throw entry point |
+| f694517 | Sat, 22 Aug 2026 at 02:40 EDT | feat(parser) | Tokenizer and block tree with line tracking, Groovy string/interpolation handling, comment stripping, statement splitting, brace-recovery diagnostics |
+| 59bf7da | Sat, 22 Aug 2026 at 02:17 EDT | docs(tracker) | M0 complete: record scaffold commit 7376885 in tracker |
 | 7376885 | Sat, 22 Aug 2026 at 02:17 EDT | chore(scaffold) | M0 complete: Vite + React + TypeScript app shell (header, editor pane, canvas empty state, status bar); TS pinned to 5.9.3 per plan risk fallback; lint/typecheck/build/dev smoke all green |
 | f22f201 | Sat, 22 Aug 2026 at 01:55 EDT | docs(branding) | Add logo assets (public/logo.svg, public/favicon.svg) and Branding section in project_plan.md |
 | 2d3bae3 | Sat, 22 Aug 2026 at 01:40 EDT | docs | Add project_plan.md and commit_tracker.md with TOCs and timestamps |
@@ -84,8 +87,8 @@ Mapped to milestones in project_plan.md section 14. Order is sequential; hashes 
 | done (recorded in History) | docs(branding) | M0 | Add logo assets (The Branch concept) and branding section in plan |
 | done (recorded in History) | docs(readme) | M0 | Rewrite README with logo, TOC, status, stack links, doc index |
 | done (recorded in History) | chore(scaffold) | M0 | Vite + React + TypeScript scaffold: package.json, tsconfig, vite config, index.html, minimal App, .gitignore. TypeScript pinned to 5.9.3 per plan risk fallback (typescript-eslint peer range blocks 7.x); stack table and README updated to match. **Milestone M0 complete.** |
-| planned | feat(parser) | M1 | Tokenizer and block tree with line tracking and string/comment handling |
-| planned | feat(parser) | M1 | Declarative interpreter plus scripted fallback producing PipelineModel with diagnostics |
+| done (recorded in History) | feat(parser) | M1 | Tokenizer and block tree with line tracking and string/comment handling |
+| done (recorded in History) | feat(parser) | M1 | Declarative interpreter plus scripted fallback producing PipelineModel with diagnostics |
 | planned | test(parser) | M1 | Corpus fixtures for 7 samples, never-throw fuzz test, model snapshots |
 | planned | feat(layout) | M2 | Column/lane layout engine with bounding box recursion, overlap property tests |
 | planned | feat(graph) | M3 | React Flow canvas: StageNodeCard, edges, minimap, fitView, selection wiring |
