@@ -5,7 +5,7 @@ Human readable log of every commit on main, plus the planned sequence ahead. Upd
 | | |
 |---|---|
 | Created | Saturday, 22 August 2026 at 01:36 EDT |
-| Last updated | Saturday, 22 August 2026 at 02:07 PM EDT |
+| Last updated | Saturday, 22 August 2026 at 02:38 PM EDT |
 | Branch tracked | main |
 | Owner | Aman Ali |
 
@@ -69,6 +69,8 @@ Newest first.
 
 | Hash | Date | Type/scope | Summary |
 |---|---|---|---|
+| (pending) | Sat, 22 Aug 2026 at 02:38 PM EDT | docs(tracker) | M4 complete: record feat(ui) commit e7ff7cd, mark milestone done |
+| e7ff7cd | Sat, 22 Aug 2026 at 02:33 PM EDT | feat(ui) | Full input + inspection layer: EditorPane extraction with revealLine() caret API; header sample picker (keyboard menu, defect badges from real parses), upload via hidden file input, Copy JSON with Copied-✓ flash; DetailsPanel (STEPS/WHEN/AGENT/stage POST, hide-empty, Escape/✕ close through FlowApi selection bridge); DiagnosticsBar with busy/ready/warn/error states, expandable ✕/▲ rows auto-expanding on new problems, click-to-jump caret + node flash, partial-graph note from a stage-call upper bound (messy sample: 3 of 4); double-click card jumps editor line; empty-state chips now all-live; 16 new helper tests |
 | (pending) | Sat, 22 Aug 2026 at 02:07 PM EDT | docs(tracker) | M3 complete: record feat(graph) commit ad1cef1, mark milestone done |
 | ad1cef1 | Sat, 22 Aug 2026 at 02:06 PM EDT | feat(graph) | React Flow canvas wired end to end on a 400ms debounced re-parse: StageNodeCard (220x72, category stripe, badge row), parallel parents rebuilt as subflow containers with relative-coordinate math from geometric containment, dotted background, controls, pannable/zoomable category-colored minimap, smoothstep arrow edges, click-to-select reporting to App; status bar grows Parsing/Ready/diagnostics/selection states; 21 converter/category tests |
 | (pending) | Sat, 22 Aug 2026 at 01:25 PM EDT | docs(tracker) | M2 complete: record feat(layout) commit 193397c, mark milestone done |
@@ -100,7 +102,7 @@ Mapped to milestones in project_plan.md section 14. Order is sequential; hashes 
 | done (recorded in History) | test(parser) | M1 | Corpus fixtures for 7 samples, never-throw fuzz test, model snapshots. **Milestone M1 complete: 129 tests green, lint/typecheck/build clean, acceptance criteria met** |
 | done (193397c) | feat(layout) | M2 | Column/lane layout engine with bounding box recursion (measure + band-centered placement), parallel containers and fan-out/fan-in edges, inline nested-stage unfolding; overlap/bounds/monotonicity/linearity property tests plus corpus goldens. **Milestone M2 complete: 175 tests green (129 parser + 46 layout), lint/typecheck/build clean** |
 | done (ad1cef1) | feat(graph) | M3 | React Flow canvas: StageNodeCard, parallel subflow containers, smoothstep arrow edges, dotted background, controls, pannable/zoomable minimap, fitView-per-revision and selection wiring; 400ms debounced re-parse in App with honest status bar states. **Milestone M3 canvas acceptance met: samples render as graphs via paste, pan/zoom/select/minimap work, converter covered by 21 tests (196 total green), lint/typecheck/build clean** |
-| planned | feat(ui) | M4 | Editor pane, upload, sample picker, details panel, diagnostics bar |
+| done (e7ff7cd) | feat(ui) | M4 | Editor pane extraction with revealLine caret API; header sample picker (keyboard menu, parse-derived defect badges), upload (.jenkinsfile/Jenkinsfile/.groovy/.txt), Copy JSON flash; DetailsPanel (STEPS/WHEN/AGENT/stage-scoped POST, hide-empty rules); DiagnosticsBar (busy/ready/warn/error, expandable rows, jump-to-line + node flash, partial-graph note). **Milestone M4 acceptance met: paste/upload/sample paths all live, diagnostics bar accurate on the messy sample (2 errors + partial graph), 212 tests green, lint/typecheck/build clean**. Ghost cards/dashed edges deferred until the parser emits unparsed markers; ui_mockups.md §18 updated in-commit |
 | planned | style | M4 | Dark theme polish, empty states, responsive split panes |
 | planned | ci | M5 | Rework static.yml: setup-node, npm build, upload dist/, vite base './' |
 | planned | docs(readme) | M5 | README rewrite describing app, usage, local dev, deployment |
