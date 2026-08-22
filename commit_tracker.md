@@ -5,7 +5,7 @@ Human readable log of every commit on main, plus the planned sequence ahead. Upd
 | | |
 |---|---|
 | Created | Saturday, 22 August 2026 at 01:36 EDT |
-| Last updated | Saturday, 22 August 2026 at 02:51 EDT |
+| Last updated | Saturday, 22 August 2026 at 03:20 EDT |
 | Branch tracked | main |
 | Owner | Aman Ali |
 
@@ -69,6 +69,9 @@ Newest first.
 
 | Hash | Date | Type/scope | Summary |
 |---|---|---|---|
+| (pending) | Sat, 22 Aug 2026 at 03:20 EDT | docs(tracker) | M1 complete: record fix(parser) and test(parser) commits, mark milestone done |
+| b5e5b7f | Sat, 22 Aug 2026 at 03:20 EDT | test(parser) | Seven-sample corpus fixtures (src/samples), 129-test suite: tokenizer/blockTree/statements/interpret/scripted units, exact per-sample model assertions, model snapshots, seeded 1000-input never-throw fuzz |
+| 55937a2 | Sat, 22 Aug 2026 at 03:20 EDT | fix(parser) | Three correctness gaps surfaced by corpus probing: steps block no longer overwrites sibling generic-step capture; failFast captured in documented placements (adjacent to parallel and inside the group); unterminated string literals now emit error diagnostics and keep their full recovered text |
 | 2b597fb | Sat, 22 Aug 2026 at 02:51 EDT | feat(parser) | Declarative interpreter plus scripted fallback producing PipelineModel with diagnostics; knownSteps dictionary, parseJenkinsfile never-throw entry point |
 | f694517 | Sat, 22 Aug 2026 at 02:40 EDT | feat(parser) | Tokenizer and block tree with line tracking, Groovy string/interpolation handling, comment stripping, statement splitting, brace-recovery diagnostics |
 | 59bf7da | Sat, 22 Aug 2026 at 02:17 EDT | docs(tracker) | M0 complete: record scaffold commit 7376885 in tracker |
@@ -89,7 +92,8 @@ Mapped to milestones in project_plan.md section 14. Order is sequential; hashes 
 | done (recorded in History) | chore(scaffold) | M0 | Vite + React + TypeScript scaffold: package.json, tsconfig, vite config, index.html, minimal App, .gitignore. TypeScript pinned to 5.9.3 per plan risk fallback (typescript-eslint peer range blocks 7.x); stack table and README updated to match. **Milestone M0 complete.** |
 | done (recorded in History) | feat(parser) | M1 | Tokenizer and block tree with line tracking and string/comment handling |
 | done (recorded in History) | feat(parser) | M1 | Declarative interpreter plus scripted fallback producing PipelineModel with diagnostics |
-| planned | test(parser) | M1 | Corpus fixtures for 7 samples, never-throw fuzz test, model snapshots |
+| done (recorded in History) | fix(parser) | M1 | Correctness gaps surfaced by the test suite: steps-block overwrite, failFast placements, unterminated-string diagnostics |
+| done (recorded in History) | test(parser) | M1 | Corpus fixtures for 7 samples, never-throw fuzz test, model snapshots. **Milestone M1 complete: 129 tests green, lint/typecheck/build clean, acceptance criteria met** |
 | planned | feat(layout) | M2 | Column/lane layout engine with bounding box recursion, overlap property tests |
 | planned | feat(graph) | M3 | React Flow canvas: StageNodeCard, edges, minimap, fitView, selection wiring |
 | planned | feat(ui) | M4 | Editor pane, upload, sample picker, details panel, diagnostics bar |
