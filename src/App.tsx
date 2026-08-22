@@ -226,7 +226,7 @@ export default function App() {
   // parse-failed line whenever errors exist, quiet when nothing applies.
   const caption = useMemo(() => {
     if (canvasStats.stages === 0) return null
-    if (problems.errors > 0) return 'parse failed — showing what parsed'
+    if (problems.errors > 0) return 'parse failed: showing what parsed'
     if (sampleName !== null) return `sample · ${sampleName}`
     return null
   }, [canvasStats.stages, problems.errors, sampleName])
@@ -475,7 +475,7 @@ export default function App() {
               <img src="./logo.svg" alt="" aria-hidden="true" className="empty-mark" />
               <h2>Paste a Jenkinsfile. See your pipeline.</h2>
               <p>
-                PipeViz reads a Jenkinsfile and draws its stages as a horizontal graph — parallel
+                PipeViz reads a Jenkinsfile and draws its stages as a horizontal graph: parallel
                 branches stacked in lanes, steps one click away. The graph redraws as you type.
               </p>
               <ul className="path-chips">

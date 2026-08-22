@@ -102,8 +102,8 @@ interface WalkContext {
 }
 
 /**
- * The lanes a stage fans out into: its own parallel branches, or — when
- * matrix expansion is on — one synthesized card per axis combination.
+ * The lanes a stage fans out into: its own parallel branches, or (when
+ * matrix expansion is on) one synthesized card per axis combination.
  * Synthesized branches keep the matrix's line/when/agent so combo cards
  * still badge and jump to source honestly; ids derive from the parent
  * (`<id>/m<i>`), deterministic across re-parses like every other id.

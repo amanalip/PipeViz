@@ -151,7 +151,7 @@ always visible in the status bar.
 │                            │                                                           │
 │ 0 lines · 0 words          │                                                           │
 ├────────────────────────────┴───────────────────────────────────────────────────────────┤
-│ ● Ready · 0 errors, 0 warnings          No backend — your code stays in this tab   v0.1.0 │
+│ ● Ready · 0 errors, 0 warnings          No backend: your code stays in this tab   v0.1.0 │
 └────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -188,7 +188,7 @@ joined by chain edges. Debounced re-parse runs 400ms after typing stops.
 │                            │                                                    └────────┘
 │   }                       │
 ├────────────────────────────┴───────────────────────────────────────────────────────────┤
-│ ● Ready · declarative · 4 stages        No backend — your code stays in this tab   v0.1.0 │
+│ ● Ready · declarative · 4 stages        No backend: your code stays in this tab   v0.1.0 │
 └────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -358,7 +358,7 @@ clicking empty canvas closes it.
 │                            │  ║ ▸ mail to:'oncall@acme.dev'    ║                       │
 │                            │  ╚════════════════════════════════╝                       │
 ├────────────────────────────┴───────────────────────────────────────────────────────────┤
-│ ● Ready · selection: Unit tests         No backend — your code stays in this tab  v0.1.0 │
+│ ● Ready · selection: Unit tests         No backend: your code stays in this tab  v0.1.0 │
 └────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -423,7 +423,7 @@ that line.
 ┌────────────────────────────────────────────────────────────────────────────────────────┐
 │ ◉ PipeViz  ⟨ Jenkinsfile → graph ⟩         [ Samples ▾ ]  [ Upload ]  [ Copy JSON ]  [ GitHub ↗ ] │
 ├────────────────────────────┬───────────────────────────────────────────────────────────┤
-│ PIPELINE SOURCE            │  parse failed — showing what parsed                       │
+│ PIPELINE SOURCE            │  parse failed: showing what parsed                       │
 │ // nightly (draft)         │                                                           │
 │ pipeline {                 │  ┌────────────┐   ┌────────────┐   ┌────────────┐         │
 │   agent any                │  │█ Checkout  │──▶│█ Build     │--▶│░░░░░░░░░░░░│         │
@@ -437,7 +437,7 @@ that line.
 │       xray scan ./out      │  --▶ dashed = edge into unparsed material                 │
 │ 58 lines · 210 words       │                                                           │
 ├────────────────────────────┴───────────────────────────────────────────────────────────┤
-│ ⚠ 2 errors · 1 warning — click a row to jump to its line               [ Collapse ▴ ]  │
+│ ⚠ 2 errors · 1 warning · click a row to jump to its line               [ Collapse ▴ ]  │
 ├────────────────────────────────────────────────────────────────────────────────────────┤
 │  ✕ 42   error     Unbalanced '}' — expected closing brace for stage 'Test'             │
 │  ▲ 17   warning   Unknown directive 'xray'; captured as generic step                   │
@@ -543,7 +543,7 @@ color never works alone):
 healthy     │ ● Ready · declarative · 4 stages · 11 steps                    │ success green
 busy        │ ◐ Parsing… · 3 stages so far                                   │ accent pulse
 warn        │ ▲ 1 warning · click to expand                                  │ amber
-error       │ ⚠ 2 errors · 1 warning — click a row to jump   [ Collapse ▴ ]  │ danger red, expanded
+error       │ ⚠ 2 errors · 1 warning · click a row to jump   [ Collapse ▴ ]  │ danger red, expanded
 ```
 
 Expanded anatomy is shown in §11. Collapse/expand persists during the session.
@@ -555,9 +555,9 @@ Expanded anatomy is shown in §11. Collapse/expand persists during the session.
 Right-hand version chip reflects the deployed build (helps issue reports):
 
 ```
-● Ready · declarative · 4 stages · 11 steps    No backend — your code stays in this tab    v0.1.0
-● Ready · scripted · 3 stages                  No backend — your code stays in this tab    v0.1.0
-◐ Parsing…                                     No backend — your code stays in this tab    v0.1.0
+● Ready · declarative · 4 stages · 11 steps    No backend: your code stays in this tab    v0.1.0
+● Ready · scripted · 3 stages                  No backend: your code stays in this tab    v0.1.0
+◐ Parsing…                                     No backend: your code stays in this tab    v0.1.0
 ⚠ 2 errors · 1 warning                         Partial graph: 3 of 5 stages rendered       v0.1.0
 ```
 

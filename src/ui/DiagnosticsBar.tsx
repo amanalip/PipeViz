@@ -3,7 +3,7 @@
 //
 //   healthy  ● Ready · declarative · 4 stages · 11 steps
 //   busy     ◐ Parsing… · 3 stages so far
-//   warn     ▲ N warnings — click to expand
+//   warn     ▲ N warnings · click to expand
 //   error    ⚠ N errors · M warnings   [expanded row list]
 //
 // Expansion rules (§11/§14): rows list severity icon, line number, severity
@@ -94,7 +94,7 @@ export function DiagnosticsBar({
         {errors > 0 && plural(errors, 'error')}
         {errors > 0 && warnings > 0 && ' · '}
         {warnings > 0 && plural(warnings, 'warning')}
-        {expanded ? ' — click a row to jump' : ' — click to expand'}
+        {expanded ? ' · click a row to jump' : ' · click to expand'}
       </button>
     )
   } else {
@@ -122,7 +122,7 @@ export function DiagnosticsBar({
       <div className="status-row">
         <span className="status-item">{left}</span>
         <span className={partialNote ? 'status-note status-partial' : 'status-note'}>
-          {partialNote ?? 'No backend — your code stays in this tab'}
+          {partialNote ?? 'No backend: your code stays in this tab'}
         </span>
         <span className="status-version">{APP_VERSION}</span>
       </div>

@@ -105,7 +105,7 @@ interface FlowCanvasProps {
 /**
  * Group container node standing in for a cardless parent stage
  * (mockups §7/§8/§10): double-ring surface with a header bar whose copy
- * depends on `kind` — PARALLEL + PAR ×n + failFast, or MATRIX + axis list.
+ * depends on `kind` (PARALLEL + PAR ×n + failFast, or MATRIX + axis list).
  */
 function GroupContainerNodeView({ data }: NodeProps<GroupContainerNode>) {
   return (
