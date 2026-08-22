@@ -243,6 +243,25 @@ img {
   background: rgba(52, 211, 153, 0.08);
 }
 
+/* Failure flash on the Export PNG button (M6): danger tint for 1.5s. */
+.btn-export-failed,
+.btn-export-failed:hover {
+  color: var(--danger);
+  border-color: rgba(248, 113, 113, 0.45);
+  background: rgba(248, 113, 113, 0.08);
+}
+
+.btn:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.btn:disabled:hover {
+  color: var(--ink-secondary);
+  border-color: var(--border);
+  background: transparent;
+}
+
 /* Hidden file input behind the Upload button (§13). */
 .upload-input {
   display: none;

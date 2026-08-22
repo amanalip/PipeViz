@@ -25,9 +25,11 @@ import {
   ReactFlow,
   useReactFlow,
 } from '@xyflow/react'
-import { useImperativeHandle, useMemo } from 'react'
+import { useImperativeHandle, useMemo, useRef } from 'react'
 import type { RefObject } from 'react'
 import type { Node, NodeProps } from '@xyflow/react'
+
+import { exportCanvasPng } from './exportPng'
 
 import type { LayoutOptions, LayoutResult, PositionedStage } from '../layout/computeLayout'
 import type { PipelineModel } from '../model/types'
@@ -46,22 +48,38 @@ const NODE_TYPES = {
  * Imperative surface App can poke without owning React Flow internals.
  * `clearSelection` backs panel close via ✕/Escape (mockups §9): the ring
  * and the panel must drop together even though selection lives in the flow.
+ * `exportPng` renders the current graph through graph/exportPng.
  */
 export interface FlowApi {
   clearSelection(): void
+  exportPng(options: { backgroundColor: string }): Promise<void>
 }
 
 /** Headless child inside <ReactFlow> that exposes the instance upward. */
-function SelectionBridge({ apiRef }: { apiRef?: RefObject<FlowApi | null> }) {
-  const { setNodes } = useReactFlow<FlowNode, FlowEdge>()
+function SelectionBridge({
+  apiRef,
+  hostRef,
+}: {
+  apiRef?: RefObject<FlowApi | null>
+  hostRef: RefObject<HTMLDivElement | null>
+}) {
+  const { setNodes, getNodes } = useReactFlow<FlowNode, FlowEdge>()
   useImperativeHandle(
     apiRef,
     () => ({
       clearSelection() {
         setNodes((nodes) => nodes.map((node) => (node.selected ? { ...node, selected: false } : node)))
       },
+      async exportPng(options) {
+        // Only the viewport renders: cards and edges, never controls/minimap.
+        const viewport = hostRef.current?.querySelector('.react-flow__viewport')
+        if (!(viewport instanceof HTMLElement)) {
+          throw new Error('Canvas viewport not mounted yet')
+        }
+        await exportCanvasPng({ ...options, nodes: getNodes(), viewport })
+      },
     }),
-    [setNodes],
+    [setNodes, getNodes, hostRef],
   )
   return null
 }
@@ -120,6 +138,7 @@ export function FlowCanvas({
   onStageDoubleClick,
   expandMatrix = false,
 }: FlowCanvasProps) {
+  const hostRef = useRef<HTMLDivElement>(null)
   // Fresh RF objects per (model, layout); memo keeps StrictMode double
   // renders and unrelated parent updates from rebuilding the graph data.
   const flowOptions: LayoutOptions = useMemo(() => ({ expandMatrix }), [expandMatrix])
@@ -129,7 +148,7 @@ export function FlowCanvas({
   )
 
   return (
-    <div className="flow-canvas-host">
+    <div className="flow-canvas-host" ref={hostRef}>
       <ReactFlow
         key={revision}
         defaultNodes={graph.nodes}
@@ -155,7 +174,7 @@ export function FlowCanvas({
         }}
         colorMode="dark"
       >
-        <SelectionBridge apiRef={apiRef} />
+        <SelectionBridge apiRef={apiRef} hostRef={hostRef} />
         <Background
           variant={BackgroundVariant.Dots}
           gap={22}

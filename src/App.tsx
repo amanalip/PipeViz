@@ -69,6 +69,8 @@ export default function App() {
   const [selectedId, setSelectedId] = useState<string | null>(null)
   // Copy JSON button feedback: idle -> copied/failed -> idle after a flash.
   const [copyState, setCopyState] = useState<'idle' | 'copied' | 'failed'>('idle')
+  // Export PNG button feedback: idle -> working/failed -> idle (M6).
+  const [pngState, setPngState] = useState<'idle' | 'working' | 'failed'>('idle')
   // Name of the bundled sample the editor currently holds (§5/§8 caption).
   // Cleared as soon as the content diverges via edit/upload/paste, so the
   // label only ever names text that really is that sample.
@@ -104,6 +106,13 @@ export default function App() {
     const timer = window.setTimeout(() => setCopyState('idle'), COPY_FLASH_MS)
     return () => window.clearTimeout(timer)
   }, [copyState])
+
+  // Export PNG failure flash reset; success needs no timer (download fires).
+  useEffect(() => {
+    if (pngState !== 'failed') return
+    const timer = window.setTimeout(() => setPngState('idle'), COPY_FLASH_MS)
+    return () => window.clearTimeout(timer)
+  }, [pngState])
 
   // Matrix toggle rides the same revision path as a fresh parse: remount
   // re-fits the view and drops any selection pointing at pre-toggle ids.
@@ -229,6 +238,25 @@ export default function App() {
     }
   }
 
+  /**
+   * Render the live graph to a downloadable PNG (M6). The background bakes
+   * in whatever `--bg-0` resolves to right now, so exports match the active
+   * theme without the renderer knowing about themes.
+   */
+  async function exportGraphPng() {
+    if (canvasStats.stages === 0) return
+    setPngState('working')
+    try {
+      const background =
+        window.getComputedStyle(document.documentElement).getPropertyValue('--bg-0').trim() ||
+        '#0f172a'
+      await flowApi.current?.exportPng({ backgroundColor: background })
+      setPngState('idle')
+    } catch {
+      setPngState('failed')
+    }
+  }
+
   // ---- Cross-region interactions --------------------------------------------
 
   /** Editor caret to a source line; shared by rows and card double-click. */
@@ -289,6 +317,15 @@ export default function App() {
               onClick={copyModelJson}
             >
               {copyState === 'copied' ? 'Copied ✓' : copyState === 'failed' ? 'Copy failed' : 'Copy JSON'}
+            </button>
+            <button
+              type="button"
+              className={pngState === 'failed' ? 'btn btn-export-failed' : 'btn'}
+              disabled={pngState === 'working' || canvasStats.stages === 0}
+              onClick={exportGraphPng}
+              title="Download the current graph as a PNG image"
+            >
+              {pngState === 'working' ? 'Rendering…' : pngState === 'failed' ? 'Export failed' : 'Export PNG'}
             </button>
           </div>
           <a className="repo-link" href={REPO_URL} target="_blank" rel="noopener noreferrer">
