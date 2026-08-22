@@ -10,18 +10,29 @@
 // badge can never drift from what the diagnostics bar will really show.
 // ---------------------------------------------------------------------------
 
-import { useEffect, useMemo, useRef, useState } from 'react'
-import type { KeyboardEvent as ReactKeyboardEvent } from 'react'
+import { useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react'
+import type { KeyboardEvent as ReactKeyboardEvent, RefObject } from 'react'
 
 import { parseJenkinsfile } from '../parser'
 import type { Sample } from '../samples'
 
+/** Imperative handle App uses to drive the picker from outside React flow. */
+export interface SamplePickerApi {
+  /**
+   * Open the dropdown and put keyboard focus on its trigger button, so
+   * arrow/Enter selection works immediately (empty-state Samples chip).
+   */
+  openMenu(): void
+}
+
 interface SamplePickerProps {
   samples: readonly Sample[]
   onPick: (sample: Sample) => void
+  /** Receives the SamplePickerApi once mounted; optional like EditorPane's. */
+  apiRef?: RefObject<SamplePickerApi | null>
 }
 
-export function SamplePicker({ samples, onPick }: SamplePickerProps) {
+export function SamplePicker({ samples, onPick, apiRef }: SamplePickerProps) {
   const [open, setOpen] = useState(false)
   const [active, setActive] = useState(0)
   const rootRef = useRef<HTMLDivElement>(null)
@@ -73,6 +84,13 @@ export function SamplePicker({ samples, onPick }: SamplePickerProps) {
     setActive(0)
     buttonRef.current?.focus()
   }
+
+  useImperativeHandle(apiRef, () => ({
+    openMenu() {
+      setOpen(true)
+      buttonRef.current?.focus()
+    },
+  }))
 
   function handleKeyDown(event: ReactKeyboardEvent<HTMLButtonElement>) {
     if (!open) return

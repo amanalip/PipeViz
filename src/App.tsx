@@ -45,6 +45,7 @@ import { DetailsPanel } from './ui/DetailsPanel'
 import { EditorPane } from './ui/EditorPane'
 import type { EditorApi } from './ui/EditorPane'
 import { SamplePicker } from './ui/SamplePicker'
+import type { SamplePickerApi } from './ui/SamplePicker'
 import { candidateStageCount, partialGraphNote } from './ui/diagnosticsSupport'
 
 // Repository URL for the header link; same repo this code lives in.
@@ -109,6 +110,7 @@ export default function App() {
   // Imperative handles into the two interactive regions.
   const editorApi = useRef<EditorApi | null>(null)
   const flowApi = useRef<FlowApi | null>(null)
+  const samplePickerApi = useRef<SamplePickerApi | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   /**
@@ -392,7 +394,7 @@ export default function App() {
         </div>
         <nav className="header-nav" aria-label="Input actions">
           <div className="header-actions">
-            <SamplePicker samples={SAMPLES} onPick={pickSample} />
+            <SamplePicker samples={SAMPLES} onPick={pickSample} apiRef={samplePickerApi} />
             <input
               ref={fileInputRef}
               type="file"
@@ -518,7 +520,16 @@ export default function App() {
                     Upload
                   </button>
                 </li>
-                <li className="chip chip-ready">Samples</li>
+                <li>
+                  <button
+                    type="button"
+                    className="chip chip-ready"
+                    onClick={() => samplePickerApi.current?.openMenu()}
+                    title="Load one of the bundled sample pipelines"
+                  >
+                    Samples
+                  </button>
+                </li>
               </ul>
               <p className="empty-footnote">Nothing leaves your browser.</p>
             </div>
