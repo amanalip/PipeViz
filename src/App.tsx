@@ -508,7 +508,16 @@ export default function App() {
                     Paste
                   </button>
                 </li>
-                <li className="chip chip-ready">Upload</li>
+                <li>
+                  <button
+                    type="button"
+                    className="chip chip-ready"
+                    onClick={() => fileInputRef.current?.click()}
+                    title="Open a Jenkinsfile from disk"
+                  >
+                    Upload
+                  </button>
+                </li>
                 <li className="chip chip-ready">Samples</li>
               </ul>
               <p className="empty-footnote">Nothing leaves your browser.</p>
