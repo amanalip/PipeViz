@@ -495,8 +495,19 @@ export default function App() {
                 branches stacked in lanes, steps one click away. The graph redraws as you type.
               </p>
               <ul className="path-chips">
-                {/* All three paths are live at M4 (mockup §4 promised this day). */}
-                <li className="chip chip-ready">Paste</li>
+                {/* Each chip is a live control for its input path (mockup §4):
+                    Paste hands the user a caret in the editor, Upload opens
+                    the file picker, Samples drops the bundled menu down. */}
+                <li>
+                  <button
+                    type="button"
+                    className="chip chip-ready"
+                    onClick={() => editorApi.current?.focus()}
+                    title="Focus the editor, then paste your Jenkinsfile"
+                  >
+                    Paste
+                  </button>
+                </li>
                 <li className="chip chip-ready">Upload</li>
                 <li className="chip chip-ready">Samples</li>
               </ul>

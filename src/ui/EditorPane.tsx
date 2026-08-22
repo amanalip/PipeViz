@@ -41,6 +41,8 @@ export interface EditorApi {
    * scrolling the line into view. Out-of-range lines clamp silently.
    */
   revealLine(line: number): void
+  /** Focus the editor without moving the caret (empty-state Paste chip). */
+  focus(): void
 }
 
 interface EditorPaneProps {
@@ -182,6 +184,8 @@ export function EditorPane({ value, onChange, apiRef }: EditorPaneProps) {
 
   // Diagnostics rows and card double-clicks jump the caret here (§11/§17):
   // select the whole target line, center it, and focus the editor.
+  // focus() serves the empty-state Paste chip: hand the user a blinking
+  // caret without moving it, so Ctrl+V drops text exactly where they were.
   useImperativeHandle(
     apiRef,
     () => ({
@@ -195,6 +199,9 @@ export function EditorPane({ value, onChange, apiRef }: EditorPaneProps) {
           effects: EditorView.scrollIntoView(lineInfo.from, { y: 'center' }),
         })
         view.focus()
+      },
+      focus() {
+        viewRef.current?.focus()
       },
     }),
     [viewRef],
