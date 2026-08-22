@@ -83,7 +83,9 @@ function indexStages(model: PipelineModel): Map<string, StageNode> {
 
 /**
  * Shared edge styling: smoothstep with an arrowhead, muted slate stroke that
- * reads on the dark canvas. Dashed "unparsed" edges arrive with M4 ghosts.
+ * reads on the dark canvas. (Ghost cards and dashed edges into unparsed
+ * material stay deferred: the parser emits no unparsed-region markers yet,
+ * so there is nothing honest to draw them from.)
  */
 function toFlowEdge(edge: LayoutResult['edges'][number]): FlowEdge {
   return {

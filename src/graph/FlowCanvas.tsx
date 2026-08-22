@@ -17,14 +17,22 @@
 
 import '@xyflow/react/dist/style.css'
 
-import { Background, BackgroundVariant, Controls, MiniMap, ReactFlow } from '@xyflow/react'
-import { useMemo } from 'react'
+import {
+  Background,
+  BackgroundVariant,
+  Controls,
+  MiniMap,
+  ReactFlow,
+  useReactFlow,
+} from '@xyflow/react'
+import { useImperativeHandle, useMemo } from 'react'
+import type { RefObject } from 'react'
 import type { Node, NodeProps } from '@xyflow/react'
 
-import type { LayoutResult } from '../layout/computeLayout'
+import type { LayoutResult, PositionedStage } from '../layout/computeLayout'
 import type { PipelineModel } from '../model/types'
 import { CATEGORY_COLORS } from './categories'
-import type { ParallelContainerNode, StageCardData } from './toFlow'
+import type { FlowEdge, FlowNode, ParallelContainerNode, StageCardData } from './toFlow'
 import { buildFlowGraph } from './toFlow'
 import { StageNodeCard } from './StageNodeCard'
 
@@ -34,12 +42,40 @@ const NODE_TYPES = {
   parallelContainer: ParallelContainerNodeView,
 }
 
+/**
+ * Imperative surface App can poke without owning React Flow internals.
+ * `clearSelection` backs panel close via ✕/Escape (mockups §9): the ring
+ * and the panel must drop together even though selection lives in the flow.
+ */
+export interface FlowApi {
+  clearSelection(): void
+}
+
+/** Headless child inside <ReactFlow> that exposes the instance upward. */
+function SelectionBridge({ apiRef }: { apiRef?: RefObject<FlowApi | null> }) {
+  const { setNodes } = useReactFlow<FlowNode, FlowEdge>()
+  useImperativeHandle(
+    apiRef,
+    () => ({
+      clearSelection() {
+        setNodes((nodes) => nodes.map((node) => (node.selected ? { ...node, selected: false } : node)))
+      },
+    }),
+    [setNodes],
+  )
+  return null
+}
+
 interface FlowCanvasProps {
   model: PipelineModel
   layout: LayoutResult
   /** Incremented per fresh parse; remounts the flow so state never goes stale. */
   revision: number
   onSelect: (stageId: string | null) => void
+  /** Receives the FlowApi once the flow mounts. */
+  apiRef?: RefObject<FlowApi | null>
+  /** Double-clicking a stage card hands its source line to App (§17). */
+  onStageDoubleClick?: (stage: PositionedStage) => void
 }
 
 /**
@@ -64,7 +100,7 @@ function ParallelContainerNodeView({ data }: NodeProps<ParallelContainerNode>) {
  * all interaction state (viewport, selection highlight) lives inside the
  * keyed ReactFlow instance and resets exactly when a new graph arrives.
  */
-export function FlowCanvas({ model, layout, revision, onSelect }: FlowCanvasProps) {
+export function FlowCanvas({ model, layout, revision, onSelect, apiRef, onStageDoubleClick }: FlowCanvasProps) {
   // Fresh RF objects per (model, layout); memo keeps StrictMode double
   // renders and unrelated parent updates from rebuilding the graph data.
   const graph = useMemo(() => buildFlowGraph(model, layout), [model, layout])
@@ -89,8 +125,14 @@ export function FlowCanvas({ model, layout, revision, onSelect }: FlowCanvasProp
         multiSelectionKeyCode={null}
         selectionKeyCode={null}
         onSelectionChange={({ nodes }) => onSelect(nodes[0]?.id ?? null)}
+        onNodeDoubleClick={(_, node) => {
+          if (node.type === 'stage' && onStageDoubleClick) {
+            onStageDoubleClick((node.data as StageCardData).stage)
+          }
+        }}
         colorMode="dark"
       >
+        <SelectionBridge apiRef={apiRef} />
         <Background
           variant={BackgroundVariant.Dots}
           gap={22}

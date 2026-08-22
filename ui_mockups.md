@@ -368,7 +368,7 @@ Panel field rules:
 | STEPS | every step: name + raw argument text in mono, scrollable |
 | WHEN | raw condition text, verbatim, never interpreted |
 | AGENT | stage-level agent override if present |
-| POST | handler condition + its steps (pipeline-level post shown on root) |
+| POST | handler condition + its steps. Stage-scoped handlers render as `POST · condition`; pipeline-level post waits for a selectable root surface, which v1 does not have (visible in Copy JSON instead) |
 
 Sections hide entirely when empty — no stub rows.
 
@@ -598,12 +598,24 @@ graceful degradation, not a mobile layout):
 | Mockup region | Component (planned) | File |
 |---|---|---|
 | Header | App shell | `src/App.tsx` |
+| Header · Samples ▾ | SamplePicker | `src/ui/SamplePicker.tsx` |
 | Editor pane | EditorPane | `src/ui/EditorPane.tsx` |
 | Flow canvas | FlowCanvas | `src/graph/FlowCanvas.tsx` |
 | Stage cards | StageNodeCard | `src/graph/StageNodeCard.tsx` |
 | Details panel | DetailsPanel | `src/ui/DetailsPanel.tsx` |
 | Bottom bar | DiagnosticsBar | `src/ui/DiagnosticsBar.tsx` |
 | Card data | computeLayout output | `src/layout/computeLayout.ts` |
+
+Implementation notes, kept true to the reference:
+
+- The §15 "Partial graph: N of M stages rendered" line computes M as an
+  upper bound: a count of `stage(` call sites in the raw source (the parser
+  cannot know how many stages broken source should contain). The note only
+  appears when error diagnostics exist and the bound exceeds what rendered.
+- §11's ghost cards / dashed edges into unparsed material are deferred:
+  the parser emits no unparsed-region markers yet, so there is nothing
+  honest to draw them from. Diagnostics + partial-graph note carry the
+  story until then.
 
 ---
 

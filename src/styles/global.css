@@ -144,6 +144,8 @@ img {
   justify-content: space-between;
   gap: 16px;
   padding: 12px 20px;
+  /* The M4 action cluster can wrap under the brand on tight windows. */
+  flex-wrap: wrap;
   /* Slightly denser than body so chrome reads as furniture, not content. */
   background: rgba(15, 23, 42, 0.70);
   backdrop-filter: blur(8px);
@@ -195,6 +197,109 @@ img {
 .repo-link:hover {
   color: var(--ink);
   background: var(--accent-soft);
+}
+
+/* ---- Header action cluster (M4): samples, upload, copy JSON ---------------- */
+.header-nav {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Quiet bordered button shared by every header control (mockup §12 chips). */
+.btn {
+  font-family: inherit;
+  font-size: 13px;
+  color: var(--ink-secondary);
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 6px 12px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: color 120ms ease, border-color 120ms ease, background-color 120ms ease;
+}
+
+.btn:hover {
+  color: var(--ink);
+  border-color: var(--border-strong);
+  background: var(--accent-soft);
+}
+
+/* Success flash while "Copied ✓" shows (§17: 1.5s). */
+.btn-copied,
+.btn-copied:hover {
+  color: var(--success);
+  border-color: rgba(52, 211, 153, 0.45);
+  background: rgba(52, 211, 153, 0.08);
+}
+
+/* Hidden file input behind the Upload button (§13). */
+.upload-input {
+  display: none;
+}
+
+/* ---- Sample picker menu ------------------------------------------------------
+   Native-feeling dropdown under the Samples button (mockup §12): keyboard
+   navigable with focus managed via aria-activedescendant on the trigger. */
+.samples-root {
+  position: relative;
+}
+
+.samples-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 40;
+  min-width: 230px;
+  max-height: 60vh;
+  overflow-y: auto;
+  margin: 0;
+  padding: 6px;
+  list-style: none;
+  background: var(--surface-strong);
+  backdrop-filter: blur(8px);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-card);
+  animation: rise-in 160ms ease both;
+}
+
+.samples-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 7px 10px;
+  font-size: 13px;
+  color: var(--ink-secondary);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+.samples-option.active,
+.samples-option:hover {
+  background: var(--accent-soft);
+  color: var(--ink);
+}
+
+.samples-name {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Amber defect badge for samples that demo the diagnostics story. */
+.samples-issue {
+  flex: none;
+  font-size: 11px;
+  color: var(--warning);
 }
 
 /* ---- Workspace split ------------------------------------------------------*/
@@ -358,6 +463,123 @@ img {
   font-size: 12px;
   color: var(--ink-muted);
   margin-bottom: 0 !important;
+}
+
+/* ==========================================================================
+   Details panel (mockup §9): floats over the canvas, right-aligned, 320px,
+   --surface-strong, radius-md, shadow-card. Sections hide when empty; the
+   header stays sticky so STAGE · <name> remains visible while scrolling.
+   ========================================================================== */
+
+.details-panel {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  z-index: 30;
+  width: 320px;
+  max-width: calc(100% - 24px);
+  max-height: calc(100% - 24px);
+  overflow-y: auto;
+  text-align: left;
+  background: var(--surface-strong);
+  backdrop-filter: blur(8px);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-card);
+  animation: rise-in 240ms ease both;
+}
+
+.details-head {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 12px 14px;
+  /* Opaque enough to mask scrolling content beneath the sticky bar. */
+  background: #16202f;
+  border-bottom: 1px solid var(--border);
+}
+
+.details-heading {
+  min-width: 0;
+}
+
+.details-title {
+  font-size: 13px;
+  font-weight: 650;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.details-subline {
+  margin-top: 2px;
+  font-size: 11.5px;
+  color: var(--ink-muted);
+}
+
+.details-close {
+  flex: none;
+  width: 24px;
+  height: 24px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  color: var(--ink-secondary);
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: color 120ms ease, border-color 120ms ease;
+}
+
+.details-close:hover {
+  color: var(--ink);
+  border-color: var(--border-strong);
+}
+
+.details-section {
+  padding: 10px 14px 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.details-section:last-child {
+  border-bottom: none;
+}
+
+.details-section-title {
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-muted);
+  margin-bottom: 6px;
+}
+
+.detail-line {
+  display: flex;
+  gap: 8px;
+  padding: 2px 0;
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: var(--ink-secondary);
+  word-break: break-word;
+}
+
+.detail-line code {
+  font-family: inherit;
+  white-space: pre-wrap;
+}
+
+.detail-bullet {
+  flex: none;
+  color: var(--accent);
 }
 
 /* ==========================================================================
@@ -552,23 +774,54 @@ img {
   color: inherit;
 }
 
-/* ---- Status bar ------------------------------------------------------------*/
+/* ---- Diagnostics bar (mockups §14/§15) --------------------------------------
+   Column shell: one 34px status row, plus the expandable row list beneath.
+   The row's left segment swaps per state (busy / ready / warn / error); the
+   middle slot carries the privacy promise unless a partial-graph note
+   replaces it; the version chip always sits right. */
 .status-bar {
+  display: flex;
+  flex-direction: column;
+  background: rgba(15, 23, 42, 0.78);
+  border-top: 1px solid var(--border);
+}
+
+.status-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  padding: 8px 20px;
+  min-height: 34px;
+  padding: 6px 20px;
   font-size: 12px;
   color: var(--ink-secondary);
-  background: rgba(15, 23, 42, 0.78);
-  border-top: 1px solid var(--border);
 }
 
 .status-item {
   display: inline-flex;
   align-items: center;
   gap: 8px;
+  min-width: 0;
+}
+
+/* Tally button (warn/error states): whole segment toggles expansion. */
+.status-tally {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 2px 6px;
+  margin-left: -6px;
+  font-family: inherit;
+  font-size: inherit;
+  color: inherit;
+  background: none;
+  border: none;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+.status-tally:hover {
+  color: var(--ink);
 }
 
 .status-dot {
@@ -579,11 +832,11 @@ img {
   box-shadow: 0 0 8px rgba(52, 211, 153, 0.6);
 }
 
-/* Busy state while the re-parse debounce settles (mockup §14): accent dot
+/* Busy state while the re-parse debounce settles (mockup §14): accent glyph
    with a gentle pulse; prefers-reduced-motion flattens it globally. */
-.status-dot.status-busy {
-  background: var(--accent);
-  box-shadow: 0 0 8px var(--accent-glow);
+.status-glyph-busy {
+  display: inline-block;
+  color: var(--accent);
   animation: status-pulse 900ms ease-in-out infinite alternate;
 }
 
@@ -596,9 +849,20 @@ img {
   }
 }
 
-/* Error/warning tally line: danger-colored glyph, text carries the counts. */
-.status-problem-icon {
+/* Severity glyphs: ✕ errors in red, ▲ warnings in amber. Color never works
+   alone - the shape differs too (§14). */
+.diag-icon {
+  display: inline-flex;
+  width: 14px;
+  justify-content: center;
+}
+
+.diag-icon.error {
   color: var(--danger);
+}
+
+.diag-icon.warning {
+  color: var(--warning);
 }
 
 .status-note {
@@ -606,9 +870,81 @@ img {
   margin-inline: auto;
 }
 
+/* Partial-graph honesty line (§15 error variant): amber so it reads as
+   "incomplete", distinct from the quiet privacy note it replaces. */
+.status-partial {
+  color: var(--warning);
+}
+
 .status-version {
   color: var(--ink-muted);
   white-space: nowrap;
+}
+
+/* Expanded diagnostic rows (§11): icon, line number, severity word, message.
+   Hover highlights; click jumps the editor caret via App. */
+.diag-list {
+  max-height: 206px; /* expanded bar stays ≤240px total per §19 */
+  overflow-y: auto;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-top: 1px solid var(--border);
+}
+
+.diag-row {
+  display: grid;
+  grid-template-columns: 16px 44px 60px 1fr;
+  align-items: baseline;
+  gap: 10px;
+  width: 100%;
+  padding: 7px 20px;
+  font-family: inherit;
+  font-size: 12px;
+  text-align: left;
+  color: var(--ink-secondary);
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+.diag-row:hover {
+  background: rgba(148, 163, 184, 0.08);
+  color: var(--ink);
+}
+
+.diag-line {
+  text-align: right;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-muted);
+}
+
+.diag-severity {
+  color: var(--ink-muted);
+}
+
+.diag-message {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* One-shot highlight for the card related to a clicked diagnostic (§11). */
+.node-flash {
+  animation: node-flash 900ms ease-out both;
+}
+
+@keyframes node-flash {
+  0%,
+  55% {
+    outline: 2px solid var(--accent);
+    outline-offset: 3px;
+  }
+  100% {
+    outline: 2px solid transparent;
+    outline-offset: 3px;
+  }
 }
 
 /* ---- Motion preferences -----------------------------------------------------*/
