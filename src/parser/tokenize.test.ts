@@ -85,6 +85,21 @@ describe('tokenize - strings', () => {
     expect(tokens[0]?.value).toBe('${NOT_INTERPOLATED} { }')
   })
 
+  it('does not interpolate inside triple-single-quoted strings', () => {
+    // Groovy '''…''' literals are plain strings, so an unclosed ${ must not
+    // swallow the rest of the document (regression: false parse errors).
+    const src = "sh '''\necho ${UNMATCHED\n'''\necho ok"
+    const { tokens, diagnostics } = tokenize(src)
+    expect(diagnostics).toEqual([])
+    expect(tokens.map((t) => t.value)).toEqual(['sh', '\necho ${UNMATCHED\n', 'echo', 'ok'])
+  })
+
+  it('still interpolates inside triple-double-quoted GStrings', () => {
+    const { tokens } = tokenize('"""x ${NAME} y"""')
+    expect(tokens).toHaveLength(1)
+    expect(tokens[0]?.value).toBe('x ${NAME} y')
+  })
+
   it('flags unterminated single-line strings as errors and recovers at newline', () => {
     const { tokens, diagnostics } = tokenize("sh 'abc\necho ok")
     expect(diagnostics).toEqual([

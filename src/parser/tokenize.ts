@@ -8,9 +8,10 @@
 //     interpreter slice raw argument text verbatim (multiline sh scripts
 //     survive intact instead of being re-joined from tokens).
 //   - All four Groovy quote forms are handled ('…', "…", '''…''', """…""),
-//     with backslash escapes. Inside double-quoted forms ${ … } interpolation
-//     is consumed with brace counting so braces inside expressions never
-//     confuse the block matcher downstream.
+//     with backslash escapes. Only GStrings (double-quoted forms) get
+//     ${ … } interpolation consumed, with brace counting so braces inside
+//     expressions never confuse the block matcher downstream; single-quoted
+//     forms are plain literals and keep ${ … } as ordinary characters.
 //   - Comments are stripped here; nothing else in the pipeline sees them.
 //   - tokenize() NEVER throws: malformed input yields diagnostics instead.
 // ---------------------------------------------------------------------------
@@ -49,9 +50,10 @@ const PUNCT = new Set(['{', '}', '(', ')', '[', ']', ',', ':', '=', ';'])
  * Consume one quoted literal starting at offset `start` (src[start] === quote).
  * Returns the offset just past the closing delimiter, the line number at
  * that point, and whether a real closing delimiter was found. Handles
- * backslash escapes, multi-line triple literals, and ${ … } interpolation
- * with brace counting plus nested-quote skipping so a brace or quote inside
- * an expression can never unbalance the stream.
+ * backslash escapes and multi-line triple literals. ${ … } interpolation is
+ * consumed for double-quoted forms only (Groovy GStrings), with brace
+ * counting plus nested-quote skipping so a brace or quote inside an
+ * expression can never unbalance the stream.
  */
 function scanString(
   src: string,
@@ -96,8 +98,9 @@ function scanString(
       continue
     }
 
-    // GString interpolation lives in double-quoted forms only.
-    if ((quote === '"' || triple) && c === '$' && src.charAt(j + 1) === '{') {
+    // GString interpolation lives in double-quoted forms only ('…' and
+    // '''…''' are plain literals whose ${ … } stays verbatim text).
+    if (quote === '"' && c === '$' && src.charAt(j + 1) === '{') {
       j = skipInterpolation(j)
       continue
     }
