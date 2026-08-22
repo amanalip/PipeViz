@@ -414,29 +414,18 @@ img {
   border-bottom: 1px solid var(--border);
 }
 
-.editor-textarea {
-  /* Fill the pane between label and stats footer. */
+/* CodeMirror host (M6): fills the pane between label and stats footer.
+   All editor internals (gutters, active line, selection, caret) are styled
+   inside EditorPane via EditorView.theme using these same tokens, so this
+   rule only sizes and clips the host box. */
+.editor-host {
   flex: 1;
-  width: 100%;
-  resize: none;
-  padding: 14px 16px;
-  background: transparent;
-  border: none;
-  color: var(--ink);
-  /* Code input gets the mono stack and a code-like rhythm. */
-  font-family: var(--font-mono);
-  font-size: 13px;
-  line-height: 1.6;
-  tab-size: 2;
+  min-height: 0;
+  overflow: hidden;
 }
 
-.editor-textarea::placeholder {
-  color: var(--ink-muted);
-}
-
-.editor-textarea:focus-visible {
-  /* Focus is already obvious from the caret; suppress the ring here. */
-  outline: none;
+.editor-host .cm-editor {
+  height: 100%;
 }
 
 .editor-stats {

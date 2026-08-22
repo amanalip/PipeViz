@@ -35,5 +35,11 @@ export default defineConfig({
     target: 'es2022',
     // Source maps make production issues traceable without shipping secrets.
     sourcemap: true,
+    // The M6 CodeMirror editor lifts the single bundle past Rolldown's
+    // default 500 kB advice (~234 kB gzipped total). The editor is core UI,
+    // rendered on every visit, so splitting it out only redistributes bytes
+    // across chunks instead of saving a download; the limit is raised
+    // deliberately rather than silenced blindly.
+    chunkSizeWarningLimit: 900,
   },
 })
