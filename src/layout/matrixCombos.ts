@@ -41,6 +41,48 @@ export function computeMatrixCombos(stage: StageNode): string[][] {
 }
 
 /**
+ * Number of surviving combinations, enumerated lazily WITHOUT materializing
+ * them (the odometer holds one combination at a time). Stops as soon as
+ * `beyond` survivors have been counted, so callers can bound the work:
+ * existence checks pass 1, ceiling checks pass the limit, full counts pass
+ * nothing. Same ordering and exclusion semantics as computeMatrixCombos.
+ */
+export function matrixCombinationCount(stage: StageNode, beyond = Infinity): number {
+  const names = stage.matrixAxes ?? []
+  const valueColumns = stage.matrixAxisValues ?? []
+  if (names.length === 0 || valueColumns.length !== names.length) return 0
+  if (valueColumns.some((values) => values.length === 0)) return 0
+
+  const rules = stage.matrixExcludes ?? []
+  const sizes = valueColumns.map((values) => values.length)
+  const total = sizes.reduce((product, size) => product * size, 1)
+
+  // Odometer over axis indexes, last axis fastest - identical order to the
+  // materialized list - so counts match computeMatrixCombos().length exactly.
+  let counted = 0
+  const combo = names.map((_, axis) => valueColumns[axis]?.[0] ?? '')
+  const index = names.map(() => 0)
+  for (let visited = 0; visited < total && counted < beyond; visited += 1) {
+    if (!rules.some((rule) => excludedByRule(combo, names, rule))) {
+      counted += 1
+      if (counted >= beyond) break
+    }
+    for (let axis = names.length - 1; axis >= 0; axis -= 1) {
+      const size = sizes[axis] ?? 0
+      const nextIndex = (index[axis] ?? 0) + 1
+      if (nextIndex < size) {
+        index[axis] = nextIndex
+        combo[axis] = valueColumns[axis]?.[nextIndex] ?? ''
+        break
+      }
+      index[axis] = 0
+      combo[axis] = valueColumns[axis]?.[0] ?? ''
+    }
+  }
+  return counted
+}
+
+/**
  * True when the combo is disqualified by this rule: every axis the rule
  * names must match one of that axis's forbidden values. Axes the rule does
  * not mention impose no constraint; naming an axis that does not exist
@@ -71,10 +113,11 @@ export function axesLabel(stage: StageNode): string {
   return (stage.matrixAxes ?? []).join(' × ')
 }
 
-/** Whether any stage in the model carries an expandable matrix. */
+/** Whether any stage in the model carries an expandable matrix. Counts
+ * lazily (existence only) instead of materializing every combination. */
 export function hasExpandableMatrix(stages: readonly StageNode[]): boolean {
   return stages.some((stage) => {
-    if (computeMatrixCombos(stage).length > 0) return true
+    if (matrixCombinationCount(stage, 1) > 0) return true
     const nested = [
       ...(stage.parallelBranches ?? []),
       ...(stage.sequentialChildren ?? []),
