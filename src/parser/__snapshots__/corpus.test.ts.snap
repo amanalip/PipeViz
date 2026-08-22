@@ -1,0 +1,697 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`corpus - invariants across every sample > conditional-deploy: matches its model snapshot > [conditional-deploy] PipelineModel 1`] = `
+{
+  "agent": "any",
+  "diagnostics": [],
+  "environmentEntries": [],
+  "kind": "declarative",
+  "options": [
+    {
+      "line": 5,
+      "name": "timestamps",
+    },
+    {
+      "line": 6,
+      "name": "disableConcurrentBuilds",
+    },
+    {
+      "args": "time: 1, unit: 'HOURS'",
+      "line": 7,
+      "name": "timeout",
+    },
+  ],
+  "parameters": [
+    {
+      "name": "TARGET_ENV",
+      "type": "string",
+    },
+    {
+      "name": "MODE",
+      "type": "choice",
+    },
+  ],
+  "postHandlers": [
+    {
+      "condition": "failure",
+      "stage": "Deploy Production",
+      "steps": [
+        {
+          "args": "subject: 'Deploy failed', to: 'ops@example.com'",
+          "kind": "known",
+          "line": 50,
+          "name": "emailext",
+        },
+      ],
+    },
+    {
+      "condition": "unstable",
+      "stage": "Deploy Production",
+      "steps": [
+        {
+          "args": "channel: '#deploys', message: 'Unstable deploy'",
+          "kind": "known",
+          "line": 53,
+          "name": "slackSend",
+        },
+      ],
+    },
+    {
+      "condition": "success",
+      "steps": [
+        {
+          "args": "'All good'",
+          "kind": "known",
+          "line": 64,
+          "name": "echo",
+        },
+      ],
+    },
+  ],
+  "rootStages": [
+    {
+      "id": "s0",
+      "line": 21,
+      "name": "Verify",
+      "steps": [
+        {
+          "args": "'make verify'",
+          "kind": "known",
+          "line": 29,
+          "name": "sh",
+        },
+      ],
+      "when": [
+        "anyOf { … }",
+      ],
+    },
+    {
+      "hasInput": true,
+      "id": "s1",
+      "line": 32,
+      "name": "Approval Gate",
+      "steps": [
+        {
+          "args": "'Approved'",
+          "kind": "known",
+          "line": 38,
+          "name": "echo",
+        },
+      ],
+    },
+    {
+      "id": "s2",
+      "line": 41,
+      "name": "Deploy Production",
+      "steps": [
+        {
+          "args": "'./deploy.sh --env "\${TARGET_ENV}" --mode "\${MODE}"'",
+          "kind": "known",
+          "line": 57,
+          "name": "sh",
+        },
+      ],
+      "when": [
+        "allOf { … }",
+      ],
+    },
+  ],
+  "triggers": [
+    "cron('H 2 * * *')",
+    "upstream(threshold: SUCCESS, upstreamProjects: 'lib/main')",
+  ],
+}
+`;
+
+exports[`corpus - invariants across every sample > matrix-build: matches its model snapshot > [matrix-build] PipelineModel 1`] = `
+{
+  "agent": "none",
+  "diagnostics": [],
+  "environmentEntries": [],
+  "kind": "declarative",
+  "options": [],
+  "parameters": [],
+  "postHandlers": [],
+  "rootStages": [
+    {
+      "id": "s0",
+      "line": 5,
+      "name": "Deps",
+      "steps": [
+        {
+          "args": "'Fetching dependencies once for the whole matrix'",
+          "kind": "known",
+          "line": 7,
+          "name": "echo",
+        },
+      ],
+    },
+    {
+      "id": "s1",
+      "line": 10,
+      "matrixAxes": [
+        "OS",
+        "BROWSER",
+      ],
+      "name": "Matrix Build",
+      "steps": [],
+    },
+    {
+      "id": "s2",
+      "line": 43,
+      "name": "Bundle",
+      "steps": [
+        {
+          "args": "artifacts: 'dist/**', fingerprint: true",
+          "kind": "known",
+          "line": 45,
+          "name": "archiveArtifacts",
+        },
+      ],
+    },
+  ],
+  "triggers": [],
+}
+`;
+
+exports[`corpus - invariants across every sample > messy-realworld: matches its model snapshot > [messy-realworld] PipelineModel 1`] = `
+{
+  "agent": "label 'docker && linux'",
+  "diagnostics": [
+    {
+      "line": 12,
+      "message": "'{' opened here is never closed",
+      "severity": "error",
+    },
+    {
+      "line": 2,
+      "message": "'{' opened here is never closed",
+      "severity": "error",
+    },
+  ],
+  "environmentEntries": [
+    {
+      "key": "REGISTRY",
+      "line": 6,
+      "value": "'registry.example.com'",
+    },
+    {
+      "key": "TAG",
+      "line": 7,
+      "value": ""build-\${BUILD_NUMBER}"",
+    },
+    {
+      "key": "DOCKER_AUTH",
+      "line": 9,
+      "value": "credentials('docker-auth')",
+    },
+  ],
+  "kind": "declarative",
+  "options": [],
+  "parameters": [],
+  "postHandlers": [],
+  "rootStages": [
+    {
+      "id": "s0",
+      "line": 14,
+      "name": "Checkout",
+      "steps": [
+        {
+          "args": "branch: 'develop', url: 'https://example.com/monorepo.git'",
+          "kind": "known",
+          "line": 15,
+          "name": "git",
+        },
+        {
+          "args": "'checked out'",
+          "kind": "known",
+          "line": 15,
+          "name": "echo",
+        },
+      ],
+    },
+    {
+      "id": "s1",
+      "line": 18,
+      "name": "Smoke Test",
+      "steps": [
+        {
+          "args": "'''
+#!/bin/bash
+set -euo pipefail
+echo "smoke testing tag=\${TAG} against registry=\${REGISTRY}"
+curl -fsS "https://\${REGISTRY}/health" | grep -q ok || { echo unhealthy; exit 1; }
+'''",
+          "kind": "known",
+          "line": 20,
+          "name": "sh",
+        },
+      ],
+    },
+    {
+      "id": "s2",
+      "line": 31,
+      "name": "Broken Tail",
+      "steps": [
+        {
+          "args": "'echo windows path'",
+          "kind": "known",
+          "line": 33,
+          "name": "bat",
+        },
+        {
+          "args": "artifacts: 'logs/**/*.log', allowEmptyArchive: true",
+          "kind": "known",
+          "line": 34,
+          "name": "archiveArtifacts",
+        },
+        {
+          "args": "'Never Reached'",
+          "kind": "unknown",
+          "line": 36,
+          "name": "stage",
+        },
+        {
+          "kind": "unknown",
+          "line": 37,
+          "name": "steps",
+        },
+        {
+          "args": "'unreachable'",
+          "kind": "known",
+          "line": 38,
+          "name": "echo",
+        },
+      ],
+    },
+  ],
+  "triggers": [],
+}
+`;
+
+exports[`corpus - invariants across every sample > parallel-tests: matches its model snapshot > [parallel-tests] PipelineModel 1`] = `
+{
+  "agent": "label 'linux'",
+  "diagnostics": [],
+  "environmentEntries": [],
+  "kind": "declarative",
+  "options": [],
+  "parameters": [],
+  "postHandlers": [],
+  "rootStages": [
+    {
+      "id": "s0",
+      "line": 5,
+      "name": "Build",
+      "steps": [
+        {
+          "args": "'make all'",
+          "kind": "known",
+          "line": 7,
+          "name": "sh",
+        },
+      ],
+    },
+    {
+      "failFast": true,
+      "id": "s1",
+      "line": 10,
+      "name": "Test",
+      "parallelBranches": [
+        {
+          "id": "s1/p0",
+          "line": 13,
+          "name": "Unit",
+          "steps": [
+            {
+              "args": "'make test-unit'",
+              "kind": "known",
+              "line": 15,
+              "name": "sh",
+            },
+          ],
+        },
+        {
+          "id": "s1/p1",
+          "line": 18,
+          "name": "Integration",
+          "steps": [
+            {
+              "args": "'make test-integration'",
+              "kind": "known",
+              "line": 20,
+              "name": "sh",
+            },
+          ],
+        },
+        {
+          "id": "s1/p2",
+          "line": 23,
+          "name": "Lint",
+          "steps": [
+            {
+              "args": "'eslint .'",
+              "kind": "known",
+              "line": 25,
+              "name": "npx",
+            },
+          ],
+        },
+      ],
+      "steps": [],
+    },
+    {
+      "id": "s2",
+      "line": 30,
+      "name": "Report",
+      "steps": [
+        {
+          "args": "'out/*.xml'",
+          "kind": "known",
+          "line": 32,
+          "name": "junit",
+        },
+        {
+          "args": "target: [reportDir: 'coverage']",
+          "kind": "known",
+          "line": 33,
+          "name": "publishHTML",
+        },
+      ],
+    },
+  ],
+  "triggers": [],
+}
+`;
+
+exports[`corpus - invariants across every sample > scripted-classic: matches its model snapshot > [scripted-classic] PipelineModel 1`] = `
+{
+  "diagnostics": [
+    {
+      "line": 1,
+      "message": "Scripted pipeline detected: showing stages and steps only",
+      "severity": "warning",
+    },
+  ],
+  "environmentEntries": [],
+  "kind": "scripted",
+  "options": [],
+  "parameters": [],
+  "postHandlers": [],
+  "rootStages": [
+    {
+      "agent": "node 'built-in'",
+      "id": "s0",
+      "line": 7,
+      "name": "Prepare",
+      "steps": [
+        {
+          "args": "scm",
+          "kind": "known",
+          "line": 8,
+          "name": "checkout",
+        },
+        {
+          "args": "version = sh(script: 'git describe --tags', returnStdout: true).trim()",
+          "kind": "script",
+          "line": 9,
+          "name": "version",
+        },
+      ],
+    },
+    {
+      "agent": "node 'built-in'",
+      "id": "s1",
+      "line": 13,
+      "name": "Compile",
+      "steps": [
+        {
+          "args": "["VERSION=\${version}"]",
+          "kind": "known",
+          "line": 14,
+          "name": "withEnv",
+        },
+        {
+          "args": "'make compile'",
+          "kind": "known",
+          "line": 15,
+          "name": "sh",
+        },
+      ],
+    },
+    {
+      "agent": "node 'built-in'",
+      "id": "s2",
+      "line": 19,
+      "name": "Containerize",
+      "sequentialChildren": [
+        {
+          "agent": "node 'built-in'",
+          "id": "s3",
+          "line": 20,
+          "name": "Image",
+          "steps": [
+            {
+              "args": "build("app:\${version}")",
+              "kind": "known",
+              "line": 21,
+              "name": "docker",
+            },
+          ],
+        },
+        {
+          "agent": "node 'built-in'",
+          "id": "s4",
+          "line": 23,
+          "name": "Push",
+          "steps": [
+            {
+              "args": "'docker push'",
+              "kind": "known",
+              "line": 24,
+              "name": "sh",
+            },
+          ],
+        },
+      ],
+      "steps": [],
+    },
+    {
+      "agent": "node 'built-in'",
+      "id": "s5",
+      "line": 31,
+      "name": "Cleanup",
+      "steps": [
+        {
+          "args": undefined,
+          "kind": "known",
+          "line": 32,
+          "name": "deleteDir",
+        },
+      ],
+    },
+  ],
+  "triggers": [],
+}
+`;
+
+exports[`corpus - invariants across every sample > sequential-groups: matches its model snapshot > [sequential-groups] PipelineModel 1`] = `
+{
+  "agent": "docker { image 'node:18' args '-u root' }",
+  "diagnostics": [],
+  "environmentEntries": [],
+  "kind": "declarative",
+  "options": [],
+  "parameters": [],
+  "postHandlers": [],
+  "rootStages": [
+    {
+      "id": "s0",
+      "line": 5,
+      "name": "Preparation",
+      "steps": [
+        {
+          "args": "url: 'https://example.com/app.git', branch: 'main'",
+          "kind": "known",
+          "line": 7,
+          "name": "git",
+        },
+      ],
+    },
+    {
+      "id": "s1",
+      "line": 10,
+      "name": "Quality Suite",
+      "sequentialChildren": [
+        {
+          "id": "s1/sq0",
+          "line": 13,
+          "name": "Static Analysis",
+          "steps": [
+            {
+              "args": "'tsc --noEmit'",
+              "kind": "known",
+              "line": 15,
+              "name": "npx",
+            },
+          ],
+        },
+        {
+          "id": "s1/sq1",
+          "line": 18,
+          "name": "Deep Checks",
+          "sequentialChildren": [
+            {
+              "id": "s1/sq1/sq0",
+              "line": 20,
+              "name": "Types",
+              "steps": [
+                {
+                  "args": "'tsprune'",
+                  "kind": "known",
+                  "line": 22,
+                  "name": "npx",
+                },
+              ],
+            },
+            {
+              "id": "s1/sq1/sq1",
+              "line": 25,
+              "name": "Dead Code",
+              "steps": [
+                {
+                  "args": "'knip'",
+                  "kind": "known",
+                  "line": 27,
+                  "name": "npx",
+                },
+              ],
+            },
+          ],
+          "steps": [],
+        },
+      ],
+      "steps": [],
+      "when": [
+        "not { … }",
+      ],
+    },
+    {
+      "id": "s2",
+      "line": 34,
+      "name": "Package",
+      "steps": [
+        {
+          "args": "'dist'",
+          "kind": "known",
+          "line": 36,
+          "name": "dir",
+        },
+        {
+          "args": "name: 'bundle', includes: '*.js'",
+          "kind": "known",
+          "line": 37,
+          "name": "stash",
+        },
+      ],
+    },
+  ],
+  "triggers": [],
+}
+`;
+
+exports[`corpus - invariants across every sample > simple-ci: matches its model snapshot > [simple-ci] PipelineModel 1`] = `
+{
+  "agent": "any",
+  "diagnostics": [],
+  "environmentEntries": [
+    {
+      "key": "APP_NAME",
+      "line": 5,
+      "value": "'pipeviz-demo'",
+    },
+    {
+      "key": "BUILD_DIR",
+      "line": 6,
+      "value": ""work/\${BUILD_NUMBER}"",
+    },
+  ],
+  "kind": "declarative",
+  "options": [],
+  "parameters": [],
+  "postHandlers": [
+    {
+      "condition": "always",
+      "steps": [
+        {
+          "args": "'Pipeline finished'",
+          "kind": "known",
+          "line": 35,
+          "name": "echo",
+        },
+      ],
+    },
+  ],
+  "rootStages": [
+    {
+      "id": "s0",
+      "line": 10,
+      "name": "Checkout",
+      "steps": [
+        {
+          "args": "scm",
+          "kind": "known",
+          "line": 12,
+          "name": "checkout",
+        },
+      ],
+    },
+    {
+      "id": "s1",
+      "line": 15,
+      "name": "Build",
+      "steps": [
+        {
+          "args": "'make build'",
+          "kind": "known",
+          "line": 17,
+          "name": "sh",
+        },
+      ],
+    },
+    {
+      "id": "s2",
+      "line": 20,
+      "name": "Test",
+      "steps": [
+        {
+          "args": "'make test'",
+          "kind": "known",
+          "line": 22,
+          "name": "sh",
+        },
+        {
+          "args": "'reports/*.xml'",
+          "kind": "known",
+          "line": 23,
+          "name": "junit",
+        },
+      ],
+    },
+    {
+      "id": "s3",
+      "line": 26,
+      "name": "Deploy",
+      "steps": [
+        {
+          "args": "'make deploy'",
+          "kind": "known",
+          "line": 28,
+          "name": "sh",
+        },
+      ],
+    },
+  ],
+  "triggers": [],
+}
+`;
