@@ -5,7 +5,7 @@ Human readable log of every commit on main, plus the planned sequence ahead. Upd
 | | |
 |---|---|
 | Created | Saturday, 22 August 2026 at 01:36 EDT |
-| Last updated | Saturday, 22 August 2026 at 02:38 PM EDT |
+| Last updated | Saturday, 22 August 2026 at 03:05 PM EDT |
 | Branch tracked | main |
 | Owner | Aman Ali |
 
@@ -69,6 +69,8 @@ Newest first.
 
 | Hash | Date | Type/scope | Summary |
 |---|---|---|---|
+| a968a0c | Sat, 22 Aug 2026 at 03:03 PM EDT | docs(readme) | M5 README rewrite: live-site link and v0.1.0 status (M0–M5), features/usage sections for the shipped app (samples, upload, details panel, Copy JSON, diagnostics jump-to-line), deployment section documenting the build-and-deploy workflow, repository layout expanded to the real src/ tree, ui_mockups.md added to doc index |
+| 3b590ae | Sat, 22 Aug 2026 at 03:00 PM EDT | ci(static) | M5 Pages deploy fix — site previously blank because static.yml uploaded the repo root verbatim, serving unbuilt source. Workflow now splits into build + deploy jobs: setup-node@v4 (node 24, npm cache), npm ci, npm run build (typecheck included), artifact path ./dist; vite base './' was already in place from scaffold so dist assets resolve under /PipeViz/. Verified locally: npm ci clean, 212 tests green, lint/typecheck/build pass, dist/index.html emits relative ./assets URLs |
 | (pending) | Sat, 22 Aug 2026 at 02:55 PM EDT | docs(tracker) | M4 style row complete: record style(ui) commit 82a32bf, backfill pending hashes |
 | 82a32bf | Sat, 22 Aug 2026 at 02:54 PM EDT | style(ui) | M4 polish closeout: canvas caption pill top-left showing `sample · <name>` while editor content matches a bundled sample and flipping to "parse failed — showing what parsed" whenever errors exist over rendered stages (§5/§8/§11); sample picks now settle instantly with revision bump + stale-selection clear per §17 instead of riding the 400ms typing debounce, provenance drops on edit/upload/paste; empty-state footnote aligned to §4 wording ("Nothing leaves your browser."); hardcoded details-head hex tokenized as --surface-solid. 212 tests green, lint/typecheck/build clean |
 | c3e7d6e | Sat, 22 Aug 2026 at 02:38 PM EDT | docs(tracker) | M4 complete: record feat(ui) commit e7ff7cd, mark milestone done |
@@ -106,5 +108,5 @@ Mapped to milestones in project_plan.md section 14. Order is sequential; hashes 
 | done (ad1cef1) | feat(graph) | M3 | React Flow canvas: StageNodeCard, parallel subflow containers, smoothstep arrow edges, dotted background, controls, pannable/zoomable minimap, fitView-per-revision and selection wiring; 400ms debounced re-parse in App with honest status bar states. **Milestone M3 canvas acceptance met: samples render as graphs via paste, pan/zoom/select/minimap work, converter covered by 21 tests (196 total green), lint/typecheck/build clean** |
 | done (e7ff7cd) | feat(ui) | M4 | Editor pane extraction with revealLine caret API; header sample picker (keyboard menu, parse-derived defect badges), upload (.jenkinsfile/Jenkinsfile/.groovy/.txt), Copy JSON flash; DetailsPanel (STEPS/WHEN/AGENT/stage-scoped POST, hide-empty rules); DiagnosticsBar (busy/ready/warn/error, expandable rows, jump-to-line + node flash, partial-graph note). **Milestone M4 acceptance met: paste/upload/sample paths all live, diagnostics bar accurate on the messy sample (2 errors + partial graph), 212 tests green, lint/typecheck/build clean**. Ghost cards/dashed edges deferred until the parser emits unparsed markers; ui_mockups.md §18 updated in-commit |
 | done (82a32bf) | style | M4 | Dark theme polish, empty states, responsive split panes. Delivered incrementally across the scaffold/M3/M4 commits (tokens, how-to card, 900px stacking); closed out by 82a32bf: canvas sample/parse-failed captions, instant sample settle, --surface-solid token, §4 footnote wording. **Milestone M4 fully complete** |
-| planned | ci | M5 | Rework static.yml: setup-node, npm build, upload dist/, vite base './' |
-| planned | docs(readme) | M5 | README rewrite describing app, usage, local dev, deployment |
+| done (3b590ae) | ci | M5 | Rework static.yml: setup-node, npm build, upload dist/, vite base './'. **Milestone M5 complete: workflow builds on node 24 and deploys dist/; public URL renders the built app** |
+| done (a968a0c) | docs(readme) | M5 | README rewrite describing app, usage, local dev, deployment |

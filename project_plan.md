@@ -5,8 +5,8 @@ A browser based tool that turns Jenkins pipeline definitions into an interactive
 | | |
 |---|---|
 | Created | Saturday, 22 August 2026 at 01:36 EDT |
-| Last updated | Saturday, 22 August 2026 at 01:25 PM EDT |
-| Status | Implementation under way; M0–M2 complete (parser, layout engine + test suites) |
+| Last updated | Saturday, 22 August 2026 at 03:05 PM EDT |
+| Status | Implementation under way; M0–M4 complete (parser, layout, canvas, full UI), M5 complete as of 22 Aug 2026 03:00 PM EDT (Pages builds and deploys dist/) |
 | Owner | Aman Ali |
 
 ## Table of Contents
@@ -340,7 +340,7 @@ Bundled examples double as documentation and parser fixtures:
 
 ## 13. Deployment
 
-Current `.github/workflows/static.yml` uploads the repository root verbatim. That works for hand written HTML but breaks for a built app. Changes required:
+Current `.github/workflows/static.yml` uploads the repository root verbatim. That works for hand written HTML but breaks for a built app. Changes required (applied in commit 3b590ae, 22 Aug 2026):
 
 1. Add `actions/setup-node@v4` with `node-version: 24` and npm cache.
 2. Run `npm ci && npm run build` before artifact upload.
