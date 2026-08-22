@@ -5,8 +5,8 @@ A browser based tool that turns Jenkins pipeline definitions into an interactive
 | | |
 |---|---|
 | Created | Saturday, 22 August 2026 at 01:36 EDT |
-| Last updated | Saturday, 22 August 2026 at 03:20 EDT |
-| Status | Implementation under way; M0 and M1 complete (parser + corpus test suite) |
+| Last updated | Saturday, 22 August 2026 at 01:25 PM EDT |
+| Status | Implementation under way; M0–M2 complete (parser, layout engine + test suites) |
 | Owner | Aman Ali |
 
 ## Table of Contents
