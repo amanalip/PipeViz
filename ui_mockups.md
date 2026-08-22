@@ -453,7 +453,10 @@ Rules:
   right-aligned, severity word, message. Hover highlights the row; click
   focuses the editor line and flashes the related node if one exists.
 - Ghost cards are laid out by the normal algorithm (they reserve real space),
-  filled `░`, non-clickable.
+  filled `░`, non-clickable. Shipped at M7: a ghost titles itself with the
+  recovered stage name when the demoted call carried one
+  (`░ Never Reached ░`), subline `unparsed · lines <start>-<end>`;
+  nameless regions fall back to `░ unparsed ░`.
 - Fixing the last error collapses the bar back to a one-line summary.
 
 ---
@@ -636,12 +639,22 @@ Implementation notes, kept true to the reference:
 
 - The §15 "Partial graph: N of M stages rendered" line computes M as an
   upper bound: a count of `stage(` call sites in the raw source (the parser
-  cannot know how many stages broken source should contain). The note only
-  appears when error diagnostics exist and the bound exceeds what rendered.
-- §11's ghost cards / dashed edges into unparsed material are deferred:
-  the parser emits no unparsed-region markers yet, so there is nothing
-  honest to draw them from. Diagnostics + partial-graph note carry the
-  story until then.
+  cannot know how many stages broken source should contain). Ghost cards
+  count toward what rendered: once every stage call is a card or a ghost,
+  the graph itself accounts for the whole file and the note steps aside.
+  It only appears when error diagnostics exist and the bound still exceeds
+  rendered surfaces. The canvas also mounts on unparsed material alone -
+  a broken file with zero parsed stages shows its ghost plus diagnostics,
+  never the cheerful how-to card (§11: never a blank screen).
+- Shipped at M7 (previously deferred): stage calls that brace recovery
+  demoted - an unclosed brace swallowing later stages, or a stray `}`
+  dropping one out of scope - become ghost cards joined by dashed edges.
+  parser/unparsed.ts reports every stage-shaped block whose source line
+  never rendered as an UnparsedRegion (matrix cell stages are excluded:
+  their MATRIX card accounts for them); layout chains one dimmed ░ card
+  per region after whatever parsed; ghosts are non-selectable, so no
+  details panel ever opens for them and they stay out of stage/step
+  tallies.
 
 ---
 

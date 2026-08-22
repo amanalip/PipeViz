@@ -5,7 +5,7 @@ Human readable log of every commit on main, plus the planned sequence ahead. Upd
 | | |
 |---|---|
 | Created | Saturday, 22 August 2026 at 01:36 EDT |
-| Last updated | Saturday, 22 August 2026 at 04:15 PM EDT |
+| Last updated | Saturday, 22 August 2026 at 05:30 PM EDT |
 | Branch tracked | main |
 | Owner | Aman Ali |
 
@@ -69,7 +69,10 @@ Newest first.
 
 | Hash | Date | Type/scope | Summary |
 |---|---|---|---|
-| (pending) | Sat, 22 Aug 2026 at 04:15 PM EDT | docs(plan) | M6 complete: record the five feature commits, update plan/mockups/README to match shipped reality |
+| 6ee0e83 | Sat, 22 Aug 2026 at 05:28 PM EDT | fix(ui) | Copy link no longer drops the /PipeViz/ deployment subpath: pageUrlWithHash assembles share URLs from location parts instead of resolving the raw hash against the origin (regression-tested); nine effect tints (selection ring, chip/pill borders, copied/failed flashes, dot glow, row hover) tokenized with byte-identical dark values and deeper light-theme counterparts; header nav JSX indentation tidy |
+| e75d9ec | Sat, 22 Aug 2026 at 05:20 PM EDT | feat(graph) | M7 ghost cards for unparsed source regions (mockups §11): parser/unparsed.ts reports stage-shaped blocks whose line never rendered as UnparsedRegions (matrix cells excluded, nested demotions collapsed); layout chains one dimmed ░ leaf per region with stable u<i> ids; toFlow renders inert non-selectable ghost nodes, dashes edges into them, fainter minimap swatch; App keeps ghosts out of stage/step tallies while counting them toward the partial-graph bound, and mounts the canvas on unparsed material alone instead of the how-to card when errors hold content; messy sample now draws Checkout → Smoke Test → Broken Tail → ghost 'Never Reached' |
+| c93630c | Sat, 22 Aug 2026 at 04:16 PM EDT | style(ui) | purge em dashes from shipped copy |
+| ce9a126 | Sat, 22 Aug 2026 at 04:15 PM EDT | docs(plan) | M6 complete: record the five feature commits, update plan/mockups/README to match shipped reality (hash backfilled by the M7 tracker pass) |
 | bf72dd0 | Sat, 22 Aug 2026 at 04:08 PM EDT | feat(editor) | CodeMirror 6 source editor behind EditorPane's unchanged API: Groovy highlighting via StreamLanguage with token-bound colors (theme flips restyle it for free), line numbers, active line, bracket matching, history, wrapping; Tab still indents two spaces; controlled shell over uncontrolled view with echo guard; revealLine now selects + centers the line. Six exact-pinned @codemirror/@lezer packages; chunkSizeWarningLimit raised to 900 with rationale |
 | 03cf9be | Sat, 22 Aug 2026 at 03:58 PM EDT | feat(ui) | Light color scheme behind a persisted header toggle: [data-theme='light'] token overrides, hardcoded chrome rgba values moved onto tokens, theme.ts (sanitize/load/store + CANVAS_PALETTES for dots/minimap/edges that CSS cannot reach), ReactFlow colorMode follows, index.html pre-paint script kills the dark flash on reload; dark palette byte-identical to pre-theme values |
 | 6742bd5 | Sat, 22 Aug 2026 at 03:44 PM EDT | feat(ui) | URL hash sharing: pipeline source as base64url UTF-8 under #p=, dependency-free codec whose decode never throws (bad payloads boot empty); App boots settled from the hash with sample-provenance restore; replaceState sync keeps typing out of history; Copy link button flushes unsaved edits before writing the clipboard |
@@ -121,3 +124,6 @@ Mapped to milestones in project_plan.md section 14. Order is sequential; hashes 
 | done (6742bd5) | feat(ui) | M6 | URL hash sharing: never-throw base64url codec, hash-boot with sample provenance restore, replaceState sync, Copy link button |
 | done (03cf9be) | feat(ui) | M6 | Light theme: token overrides + chrome tokens extracted, canvas palette module, persisted toggle, pre-paint script against dark flash |
 | done (bf72dd0) | feat(editor) | M6 | CodeMirror 6 editor swap behind the unchanged EditorPane API; Groovy highlighting themed via CSS variables; six exact-pinned packages. **Milestone M6 complete: all five backlog candidates shipped, 253 tests green, lint/typecheck/build clean** |
+| done (e75d9ec) | feat(graph) | M7 | Unparsed-region ghosts (mockups §11): parser unparsed-region markers from demoted stage calls (matrix cells excluded), layout ghost leaves with stable ids, inert ghost node type + dashed edges + minimap swatch, App tallies/bound/canvas-gating updates, hatched card styling; 20 new tests (273 total). **Milestone M7 complete: lint/typecheck/build clean** |
+| done (6ee0e83) | fix(ui) | M7 | Share-link subpath regression fixed (pageUrlWithHash keeps /PipeViz/ in copied URLs, regression-tested); effect tints tokenized for theme coherence with byte-identical dark values; JSX/whitespace tidies |
+| done (this commit) | docs(plan/tracker/mockups) | M7 | Sync all three MDs to shipped reality: plan gains the M7 milestone and parser/unparsed.ts in the layout tree, mockups §11/§18 replace the deferral note with the implementation contract, tracker records both M7 commits plus backfilled ce9a126/c93630c history rows |

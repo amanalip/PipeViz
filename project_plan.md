@@ -5,8 +5,8 @@ A browser based tool that turns Jenkins pipeline definitions into an interactive
 | | |
 |---|---|
 | Created | Saturday, 22 August 2026 at 01:36 EDT |
-| Last updated | Saturday, 22 August 2026 at 04:10 PM EDT |
-| Status | Implementation under way; M0–M5 complete (parser, layout, canvas, full UI, Pages builds and deploys dist/); M6 complete as of 22 Aug 2026 04:00 PM EDT (all five backlog candidates shipped: matrix axis expansion, PNG export, URL hash sharing, light theme, CodeMirror editor) |
+| Last updated | Saturday, 22 August 2026 at 05:30 PM EDT |
+| Status | Implementation under way; M0–M5 complete (parser, layout, canvas, full UI, Pages builds and deploys dist/); M6 complete as of 22 Aug 2026 04:00 PM EDT (all five backlog candidates shipped: matrix axis expansion, PNG export, URL hash sharing, light theme, CodeMirror editor); M7 complete as of 22 Aug 2026 05:30 PM EDT (mockups §11 ghost cards with dashed edges for unparsed regions) |
 | Owner | Aman Ali |
 
 ## Table of Contents
@@ -125,6 +125,7 @@ src/
     blockTree.ts        brace matching into a block tree
     interpret.ts        block tree -> PipelineModel (declarative)
     scripted.ts         fallback scan for scripted pipelines
+    unparsed.ts         unparsed-region markers: stage calls brace recovery demoted (M7)
     index.ts            public parseJenkinsfile(text): PipelineModel
     knownSteps.ts       dictionary of common step names for icons/kinds
   model/
@@ -294,7 +295,7 @@ Single screen, three regions:
 - Sample picker loads bundled examples without wiping the editor until the user confirms? No: samples replace immediately, undo is out of scope for v1, but a "revert" affordance keeps last manually typed content in memory.
 - Export PNG: shipped at M6 via html-to-image; React Flow's own getNodesBounds/getViewportForBounds frame the shot so controls and minimap stay out of it.
 - URL sharing: shipped at M6; the pipeline source rides in the location hash as base64url UTF-8 under `p=`, synced with replaceState, decoded defensively at boot.
-- Empty states: no input shows a short how-to card on the canvas; unparseable input shows diagnostics prominently with the partial graph behind them.
+- Empty states: no input shows a short how-to card on the canvas; unparseable input shows diagnostics prominently with the partial graph behind them. M7: stage calls brace recovery demoted render as dimmed ghost cards joined by dashed edges (mockups §11), so even a file with zero parsed stages draws its unparsed material plus the diagnostics bar instead of the how-to card.
 - Dark theme shipped as the default; the M6 light theme is a CSS variable override keyed off `[data-theme='light']`, toggled and persisted from the header.
 
 ### Branding
@@ -371,6 +372,7 @@ Each milestone ends in one or more commits tracked in commit_tracker.md.
 | M4 | Full UI | Paste/upload/sample paths all live; diagnostics bar accurate on messy sample |
 | M5 | CI/CD | Pages deploys dist; public URL renders correct app; assets load under /PipeViz/ base |
 | M6 | Backlog candidates | PNG export, light theme, matrix axis expansion, URL hash sharing, CodeMirror editor. **Complete as of 22 Aug 2026 04:00 PM EDT**: all five shipped with tests green (253 total) and lint/typecheck/build clean |
+| M7 | Unparsed-region ghosts | Stage calls brace recovery demoted surface as ░ ghost cards with dashed incoming edges (mockups §11); ghosts are non-clickable, stay out of stage/step tallies, count toward the partial-graph bound, and the canvas shows them even when nothing parsed. **Complete as of 22 Aug 2026 05:30 PM EDT**: 273 tests green, lint/typecheck/build clean; share-link subpath regression fixed in the same milestone |
 
 Order matters: M1 and M2 are pure logic with tests, M3/M4 make it visible, M5 ships it.
 
