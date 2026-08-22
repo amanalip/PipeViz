@@ -51,10 +51,11 @@ function collectStageBlocks(node: BlockNode, sink: BlockNode[], insideMatrix = f
   }
 }
 
-/** Source line of every stage that rendered, however deeply it nests. */
-function collectRenderedLines(stages: readonly StageNode[], sink: Set<number>): void {
+/** Source line -> how many stages rendered on it (two calls may share one
+ * line), however deeply they nest. */
+function collectRenderedLines(stages: readonly StageNode[], sink: Map<number, number>): void {
   for (const stage of stages) {
-    sink.add(stage.line)
+    sink.set(stage.line, (sink.get(stage.line) ?? 0) + 1)
     if (stage.parallelBranches) collectRenderedLines(stage.parallelBranches, sink)
     if (stage.sequentialChildren) collectRenderedLines(stage.sequentialChildren, sink)
   }
@@ -80,13 +81,11 @@ export function collectUnparsedRegions(
   const blocks: BlockNode[] = []
   collectStageBlocks(root, blocks)
 
-  const rendered = new Set<number>()
-  collectRenderedLines(model.rootStages, rendered)
-
-  // Greedy consumption: two stage calls sharing one line may only both be
-  // "rendered" if the model really produced two cards for that line.
+  // Greedy consumption: each block consumes one rendered card on its line.
+  // Counts (not a set) keep multiplicity: two stage calls sharing one line
+  // are only both "rendered" if the model really produced two cards there.
   const renderedRemaining = new Map<number, number>()
-  for (const line of rendered) renderedRemaining.set(line, 1)
+  collectRenderedLines(model.rootStages, renderedRemaining)
 
   const regions: UnparsedRegion[] = []
   for (const block of blocks) {

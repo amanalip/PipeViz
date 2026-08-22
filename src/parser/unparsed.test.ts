@@ -82,6 +82,28 @@ describe('unparsed regions - nested demoted stages collapse into one region', ()
   })
 })
 
+describe('unparsed regions - two rendered stages sharing one source line', () => {
+  // Both stage calls sit on line 4 and both render as separate cards. The
+  // rendered-line bookkeeping must count multiplicity, or the second call
+  // looks unrendered and produces a false ghost (regression).
+  const SHARED_LINE = `pipeline {
+  stages {
+    stage('A') { steps { echo 'a' } }; stage('B') { steps { echo 'b' } }
+  }
+}
+`
+  const model = parseJenkinsfile(SHARED_LINE)
+
+  it('renders both same-line stages', () => {
+    expect(model.rootStages.map((s) => s.name)).toEqual(['A', 'B'])
+    expect(new Set(model.rootStages.map((s) => s.line))).toEqual(new Set([3]))
+  })
+
+  it('reports no unparsed material', () => {
+    expect(model.unparsedRegions).toEqual([])
+  })
+})
+
 describe('unparsed regions - scripted nesting is rendering, not loss', () => {
   // Scripted containment deliberately nests inner stages as sequential
   // children. Both calls render, so nothing counts as unparsed.
