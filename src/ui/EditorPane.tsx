@@ -103,6 +103,12 @@ const PIPEVIZ_THEME = EditorView.theme({
 export function EditorPane({ value, onChange, apiRef }: EditorPaneProps) {
   const hostRef = useRef<HTMLDivElement>(null)
   const viewRef = useRef<EditorView | null>(null)
+  // True while this component is pushing external content INTO the view.
+  // CodeMirror update listeners fire synchronously during dispatch, so the
+  // sync effect's own transaction would otherwise echo back through
+  // onChange - App read that echo as a user edit and dropped the sample
+  // provenance (canvas caption) the instant it was set.
+  const syncingRef = useRef(false)
   // Latest onChange without rebuilding state extensions (keeps the mount
   // effect dependency-free).
   const onChangeRef = useRef(onChange)
@@ -138,7 +144,7 @@ export function EditorPane({ value, onChange, apiRef }: EditorPaneProps) {
         '# Paste a declarative or scripted Jenkinsfile here.\n\nExample:\npipeline {\n  agent any\n  stages {\n    stage(\'Build\') {\n      steps {\n        sh \'make build\'\n      }\n    }\n  }\n}',
       ),
       EditorView.updateListener.of((update) => {
-        if (update.docChanged) onChangeRef.current(update.state.doc.toString())
+        if (update.docChanged && !syncingRef.current) onChangeRef.current(update.state.doc.toString())
       }),
     ]
 
@@ -157,14 +163,20 @@ export function EditorPane({ value, onChange, apiRef }: EditorPaneProps) {
 
   // External content swaps (samples, uploads, shared links, diagnostics-free
   // resets) push into the view; edits that originated inside it are no-ops.
+  // The dispatch is synchronous, so the flag cleanly brackets its echo.
   useEffect(() => {
     const view = viewRef.current
     if (!view) return
     const current = view.state.doc.toString()
     if (value !== current) {
-      view.dispatch({
-        changes: { from: 0, to: current.length, insert: value },
-      })
+      syncingRef.current = true
+      try {
+        view.dispatch({
+          changes: { from: 0, to: current.length, insert: value },
+        })
+      } finally {
+        syncingRef.current = false
+      }
     }
   }, [value])
 

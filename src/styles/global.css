@@ -243,6 +243,14 @@ img {
   background: var(--header-bg);
   backdrop-filter: blur(8px);
   border-bottom: 1px solid var(--border);
+  /* Chrome must win hit-testing against the workspace panes that follow it:
+     they paint later in DOM order at the same stacking level, and the
+     canvas pane's transparent surface would otherwise swallow every click
+     aimed at UI hanging out of the header (the sample menu drops below the
+     header edge). backdrop-filter already makes this row a stacking
+     context; the explicit elevation puts that context above them all. */
+  position: relative;
+  z-index: 50;
 }
 
 .brand {
