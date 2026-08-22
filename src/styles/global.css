@@ -1,0 +1,414 @@
+/* ===========================================================================
+   global.css - PipeViz design system (M0 foundation).
+
+   Dark theme only for v1 (plan section 10), but every color lives in a CSS
+   custom property so the light theme later is a variable swap, not a hunt.
+   Brand tokens come straight from the logo spec (plan "Branding"):
+     - background gradient  #0f172a -> #1e293b
+     - lane strokes         #22d3ee -> #38bdf8   (cyan scale = accent)
+     - lane dots            #7dd3fc             (soft cyan)
+     - ink                  #f1f5f9             (near-white text)
+   ======================================================================== */
+
+/* ---- Design tokens ------------------------------------------------------- */
+:root {
+  /* Base backgrounds: deep slate gradient stops from the brand badge. */
+  --bg-0: #0f172a;
+  --bg-1: #1e293b;
+
+  /* Raised surfaces sitting above the page background. */
+  --surface: rgba(30, 41, 59, 0.55);
+  --surface-strong: rgba(30, 41, 59, 0.85);
+
+  /* Hairline borders; two steps so hover states can brighten subtly. */
+  --border: rgba(148, 163, 184, 0.16);
+  --border-strong: rgba(148, 163, 184, 0.30);
+
+  /* Text ramp: primary ink, comfortable secondary, and quiet metadata. */
+  --ink: #f1f5f9;
+  --ink-secondary: #94a3b8;
+  --ink-muted: #64748b;
+
+  /* Accent scale lifted from the logo lanes. */
+  --accent: #22d3ee;
+  --accent-2: #38bdf8;
+  --accent-soft: rgba(34, 211, 238, 0.12);
+  --accent-glow: rgba(34, 211, 238, 0.35);
+
+  /* Semantic colors reserved for diagnostics work arriving at M4. */
+  --success: #34d399;
+  --warning: #fbbf24;
+  --danger: #f87171;
+
+  /* Typography: system stacks keep the bundle tiny and rendering native. */
+  --font-ui: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: ui-monospace, 'JetBrains Mono', 'Fira Code', Menlo, Consolas, monospace;
+
+  /* Shape vocabulary: small controls, cards, and the pill chips. */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 16px;
+
+  /* Elevation: one soft ambient shadow reused by floating panels/cards. */
+  --shadow-card: 0 18px 50px rgba(2, 6, 23, 0.45);
+}
+
+/* ---- Reset ---------------------------------------------------------------- */
+*,
+*::before,
+*::after {
+  /* Border-box everywhere: padding never inflates declared widths. */
+  box-sizing: border-box;
+}
+
+* {
+  /* Collapse default margins so layout math starts from zero. */
+  margin: 0;
+}
+
+html,
+body,
+#root {
+  /* Full-height chain lets the app column stretch viewport-to-viewport. */
+  height: 100%;
+}
+
+body {
+  /* UI font by default; components opt into mono explicitly. */
+  font-family: var(--font-ui);
+  /* Comfortable reading size and line height for copy like the empty state. */
+  font-size: 15px;
+  line-height: 1.5;
+  /* The brand gradient anchors the whole scene behind translucent panels. */
+  background: linear-gradient(160deg, var(--bg-0) 0%, var(--bg-1) 100%) fixed;
+  /* Primary ink on dark ground. */
+  color: var(--ink);
+  /* Kill the flash of blue tap highlights on some platforms. */
+  -webkit-tap-highlight-color: transparent;
+}
+
+img {
+  /* Images never overflow their containers. */
+  max-width: 100%;
+  display: block;
+}
+
+/* Keyboard users get a loud, consistent focus ring in the accent hue. */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* Text selection echoes the accent without hurting contrast. */
+::selection {
+  background: var(--accent-glow);
+  color: var(--ink);
+}
+
+/* Slim, theme-matched scrollbars for the editor pane. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-strong) transparent;
+}
+
+/* WebKit flavor of the same treatment. */
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+*::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  border-radius: 999px;
+  border: 3px solid transparent;
+  background-clip: content-box;
+}
+
+/* ==========================================================================
+   Application frame: header / workspace / status bar, stacked as a column.
+   ========================================================================== */
+
+.app {
+  /* Column flexbox: fixed chrome rows, workspace eats the remainder. */
+  display: flex;
+  flex-direction: column;
+  /* dvh tracks mobile URL-bar quirks too, even though desktop is the target. */
+  min-height: 100dvh;
+}
+
+/* ---- Header --------------------------------------------------------------- */
+.app-header {
+  /* Row: brand left, nav right, pinned apart. */
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 20px;
+  /* Slightly denser than body so chrome reads as furniture, not content. */
+  background: rgba(15, 23, 42, 0.70);
+  backdrop-filter: blur(8px);
+  border-bottom: 1px solid var(--border);
+}
+
+.brand {
+  /* Mark, wordmark, tagline sit on one baseline row. */
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.brand-mark {
+  /* Logo at favicon-friendly size; art stays legible down to 16px per spec. */
+  width: 28px;
+  height: 28px;
+  flex: none;
+}
+
+.brand-name {
+  /* Wordmark is plain text (never baked into SVG) per the branding rules. */
+  font-size: 17px;
+  font-weight: 650;
+  letter-spacing: 0.01em;
+}
+
+.brand-tagline {
+  /* Quiet pitch chip beside the name. */
+  font-size: 12px;
+  color: var(--ink-secondary);
+  padding: 3px 10px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+.repo-link {
+  /* Understated external link that lights up on hover/focus. */
+  color: var(--ink-secondary);
+  text-decoration: none;
+  font-size: 13.5px;
+  padding: 6px 12px;
+  border-radius: var(--radius-sm);
+  transition: color 120ms ease, background-color 120ms ease;
+}
+
+.repo-link:hover {
+  color: var(--ink);
+  background: var(--accent-soft);
+}
+
+/* ---- Workspace split ------------------------------------------------------*/
+.workspace {
+  /* The one region that grows; children manage their own scrolling. */
+  flex: 1;
+  display: flex;
+  min-height: 0;
+}
+
+/* Editor pane: fixed 380px per UI spec (plan section 10). */
+.editor-pane {
+  width: 380px;
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background: rgba(15, 23, 42, 0.55);
+  border-right: 1px solid var(--border);
+}
+
+.pane-title {
+  /* Small caps label bar crowning the textarea. */
+  padding: 10px 16px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-muted);
+  border-bottom: 1px solid var(--border);
+}
+
+.editor-textarea {
+  /* Fill the pane between label and stats footer. */
+  flex: 1;
+  width: 100%;
+  resize: none;
+  padding: 14px 16px;
+  background: transparent;
+  border: none;
+  color: var(--ink);
+  /* Code input gets the mono stack and a code-like rhythm. */
+  font-family: var(--font-mono);
+  font-size: 13px;
+  line-height: 1.6;
+  tab-size: 2;
+}
+
+.editor-textarea::placeholder {
+  color: var(--ink-muted);
+}
+
+.editor-textarea:focus-visible {
+  /* Focus is already obvious from the caret; suppress the ring here. */
+  outline: none;
+}
+
+.editor-stats {
+  /* Footer counters: quiet metadata row. */
+  display: flex;
+  gap: 14px;
+  padding: 8px 16px;
+  font-size: 12px;
+  color: var(--ink-muted);
+  border-top: 1px solid var(--border);
+}
+
+/* Canvas area: React Flow's future home, currently hosting the empty state. */
+.canvas-area {
+  flex: 1;
+  position: relative;
+  min-width: 0;
+  overflow: hidden;
+  display: grid;
+  place-items: center;
+  padding: 32px;
+  /* Dot grid foreshadows the dotted React Flow Background arriving at M3. */
+  background-image: radial-gradient(rgba(125, 211, 252, 0.13) 1px, transparent 1px);
+  background-size: 22px 22px;
+}
+
+/* Empty-state card: explains the product instead of showing a void. */
+.empty-state {
+  max-width: 540px;
+  padding: 36px 40px;
+  text-align: center;
+  background: var(--surface-strong);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
+  animation: rise-in 360ms ease both;
+}
+
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.empty-mark {
+  width: 56px;
+  height: 56px;
+  margin: 0 auto 16px;
+}
+
+.empty-state h2 {
+  font-size: 19px;
+  font-weight: 650;
+  margin-bottom: 10px;
+}
+
+.empty-state p {
+  color: var(--ink-secondary);
+  font-size: 14px;
+  margin-bottom: 18px;
+}
+
+.path-chips {
+  /* Chip row: each supported input path, honestly labeled. */
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  margin-bottom: 16px;
+  padding: 0;
+}
+
+.chip {
+  font-size: 12.5px;
+  color: var(--ink-secondary);
+  padding: 5px 12px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+}
+
+.chip-ready {
+  /* The one live path gets accent treatment so eyes land there first. */
+  color: var(--accent);
+  border-color: rgba(34, 211, 238, 0.4);
+  background: var(--accent-soft);
+}
+
+.empty-footnote {
+  font-size: 12px;
+  color: var(--ink-muted);
+  margin-bottom: 0 !important;
+}
+
+/* ---- Status bar ------------------------------------------------------------*/
+.status-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 8px 20px;
+  font-size: 12px;
+  color: var(--ink-secondary);
+  background: rgba(15, 23, 42, 0.78);
+  border-top: 1px solid var(--border);
+}
+
+.status-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--success);
+  box-shadow: 0 0 8px rgba(52, 211, 153, 0.6);
+}
+
+.status-note {
+  /* Privacy promise centered; hidden below the fold on narrow windows. */
+  margin-inline: auto;
+}
+
+.status-version {
+  color: var(--ink-muted);
+  white-space: nowrap;
+}
+
+/* ---- Motion preferences -----------------------------------------------------*/
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* ---- Narrow-window fallback (desktop tool, graceful degradation) ------------*/
+@media (max-width: 900px) {
+  .workspace {
+    /* Stack panes vertically instead of squeezing both into oblivion. */
+    flex-direction: column;
+  }
+
+  .editor-pane {
+    width: auto;
+    max-height: 44dvh;
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .status-note {
+    display: none;
+  }
+}

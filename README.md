@@ -38,8 +38,9 @@ The project is in active early development. Shipped so far:
 - Project plan covering architecture, parser design, data model, layout algorithm, testing, and deployment ([project_plan.md](project_plan.md))
 - Commit tracking conventions and log ([commit_tracker.md](commit_tracker.md))
 - Logo and favicon assets (`public/`)
+- M0 scaffold: Vite 8 + React 19 + TypeScript app shell with header, source editor pane, canvas empty state, and status bar (`npm run dev`)
 
-Not yet built: application code, parser, UI, deployment pipeline. See [Milestones](project_plan.md#14-milestones) for the build order.
+Not yet built: parser engine, layout engine, React Flow canvas, diagnostics. See [Milestones](project_plan.md#14-milestones) for the build order.
 
 ## 3. Planned Features
 
@@ -59,7 +60,7 @@ Versions verified against the npm registry on Saturday, 22 August 2026:
 |---|---|---|
 | Build tool | [Vite](https://www.npmjs.com/package/vite) | 8.2.2 |
 | UI framework | [React](https://www.npmjs.com/package/react) | 19.2.8 |
-| Language | [TypeScript](https://www.npmjs.com/package/typescript) | 7.0.2 |
+| Language | [TypeScript](https://www.npmjs.com/package/typescript) | 5.9.3 |
 | Graph rendering | [@xyflow/react](https://www.npmjs.com/package/@xyflow/react) (React Flow 12) | 12.11.3 |
 | Test runner | [Vitest](https://www.npmjs.com/package/vitest) | 4.1.11 |
 | Linting | [ESLint](https://www.npmjs.com/package/eslint) | 10.9.0 |
@@ -71,6 +72,12 @@ Versions verified against the npm registry on Saturday, 22 August 2026:
 PipeViz/
   .github/workflows/   GitHub Pages deploy workflow
   public/              logo.svg, favicon.svg (static assets)
+  src/                 app source: main.tsx, App.tsx, styles/global.css
+  index.html           Vite entry document
+  vite.config.ts       dev server and build config (relative base for Pages)
+  tsconfig.json        strict TypeScript configuration
+  eslint.config.js     ESLint 10 flat config
+  package.json         exact-pinned dependencies and npm scripts
   project_plan.md      architecture, milestones, risks, sources
   commit_tracker.md    commit conventions and running log
   LICENSE              GNU GPL v3
@@ -78,17 +85,17 @@ PipeViz/
 
 ## 6. Local Development
 
-Nothing runnable yet. The Vite scaffold lands with milestone M0, after which this section documents the standard commands:
+Requires Node.js 24+ and npm 12+.
 
 ```bash
 npm install     # install dependencies
-npm run dev     # start dev server with hot reload
-npm run test    # run parser and layout unit tests
-npm run build   # production build into dist/
-npm run lint    # ESLint
+npm run dev     # start dev server at http://localhost:5173 with hot reload
+npm run test    # run unit tests (corpus arrives with M1)
+npm run build   # typecheck + production build into dist/
+npm run lint    # ESLint across the repo
 ```
 
-Prerequisites once scaffolding lands: Node.js 24+ and npm 12+.
+Note on the TypeScript version: the stack research pinned TS 7.0.2, but `typescript-eslint` 8.x declares a peer range below 6.1.0, so the scaffold uses the plan's documented fallback of 5.9.3. Application code targets ES2022 either way; upgrading to the native line later is a dependency swap.
 
 ## 7. Documentation
 

@@ -5,8 +5,8 @@ A browser based tool that turns Jenkins pipeline definitions into an interactive
 | | |
 |---|---|
 | Created | Saturday, 22 August 2026 at 01:36 EDT |
-| Last updated | Saturday, 22 August 2026 at 01:49 EDT |
-| Status | Planning complete, implementation not started |
+| Last updated | Saturday, 22 August 2026 at 02:15 EDT |
+| Status | Implementation under way; M0 scaffold complete |
 | Owner | Aman Ali |
 
 ## Table of Contents
@@ -73,7 +73,7 @@ Versions recorded from the npm registry on Saturday, 22 August 2026. Exact versi
 |---|---|---|---|
 | Build tool | Vite | 8.2.2 | Fast dev server, zero config static output |
 | UI framework | React | 19.2.8 | Component model fits graph nodes well |
-| Language | TypeScript | 7.0.2 | Current stable line. Fallback plan exists if tooling lags (see Risks) |
+| Language | TypeScript | 5.9.3 | Research pinned the 7.0.2 native line, but typescript-eslint 8.x peers on `< 6.1.0`, so the documented fallback applies; app code targets ES2022 either way |
 | Graph rendering | @xyflow/react | 12.11.3 | Pan/zoom/selection/minimap out of the box, custom node components |
 | Test runner | Vitest | 4.1.11 | Native TS, pairs with Vite config |
 | Linting | ESLint | 10.9.0 | Standard choice |
@@ -371,7 +371,7 @@ Order matters: M1 and M2 are pure logic with tests, M3/M4 make it visible, M5 sh
 | Risk | Likelihood | Impact | Mitigation |
 |---|---|---|---|
 | Exotic Groovy breaks parser (closures as args, annotations, multiline method chains) | Medium | Partial or wrong graph | Lenient capture of unknown constructs as steps; diagnostics surface what was skipped; corpus grows as users report files |
-| TypeScript 7 toolchain friction (editor plugins, ESLint parsers lagging the new major) | Low | Dev experience pain | If friction appears, downgrade devDependency to typescript 5.9.x; app code targets ES2022 either way, no rewrite needed |
+| TypeScript 7 toolchain friction (editor plugins, ESLint parsers lagging the new major) | Low | Dev experience pain | If friction appears, downgrade devDependency to typescript 5.9.x; app code targets ES2022 either way, no rewrite needed. **Triggered at M0**: typescript-eslint 8.67.0 declares `peer typescript >=4.8.4 <6.1.0`, so npm refuses the tree with 7.0.2; pinned 5.9.3 per this plan |
 | Deeply nested parallel layouts collide or look cramped | Medium | Ugly but correct graph | Bounding box recursion with lane offsets; clamp minimum lane height; test nested fixture explicitly |
 | React Flow breaking changes across majors | Low | Rendering regressions | Version pinned in package.json; upgrades deliberate, checked against changelog |
 | Users paste secrets into the editor expecting server round trip | Low | Trust concern | Architecture has no network calls beyond static hosting; state stays in memory; note this in README |

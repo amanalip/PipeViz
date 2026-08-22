@@ -1,0 +1,65 @@
+// ---------------------------------------------------------------------------
+// tsconfig.json
+// Single-project TypeScript configuration for the whole app (src/) plus the
+// Vite config file. Deliberately strict: the parser and layout engine are
+// pure logic where the compiler is our first line of defense.
+//
+// Note: JSON with comments (jsonc) is accepted by `tsc`, so the inline
+// commentary below is load-bearing documentation, not decoration.
+// ---------------------------------------------------------------------------
+
+{
+  // "compilerOptions" tunes how TypeScript reads and checks the code.
+  "compilerOptions": {
+    // ---- Language output -------------------------------------------------
+    // Compile-target modern ES2022: matches vite build target and plan goals.
+    "target": "ES2022",
+    // Use ECMAScript `Object.defineProperty` semantics for class fields.
+    "useDefineForClassFields": true,
+    // Standard libraries made available to type checking.
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    // ---- Modules ---------------------------------------------------------
+    // Emit ESM syntax; Vite/esbuild handle the actual transpilation.
+    "module": "ESNext",
+    // Bundler-style resolution mirrors how Vite resolves imports.
+    "moduleResolution": "bundler",
+    // Allow `import react from ...` default style even for CJS-shaped deps.
+    "esModuleInterop": true,
+    // Disallow TS features that a single-file transpiler cannot understand,
+    // keeping every file independently compilable (safe for esbuild).
+    "isolatedModules": true,
+    // Force explicit `import type` for type-only imports; clearer diffs.
+    "verbatimModuleSyntax": true,
+    // Forbid imports of files with mismatched casing; prevents Linux CI breakage.
+    "forceConsistentCasingInFileNames": true,
+    // ---- JSX -------------------------------------------------------------
+    // React 19 automatic runtime: no `import React` needed in components.
+    "jsx": "react-jsx",
+    // ---- Type safety (strict family) -------------------------------------
+    // Master switch enabling all strict-type-checking flags at once.
+    "strict": true,
+    // Error on unused locals; keeps dead code out of the parser hot paths.
+    "noUnusedLocals": true,
+    // Error on unused parameters; same hygiene for function signatures.
+    "noUnusedParameters": true,
+    // Prevent accidental fallthrough in switch statements (used heavily by interpreters).
+    "noFallthroughCasesInSwitch": true,
+    // Flag returning values from functions typed to return void.
+    "noImplicitOverride": true,
+    // Ban unchecked indexed access like `arr[0]` typed as non-undefined.
+    "noUncheckedIndexedAccess": true,
+    // Only allow `import x from` when the module truly has a default export.
+    "allowImportingTsExtensions": false,
+    // Restrict to syntax erasable by type-stripping compilers (TS7 friendly).
+    "erasableSyntaxOnly": true,
+    // ---- Globals & environment -------------------------------------------
+    // Vite's client types (`import.meta.env` and friends).
+    "types": ["vite/client"],
+    // Browser-only codebase: DOM globals exist, node globals do not.
+    "skipLibCheck": true,
+    // Never emit JS; tsc is used purely as a typechecker here.
+    "noEmit": true
+  },
+  // Everything the compiler should own: application source plus the vite config.
+  "include": ["src", "vite.config.ts"]
+}
