@@ -120,6 +120,7 @@ exports[`corpus - invariants across every sample > conditional-deploy: matches i
     "cron('H 2 * * *')",
     "upstream(threshold: SUCCESS, upstreamProjects: 'lib/main')",
   ],
+  "unparsedRegions": [],
 }
 `;
 
@@ -199,6 +200,7 @@ exports[`corpus - invariants across every sample > matrix-build: matches its mod
     },
   ],
   "triggers": [],
+  "unparsedRegions": [],
 }
 `;
 
@@ -314,6 +316,13 @@ curl -fsS "https://\${REGISTRY}/health" | grep -q ok || { echo unhealthy; exit 1
     },
   ],
   "triggers": [],
+  "unparsedRegions": [
+    {
+      "endLine": 40,
+      "label": "Never Reached",
+      "startLine": 36,
+    },
+  ],
 }
 `;
 
@@ -409,6 +418,7 @@ exports[`corpus - invariants across every sample > parallel-tests: matches its m
     },
   ],
   "triggers": [],
+  "unparsedRegions": [],
 }
 `;
 
@@ -520,6 +530,7 @@ exports[`corpus - invariants across every sample > scripted-classic: matches its
     },
   ],
   "triggers": [],
+  "unparsedRegions": [],
 }
 `;
 
@@ -625,6 +636,7 @@ exports[`corpus - invariants across every sample > sequential-groups: matches it
     },
   ],
   "triggers": [],
+  "unparsedRegions": [],
 }
 `;
 
@@ -721,5 +733,6 @@ exports[`corpus - invariants across every sample > simple-ci: matches its model 
     },
   ],
   "triggers": [],
+  "unparsedRegions": [],
 }
 `;

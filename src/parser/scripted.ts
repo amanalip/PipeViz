@@ -105,6 +105,7 @@ export function interpretScripted(root: BlockNode, ctx: InterpretContext): Pipel
     options: [],
     postHandlers: [],
     rootStages: [],
+    unparsedRegions: [],
     diagnostics: [],
   }
 

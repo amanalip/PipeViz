@@ -594,6 +594,7 @@ export function interpretDeclarative(
     options: [],
     postHandlers: [],
     rootStages: [],
+    unparsedRegions: [],
     diagnostics: [],
   }
 

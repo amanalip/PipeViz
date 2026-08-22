@@ -287,17 +287,34 @@ function placeChain(
  * Compute positions for every stage of a parsed model plus the edges between
  * cards. Pure: identical input yields byte-identical output. Never throws on
  * any PipelineModel shape, including empty ones.
+ *
+ * Unparsed regions (mockups §11) join the root chain as synthesized ghost
+ * leaves, so they reserve real space and inherit normal chain/fan edges -
+ * toFlow styles those edges dashed and renders the cards dimmed.
  */
 export function computeLayout(model: PipelineModel, options: LayoutOptions = {}): LayoutResult {
   const expandMatrix = options.expandMatrix === true
   const ctx: WalkContext = { nodes: [], containers: [], edges: [] }
 
-  if (model.rootStages.length === 0) {
+  // Ghost leaves: one per unparsed region, stable ids (`u<i>`), document order.
+  const roots: StageNode[] = [...model.rootStages]
+  model.unparsedRegions.forEach((region, index) => {
+    roots.push({
+      id: `u${index}`,
+      name: region.label ?? 'unparsed',
+      line: region.startLine,
+      steps: [],
+      ghost: true,
+      unparsedRange: { startLine: region.startLine, endLine: region.endLine },
+    })
+  })
+
+  if (roots.length === 0) {
     return { nodes: [], edges: [], containers: [], width: 0, height: 0 }
   }
 
-  const whole = measureChain(model.rootStages, expandMatrix)
-  placeChain(model.rootStages, 0, 0, whole.height, [], ctx, expandMatrix)
+  const whole = measureChain(roots, expandMatrix)
+  placeChain(roots, 0, 0, whole.height, [], ctx, expandMatrix)
 
   return { nodes: ctx.nodes, edges: ctx.edges, containers: ctx.containers, ...whole }
 }

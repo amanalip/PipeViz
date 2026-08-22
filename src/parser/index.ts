@@ -13,6 +13,7 @@ import { tokenize } from './tokenize'
 import { buildBlockTree } from './blockTree'
 import { findPipelineBlock, interpretDeclarative, type InterpretContext } from './interpret'
 import { hasScriptedMarkers, interpretScripted } from './scripted'
+import { collectUnparsedRegions } from './unparsed'
 import type { Diagnostic, PipelineModel } from '../model/types'
 
 export { tokenize } from './tokenize'
@@ -29,6 +30,7 @@ function emptyModel(diagnostics: Diagnostic[]): PipelineModel {
     options: [],
     postHandlers: [],
     rootStages: [],
+    unparsedRegions: [],
     diagnostics,
   }
 }
@@ -55,20 +57,16 @@ export function parseJenkinsfile(source: string): PipelineModel {
     }
 
     const pipelineBlock = findPipelineBlock(root)
-    if (pipelineBlock) {
-      return interpretDeclarative(pipelineBlock, ctx)
-    }
+    const model = pipelineBlock
+      ? interpretDeclarative(pipelineBlock, ctx)
+      : hasScriptedMarkers(source)
+        ? interpretScripted(root, ctx)
+        : emptyModelWithWarning(ctx)
 
-    if (hasScriptedMarkers(source)) {
-      return interpretScripted(root, ctx)
-    }
-
-    ctx.diagnostics.push({
-      severity: 'warning',
-      message: 'No declarative pipeline or scripted stages were recognized',
-      line: 1,
-    })
-    return emptyModel(ctx.diagnostics)
+    // Mockups §11: stage calls that brace recovery demoted become ghost
+    // material instead of silently vanishing from the graph.
+    model.unparsedRegions = collectUnparsedRegions(root, model)
+    return model
   } catch (error) {
     return emptyModel([
       {
@@ -78,4 +76,14 @@ export function parseJenkinsfile(source: string): PipelineModel {
       },
     ])
   }
+}
+
+/** Warning-only model for input carrying neither pipeline nor stage markers. */
+function emptyModelWithWarning(ctx: InterpretContext): PipelineModel {
+  ctx.diagnostics.push({
+    severity: 'warning',
+    message: 'No declarative pipeline or scripted stages were recognized',
+    line: 1,
+  })
+  return emptyModel(ctx.diagnostics)
 }

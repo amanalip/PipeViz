@@ -7,12 +7,14 @@
 // (`?`) are genuinely absent when not declared in the Jenkinsfile; consumers
 // must narrow instead of assuming defaults.
 //
-// Two deliberate extensions beyond the plan's sketch, both implied by §6.3
-// and needed by the UI: `failFast` on StageNode (parallel capture), `options`
+// Deliberate extensions beyond the plan's sketch, each implied by §6.3 and
+// needed by the UI: `failFast` on StageNode (parallel capture), `options`
 // on PipelineModel and a `stage` tag on PostHandler (stage-level post blocks
-// are folded into the pipeline list without losing their scope). A third,
-// added for the M6 expansion toggle: `matrixAxisValues`, `matrixExcludes`,
-// and `matrixCellSteps` carry everything one-node-per-combo rendering needs.
+// are folded into the pipeline list without losing their scope). The M6
+// expansion toggle added `matrixAxisValues`, `matrixExcludes`, and
+// `matrixCellSteps`. Mockups §11's ghost cards added `unparsedRegions` on the
+// model (source regions holding stage calls that brace recovery demoted) plus
+// the layout-side `ghost`/`unparsedRange` presentation markers on StageNode.
 // ---------------------------------------------------------------------------
 
 /** Where a step came from / whether we can render a known icon for it. */
@@ -67,6 +69,14 @@ export interface StageNode {
   failFast?: boolean
   /** Sequential sub-chain inside this stage (nested `stages` block). */
   sequentialChildren?: StageNode[]
+  /**
+   * Layout-only marker: this leaf was synthesized from an unparsed source
+   * region, not from a parsed stage. Ghost cards render dimmed with dashed
+   * incoming edges and never open the details panel.
+   */
+  ghost?: boolean
+  /** Source line span of the unparsed region behind a ghost leaf. */
+  unparsedRange?: { startLine: number; endLine: number }
 }
 
 /** One `post { <condition> { ... } }` handler, pipeline- or stage-scoped. */
@@ -102,6 +112,18 @@ export interface OptionsEntry {
 
 export type ModelKind = 'declarative' | 'scripted'
 
+/**
+ * A source region containing a `stage(...)` call that brace recovery demoted
+ * so it never became a rendered stage (mockups §11's unparsed material).
+ * Layout draws one ghost card per region, joined by dashed edges.
+ */
+export interface UnparsedRegion {
+  startLine: number
+  endLine: number
+  /** Recovered stage name when the demoted call carried a string argument. */
+  label?: string
+}
+
 export interface PipelineModel {
   kind: ModelKind
   agent?: string
@@ -111,5 +133,7 @@ export interface PipelineModel {
   options: OptionsEntry[]
   postHandlers: PostHandler[]
   rootStages: StageNode[]
+  /** Stage calls the structural pass could not render, in document order. */
+  unparsedRegions: UnparsedRegion[]
   diagnostics: Diagnostic[]
 }

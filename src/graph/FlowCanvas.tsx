@@ -21,7 +21,9 @@ import {
   Background,
   BackgroundVariant,
   Controls,
+  Handle,
   MiniMap,
+  Position,
   ReactFlow,
   useReactFlow,
 } from '@xyflow/react'
@@ -34,9 +36,9 @@ import { exportCanvasPng } from './exportPng'
 import type { LayoutResult, PositionedStage } from '../layout/computeLayout'
 import type { PipelineModel } from '../model/types'
 import { CANVAS_PALETTES } from '../theme'
-import type { Theme } from '../theme'
+import type { CanvasPalette, Theme } from '../theme'
 import { CATEGORY_COLORS } from './categories'
-import type { FlowEdge, FlowNode, GroupContainerNode, StageCardData } from './toFlow'
+import type { FlowEdge, FlowNode, GhostCardNode, GroupContainerNode, StageCardData } from './toFlow'
 import { buildFlowGraph } from './toFlow'
 import { StageNodeCard } from './StageNodeCard'
 
@@ -44,6 +46,7 @@ import { StageNodeCard } from './StageNodeCard'
 const NODE_TYPES = {
   stage: StageNodeCard,
   groupContainer: GroupContainerNodeView,
+  ghost: GhostCardView,
 }
 
 /**
@@ -129,6 +132,24 @@ function GroupContainerNodeView({ data }: NodeProps<GroupContainerNode>) {
 }
 
 /**
+ * Ghost card for unparsed source regions (mockups §11): dimmed ░ surface,
+ * dashed incoming edges drawn by toFlow. Purely presentational - the node
+ * is non-selectable, so no selection ring or details panel ever applies.
+ */
+function GhostCardView({ data }: NodeProps<GhostCardNode>) {
+  return (
+    <div className="ghost-card" title={`Source lines ${data.startLine}-${data.endLine} did not parse into a stage`}>
+      <Handle type="target" position={Position.Left} className="card-handle" isConnectable={false} />
+      <span className="ghost-card-title">░ {data.label} ░</span>
+      <span className="ghost-card-subline">
+        unparsed · lines {data.startLine}-{data.endLine}
+      </span>
+      <Handle type="source" position={Position.Right} className="card-handle" isConnectable={false} />
+    </div>
+  )
+}
+
+/**
  * The flow canvas for one parsed pipeline. Purely derived from props;
  * all interaction state (viewport, selection highlight) lives inside the
  * keyed ReactFlow instance and resets exactly when a new graph arrives.
@@ -192,7 +213,7 @@ export function FlowCanvas({
           position="bottom-right"
           pannable
           zoomable
-          nodeColor={(node) => minimapColor(node)}
+          nodeColor={(node) => minimapColor(node, palette)}
           maskColor={palette.mask}
           className="flow-minimap"
         />
@@ -203,11 +224,13 @@ export function FlowCanvas({
 
 /**
  * Minimap swatches: category stripe colors for stage cards, quiet slate for
- * parallel containers, so the overview echoes the main canvas at a glance.
+ * parallel containers, fainter slate for ghosts, so the overview echoes the
+ * main canvas at a glance.
  */
-function minimapColor(node: Node): string {
+function minimapColor(node: Node, palette: CanvasPalette): string {
   if (node.type === 'stage') {
     return CATEGORY_COLORS[(node.data as StageCardData).category]
   }
+  if (node.type === 'ghost') return palette.ghostNode
   return 'rgba(148, 163, 184, 0.5)'
 }

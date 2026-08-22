@@ -62,6 +62,7 @@ function chainModel(ids: string[]): PipelineModel {
     postHandlers: [],
     diagnostics: [],
     rootStages: ids.map((id) => ({ id, name: id.toUpperCase(), line: 1, steps: [] })),
+    unparsedRegions: [],
   }
 }
 
@@ -275,8 +276,62 @@ describe('layout - messy-realworld (partial graph)', () => {
   const result = computeLayout(modelOf('messy-realworld'))
 
   it('still positions whatever parsed despite diagnostics', () => {
-    expect(result.nodes.map((n) => n.id)).toEqual(['s0', 's1', 's2'])
-    expect(result.edges.map((e) => e.id)).toEqual(['s0->s1', 's1->s2'])
+    expect(result.nodes.map((n) => n.id)).toEqual(['s0', 's1', 's2', 'u0'])
+    expect(result.edges.map((e) => e.id)).toEqual(['s0->s1', 's1->s2', 's2->u0'])
+  })
+
+  it('chains the ghost leaf after the last parsed card at normal spacing', () => {
+    const ghost = req(byId(result).get('u0'))
+    const tail = req(byId(result).get('s2'))
+    expect(ghost.ghost).toBe(true)
+    expect(ghost.name).toBe('Never Reached')
+    expect(ghost.x).toBe(tail.x + NODE_W + H_GAP)
+  })
+})
+
+describe('layout - unparsed-region ghosts (mockups §11)', () => {
+  /** Two stages where the first never closes; the second gets demoted. */
+  function swallowedModel(): PipelineModel {
+    return {
+      kind: 'declarative',
+      environmentEntries: [],
+      parameters: [],
+      triggers: [],
+      options: [],
+      postHandlers: [],
+      diagnostics: [],
+      rootStages: [leaf('s0', { line: 3 })],
+      unparsedRegions: [{ startLine: 4, endLine: 4, label: 'B' }],
+    }
+  }
+
+  it('appends one ghost per region in document order with stable ids', () => {
+    const model = swallowedModel()
+    model.unparsedRegions.push({ startLine: 9, endLine: 12 })
+    const result = computeLayout(model)
+    expect(result.nodes.map((n) => `${n.id}:${n.name}`)).toEqual([
+      's0:s0',
+      'u0:B',
+      'u1:unparsed',
+    ])
+  })
+
+  it('renders a lone ghost when nothing parsed at all', () => {
+    const model = swallowedModel()
+    model.rootStages = []
+    const result = computeLayout(model)
+    expect(result.nodes.map((n) => n.id)).toEqual(['u0'])
+    expect(result.nodes[0]?.x).toBe(0)
+    expect(result.edges).toEqual([])
+    expect(result.width).toBe(NODE_W)
+  })
+
+  it('keeps ghosts out of the stage count contract but inside bounds', () => {
+    const result = computeLayout(swallowedModel())
+    expect(result.nodes.every((n) => n.x >= 0 && n.y >= 0)).toBe(true)
+    for (const node of result.nodes) {
+      expect(node.y + NODE_H).toBeLessThanOrEqual(result.height)
+    }
   })
 })
 

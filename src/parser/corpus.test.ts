@@ -253,6 +253,12 @@ describe('corpus - messy-realworld', () => {
       'echo',
     ])
   })
+
+  it('marks the swallowed stage as unparsed material (mockups §11)', () => {
+    expect(model.unparsedRegions).toEqual([
+      { startLine: 36, endLine: 40, label: 'Never Reached' },
+    ])
+  })
 })
 
 describe('corpus - invariants across every sample', () => {

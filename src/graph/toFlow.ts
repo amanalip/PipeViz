@@ -51,9 +51,20 @@ export interface GroupContainerData extends Record<string, unknown> {
   matrixAxes?: string
 }
 
+/**
+ * Data payload of a ghost card (mockups §11): one unparsed source region.
+ * Dimmed, non-interactive; `range` feeds the "lines X-Y" subline.
+ */
+export interface GhostCardData extends Record<string, unknown> {
+  label: string
+  startLine: number
+  endLine: number
+}
+
 export type StageCardNode = Node<StageCardData, 'stage'>
 export type GroupContainerNode = Node<GroupContainerData, 'groupContainer'>
-export type FlowNode = StageCardNode | GroupContainerNode
+export type GhostCardNode = Node<GhostCardData, 'ghost'>
+export type FlowNode = StageCardNode | GroupContainerNode | GhostCardNode
 export type FlowEdge = Edge
 
 export interface FlowGraph {
@@ -100,19 +111,23 @@ export interface FlowOptions extends LayoutOptions {
 
 /**
  * Shared edge styling: smoothstep with an arrowhead in the theme's muted
- * slate. (Ghost cards and dashed edges into unparsed material stay
- * deferred: the parser emits no unparsed-region markers yet, so there is
- * nothing honest to draw them from.)
+ * slate. Edges into ghost cards (unparsed material, mockups §11) take a
+ * dashed stroke so the break in the graph reads at a glance.
  */
-function toFlowEdge(edge: LayoutResult['edges'][number], theme: Theme): FlowEdge {
+function toFlowEdge(edge: LayoutResult['edges'][number], theme: Theme, ghosts: ReadonlySet<string>): FlowEdge {
   const palette = CANVAS_PALETTES[theme]
+  const dashed = ghosts.has(edge.target)
   return {
     id: edge.id,
     source: edge.source,
     target: edge.target,
     type: 'smoothstep',
     animated: false,
-    style: { stroke: palette.edgeStroke, strokeWidth: 1.5 },
+    style: {
+      stroke: palette.edgeStroke,
+      strokeWidth: 1.5,
+      ...(dashed ? { strokeDasharray: '5 4' } : {}),
+    },
     markerEnd: { type: MarkerType.ArrowClosed, color: palette.edgeArrow },
   }
 }
@@ -179,6 +194,7 @@ export function buildFlowGraph(
   // Iterating the area-sorted list makes the *last* hit the smallest (nearest)
   // enclosing box, which is the immediate subflow parent React Flow expects.
   const nodes: FlowNode[] = []
+  const ghostIds = new Set<string>()
   for (const stage of layout.nodes) {
     let hostId: string | null = null
     const cardRect = { x: stage.x, y: stage.y, width: NODE_W, height: NODE_H }
@@ -193,6 +209,28 @@ export function buildFlowGraph(
       const host = absBox.get(hostId) as Rect
       x -= host.x
       y -= host.y
+    }
+
+    // Ghost leaves (unparsed regions): dimmed, inert, never selectable so
+    // they can neither open the details panel nor hold a selection ring.
+    if (stage.ghost) {
+      ghostIds.add(stage.id)
+      nodes.push({
+        id: stage.id,
+        type: 'ghost',
+        position: { x, y },
+        style: { width: NODE_W, height: NODE_H },
+        draggable: false,
+        selectable: false,
+        focusable: false,
+        data: {
+          label: stage.name,
+          startLine: stage.unparsedRange?.startLine ?? stage.line,
+          endLine: stage.unparsedRange?.endLine ?? stage.line,
+        },
+        ...(hostId ? { parentId: hostId } : {}),
+      })
+      continue
     }
 
     nodes.push({
@@ -230,5 +268,5 @@ export function buildFlowGraph(
     })
   }
 
-  return { nodes, edges: layout.edges.map((edge) => toFlowEdge(edge, theme)) }
+  return { nodes, edges: layout.edges.map((edge) => toFlowEdge(edge, theme, ghostIds)) }
 }

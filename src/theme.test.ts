@@ -78,6 +78,7 @@ describe('CANVAS_PALETTES', () => {
       expect(palette.mask).toBeTruthy()
       expect(palette.edgeStroke).toBeTruthy()
       expect(palette.edgeArrow).toBeTruthy()
+      expect(palette.ghostNode).toBeTruthy()
     }
   })
 
@@ -88,6 +89,7 @@ describe('CANVAS_PALETTES', () => {
       mask: 'rgba(15, 23, 42, 0.75)',
       edgeStroke: 'rgba(148, 163, 184, 0.45)',
       edgeArrow: 'rgba(148, 163, 184, 0.65)',
+      ghostNode: 'rgba(148, 163, 184, 0.30)',
     })
   })
 

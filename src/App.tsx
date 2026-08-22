@@ -197,10 +197,17 @@ export default function App() {
 
   // Canvas summary numbers use the same semantics as mockup §8's status
   // line: every rendered card counts as a stage, steps summed across them.
+  // Ghost cards (§11 unparsed material) are honest about not being stages,
+  // so they stay out of these tallies while still occupying the canvas.
   const canvasStats = useMemo(() => {
+    let stages = 0
     let steps = 0
-    for (const node of layout.nodes) steps += node.steps.length
-    return { stages: layout.nodes.length, steps }
+    for (const node of layout.nodes) {
+      if (node.ghost) continue
+      stages += 1
+      steps += node.steps.length
+    }
+    return { stages, steps }
   }, [layout])
 
   // Diagnostic tallies drive the error state of the diagnostics bar.
@@ -215,7 +222,9 @@ export default function App() {
   }, [model])
 
   // Partial-graph note (§15): only when errors exist AND the source seems to
-  // contain more stage calls than rendered surfaces can account for.
+  // contain more stage calls than rendered surfaces can account for. Ghost
+  // cards count toward the rendered bound: once every stage call is either a
+  // card or a ghost, the graph itself carries the full story.
   const partialNote = useMemo(() => {
     if (problems.errors === 0) return null
     const surfaces = layout.nodes.length + layout.containers.length
@@ -224,12 +233,15 @@ export default function App() {
 
   // Canvas caption pill (§5/§8/§11): provenance while it holds, honest
   // parse-failed line whenever errors exist, quiet when nothing applies.
+  // Ghost-only graphs (nothing parsed but unparsed material on canvas)
+  // still deserve the parse-failed line.
+  const hasCanvasContent = layout.nodes.length > 0
   const caption = useMemo(() => {
-    if (canvasStats.stages === 0) return null
+    if (!hasCanvasContent) return null
     if (problems.errors > 0) return 'parse failed: showing what parsed'
     if (sampleName !== null) return `sample · ${sampleName}`
     return null
-  }, [canvasStats.stages, problems.errors, sampleName])
+  }, [hasCanvasContent, problems.errors, sampleName])
 
   // The §10 expansion toggle only exists when there is a matrix to expand.
   const showMatrixToggle = useMemo(
@@ -459,7 +471,7 @@ export default function App() {
               )}
             </div>
           )}
-          {canvasStats.stages > 0 ? (
+          {hasCanvasContent ? (
             <FlowCanvas
               model={model}
               layout={layout}

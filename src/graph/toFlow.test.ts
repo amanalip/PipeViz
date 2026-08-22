@@ -285,3 +285,53 @@ describe('buildFlowGraph edge cases', () => {
     expect(graph).toEqual({ nodes: [], edges: [] })
   })
 })
+
+describe('buildFlowGraph with unparsed-region ghosts (mockups §11)', () => {
+  // 'A' never closes, so 'B' is demoted into A's step capture and comes
+  // back from the parser as an UnparsedRegion.
+  const SWALLOWED = `pipeline {
+  stages {
+    stage('H') { steps { echo 'h' } }
+    stage('A') { steps { echo 'a' }
+    stage('B') { steps { echo 'b' } }
+  }
+}
+`
+  const model = parseJenkinsfile(SWALLOWED)
+  const layout = computeLayout(model)
+  const graph = buildFlowGraph(model, layout)
+
+  it('renders one inert ghost card carrying the recovered label and span', () => {
+    const ghosts = graph.nodes.filter((node) => node.type === 'ghost')
+    expect(ghosts).toHaveLength(1)
+    const ghost = ghosts[0]
+    if (ghost?.type !== 'ghost') throw new Error('ghost node missing')
+    expect(ghost.id).toBe('u0')
+    expect(ghost.data).toEqual({ label: 'B', startLine: 5, endLine: 5 })
+    expect(ghost.selectable).toBe(false)
+    expect(ghost.focusable).toBe(false)
+    expect(ghost.draggable).toBe(false)
+    expect(ghost.parentId).toBeUndefined()
+  })
+
+  it('dashes exactly the edges that flow into a ghost', () => {
+    const into = graph.edges.find((edge) => edge.target === 'u0')
+    if (!into) throw new Error('edge into the ghost missing')
+    expect(into.style?.strokeDasharray).toBe('5 4')
+
+    const plain = graph.edges.find((edge) => edge.target !== 'u0')
+    if (!plain) throw new Error('parsed edge missing')
+    expect(plain.style?.strokeDasharray).toBeUndefined()
+  })
+
+  it('keeps ghost positions in lockstep with layout like every card', () => {
+    const positioned = layout.nodes.find((node) => node.id === 'u0')
+    if (!positioned) throw new Error('layout lost the ghost')
+    const ghost = graph.nodes.find((node) => node.id === 'u0')
+    expect(ghost?.position).toEqual({ x: positioned.x, y: positioned.y })
+  })
+
+  it('is deterministic with ghosts present', () => {
+    expect(buildFlowGraph(model, layout)).toEqual(buildFlowGraph(model, layout))
+  })
+})

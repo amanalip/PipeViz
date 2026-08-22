@@ -55,6 +55,8 @@ export interface CanvasPalette {
   /** Smoothstep edge stroke + arrowhead fill. */
   edgeStroke: string
   edgeArrow: string
+  /** MiniMap swatch for §11 ghost cards (unparsed material). */
+  ghostNode: string
 }
 
 export const CANVAS_PALETTES: Record<Theme, CanvasPalette> = {
@@ -63,11 +65,13 @@ export const CANVAS_PALETTES: Record<Theme, CanvasPalette> = {
     mask: 'rgba(15, 23, 42, 0.75)',
     edgeStroke: 'rgba(148, 163, 184, 0.45)',
     edgeArrow: 'rgba(148, 163, 184, 0.65)',
+    ghostNode: 'rgba(148, 163, 184, 0.30)',
   },
   light: {
     dots: 'rgba(71, 85, 105, 0.35)',
     mask: 'rgba(241, 245, 249, 0.82)',
     edgeStroke: 'rgba(71, 85, 105, 0.5)',
     edgeArrow: 'rgba(71, 85, 105, 0.7)',
+    ghostNode: 'rgba(71, 85, 105, 0.35)',
   },
 }
