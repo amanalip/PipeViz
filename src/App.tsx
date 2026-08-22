@@ -37,6 +37,7 @@ import type { Diagnostic } from './model/types'
 import { parseJenkinsfile } from './parser'
 import { SAMPLES } from './samples'
 import type { Sample } from './samples'
+import { readHashSource, sourceToHash } from './share/hash'
 import { DiagnosticsBar } from './ui/DiagnosticsBar'
 import { DetailsPanel } from './ui/DetailsPanel'
 import { EditorPane } from './ui/EditorPane'
@@ -46,6 +47,19 @@ import { candidateStageCount, partialGraphNote } from './ui/diagnosticsSupport'
 
 // Repository URL for the header link; same repo this code lives in.
 const REPO_URL = 'https://github.com/amanalip/PipeViz'
+
+/**
+ * Boot state honors a shared link (M6): a `#p=…` hash seeds the editor with
+ * its decoded source, settled immediately so the first paint shows the
+ * graph, and sample provenance is restored when the payload is exactly a
+ * bundled sample. Anything else boots empty.
+ */
+function bootFromHash(): { source: string; sampleName: string | null } {
+  const shared = typeof window === 'undefined' ? null : readHashSource(window.location.hash)
+  if (shared === null) return { source: '', sampleName: null }
+  const sample = SAMPLES.find((entry) => entry.source === shared)
+  return { source: shared, sampleName: sample?.name ?? null }
+}
 
 // Mockup §13: re-parse fires 400ms after typing stops.
 const REPARSE_DEBOUNCE_MS = 400
@@ -58,10 +72,13 @@ const COPY_FLASH_MS = 1500
  * header / workspace (editor + canvas) / diagnostics bar.
  */
 export default function App() {
+  // Shared-link boot state, resolved once per mount.
+  const boot = useRef(bootFromHash()).current
   // Live editor contents; single source of truth for the whole app.
-  const [source, setSource] = useState('')
-  // The most recent input we actually parsed; trails `source` by the debounce.
-  const [settledSource, setSettledSource] = useState('')
+  const [source, setSource] = useState(boot.source)
+  // The most recent input we actually parsed; trails `source` by the debounce
+  // (except on a shared-link boot, which settles immediately).
+  const [settledSource, setSettledSource] = useState(boot.source)
   // Bumped each time a fresh graph lands; keys the flow remount.
   const [revision, setRevision] = useState(0)
   // Currently selected card id, mirrored up from the canvas. Null means
@@ -69,12 +86,15 @@ export default function App() {
   const [selectedId, setSelectedId] = useState<string | null>(null)
   // Copy JSON button feedback: idle -> copied/failed -> idle after a flash.
   const [copyState, setCopyState] = useState<'idle' | 'copied' | 'failed'>('idle')
+  // Copy link button feedback (M6 URL hash sharing): same flash pattern.
+  const [linkState, setLinkState] = useState<'idle' | 'copied' | 'failed'>('idle')
   // Export PNG button feedback: idle -> working/failed -> idle (M6).
   const [pngState, setPngState] = useState<'idle' | 'working' | 'failed'>('idle')
   // Name of the bundled sample the editor currently holds (§5/§8 caption).
   // Cleared as soon as the content diverges via edit/upload/paste, so the
-  // label only ever names text that really is that sample.
-  const [sampleName, setSampleName] = useState<string | null>(null)
+  // label only ever names text that really is that sample. A shared link
+  // whose payload is byte-identical to a bundled sample restores it.
+  const [sampleName, setSampleName] = useState<string | null>(boot.sampleName)
   // M6 view preference: expand matrix stages into one card per axis combo
   // (mockups §10). Session-only; flipping it re-fits and clears selection.
   const [expandMatrix, setExpandMatrix] = useState(false)
@@ -106,6 +126,22 @@ export default function App() {
     const timer = window.setTimeout(() => setCopyState('idle'), COPY_FLASH_MS)
     return () => window.clearTimeout(timer)
   }, [copyState])
+
+  // Copy link flash reset; identical pattern to the JSON button.
+  useEffect(() => {
+    if (linkState === 'idle') return
+    const timer = window.setTimeout(() => setLinkState('idle'), COPY_FLASH_MS)
+    return () => window.clearTimeout(timer)
+  }, [linkState])
+
+  // URL hash mirrors the settled source (M6 sharing): replaceState keeps
+  // typing out of browser history. Empty source clears the hash entirely.
+  useEffect(() => {
+    const nextHash = sourceToHash(settledSource)
+    if (window.location.hash === nextHash) return
+    const url = nextHash === '' ? `${window.location.pathname}${window.location.search}` : nextHash
+    window.history.replaceState(null, '', url)
+  }, [settledSource])
 
   // Export PNG failure flash reset; success needs no timer (download fires).
   useEffect(() => {
@@ -257,6 +293,27 @@ export default function App() {
     }
   }
 
+  /**
+   * Copy the page URL with its up-to-date share hash (M6). The hash effect
+   * keeps the address bar in sync with the settled source, but a user may
+   * copy before the debounce settles - flush the current text into the hash
+   * first so the clipboard never trails the editor.
+   */
+  async function copyShareLink() {
+    if (source.length === 0) return
+    try {
+      let url = window.location.href
+      if (source !== settledSource) {
+        const hash = sourceToHash(source)
+        url = new URL(hash === '' ? window.location.pathname : hash, window.location.origin).href
+      }
+      await navigator.clipboard.writeText(url)
+      setLinkState('copied')
+    } catch {
+      setLinkState('failed')
+    }
+  }
+
   // ---- Cross-region interactions --------------------------------------------
 
   /** Editor caret to a source line; shared by rows and card double-click. */
@@ -317,6 +374,15 @@ export default function App() {
               onClick={copyModelJson}
             >
               {copyState === 'copied' ? 'Copied ✓' : copyState === 'failed' ? 'Copy failed' : 'Copy JSON'}
+            </button>
+            <button
+              type="button"
+              className={linkState === 'copied' ? 'btn btn-copied' : 'btn'}
+              disabled={source.length === 0}
+              onClick={copyShareLink}
+              title="Copy a link that reopens this exact pipeline"
+            >
+              {linkState === 'copied' ? 'Copied ✓' : linkState === 'failed' ? 'Copy failed' : 'Copy link'}
             </button>
             <button
               type="button"
