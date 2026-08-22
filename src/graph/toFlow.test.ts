@@ -1,0 +1,253 @@
+// ---------------------------------------------------------------------------
+// graph/toFlow.test.ts - unit tests for the layout->React Flow mapping.
+//
+// The converter is pure, so these tests run without any renderer: parse a
+// corpus sample (or a tiny inline source), lay it out, map it, and assert
+// exact node/edge objects. The nested-parallel case is the critical one -
+// React Flow subflows demand coordinates relative to the immediate parent,
+// and getting that wrong shows up as cards drifting out of their containers.
+// ---------------------------------------------------------------------------
+
+import { describe, expect, it } from 'vitest'
+
+import { computeLayout } from '../layout/computeLayout'
+import { parseJenkinsfile } from '../parser'
+import { sampleById } from '../samples'
+import { categorize, CATEGORY_COLORS } from './categories'
+import { buildFlowGraph } from './toFlow'
+
+/** Parse + lay out + map in one step; the standard pipeline under test. */
+function flow(source: string) {
+  const model = parseJenkinsfile(source)
+  return { model, layout: computeLayout(model), graph: buildFlowGraph(model, computeLayout(model)) }
+}
+
+describe('categorize', () => {
+  it('maps build-family names to the cyan stripe', () => {
+    expect(categorize('Build')).toBe('build')
+    expect(categorize('Compile API')).toBe('build')
+    expect(categorize('Package App')).toBe('build')
+  })
+
+  it('maps test-family names to the violet stripe', () => {
+    expect(categorize('Unit tests')).toBe('test')
+    expect(categorize('Spec')).toBe('test')
+    expect(categorize('Verify signatures')).toBe('test')
+  })
+
+  it('maps deploy-family names to the emerald stripe', () => {
+    expect(categorize('Deploy')).toBe('deploy')
+    expect(categorize('Release notes')).toBe('deploy')
+    expect(categorize('Publish docs')).toBe('deploy')
+  })
+
+  it('falls back to neutral when no keyword matches', () => {
+    expect(categorize('Checkout')).toBe('neutral')
+    expect(categorize('Notify')).toBe('neutral')
+  })
+
+  it('matches case-insensitively', () => {
+    expect(categorize('BUILD AND SHIP')).toBe('build')
+    expect(categorize('e2e testing')).toBe('test')
+  })
+
+  it('exposes one color per category', () => {
+    expect(Object.keys(CATEGORY_COLORS)).toEqual(['build', 'test', 'deploy', 'neutral'])
+  })
+})
+
+describe('buildFlowGraph on the sequential sample (simple-ci)', () => {
+  const source = sampleById('simple-ci')?.source ?? ''
+  const { model, layout, graph } = flow(source)
+
+  it('emits one card per laid-out stage at identical absolute positions', () => {
+    expect(graph.nodes).toHaveLength(layout.nodes.length)
+    expect(graph.nodes.map((node) => node.id)).toEqual(layout.nodes.map((node) => node.id))
+    for (const [i, node] of graph.nodes.entries()) {
+      const positioned = layout.nodes[i]
+      if (!positioned) throw new Error(`layout lost node ${i}`)
+      expect(node.position).toEqual({ x: positioned.x, y: positioned.y })
+      expect(node.parentId).toBeUndefined()
+    }
+  })
+
+  it('sizes every card from the shared layout constants', () => {
+    for (const node of graph.nodes) {
+      if (node.type === 'stage') expect(node.style).toEqual({ width: 220, height: 72 })
+    }
+  })
+
+  it('carries category guesses matching the stage names', () => {
+    const checkout = graph.nodes.find((node) => node.id === 's0')
+    expect(checkout?.type).toBe('stage')
+    // Checkout is keyword-free, so the stripe guess lands on neutral.
+    if (checkout?.type === 'stage') {
+      expect(checkout.data.category).toBe('neutral')
+    }
+  })
+
+  it('chains stages with smoothstep arrow edges in document order', () => {
+    expect(graph.edges.map((edge) => edge.id)).toEqual(['s0->s1', 's1->s2', 's2->s3'])
+    for (const edge of graph.edges) {
+      expect(edge.type).toBe('smoothstep')
+      expect(edge.animated).toBe(false)
+      expect(edge.markerEnd).toEqual({ type: 'arrowclosed', color: 'rgba(148, 163, 184, 0.65)' })
+    }
+  })
+
+  it('keeps model steps reachable through node data', () => {
+    const expected = model.rootStages[1]?.steps.length ?? 0
+    const build = graph.nodes.find((node) => node.id === 's1')
+    expect(build?.type).toBe('stage')
+    if (build?.type === 'stage') {
+      expect(build.data.stage.steps).toHaveLength(expected)
+    }
+  })
+
+  it('is deterministic across repeated calls', () => {
+    expect(buildFlowGraph(model, layout)).toEqual(buildFlowGraph(model, layout))
+  })
+})
+
+describe('buildFlowGraph on the parallel sample (parallel-tests)', () => {
+  const source = sampleById('parallel-tests')?.source ?? ''
+  const { model, layout, graph } = flow(source)
+
+  it('replaces the parallel parent card with exactly one container node', () => {
+    expect(model.rootStages[1]?.parallelBranches).toHaveLength(3)
+    const containers = graph.nodes.filter((node) => node.type === 'parallelContainer')
+    expect(containers).toHaveLength(1)
+    expect(containers.map((container) => container.id)).toEqual(['s1'])
+    expect(graph.nodes.some((node) => node.id === 's1' && node.type === 'stage')).toBe(false)
+  })
+
+  it('labels the container from the parent stage plus failFast', () => {
+    const box = graph.nodes.find((node) => node.type === 'parallelContainer')
+    expect(box?.type === 'parallelContainer' && box.data).toMatchObject({
+      label: 'Test',
+      branchCount: 3,
+      failFast: true,
+    })
+  })
+
+  it('nests lane cards via parentId with positions relative to the box', () => {
+    const absBox = layout.containers.find((container) => container.id === 's1')
+    if (!absBox) throw new Error('layout lost its container')
+
+    const branchIds = ['s1/p0', 's1/p1', 's1/p2']
+    for (const id of branchIds) {
+      const card = graph.nodes.find((node) => node.id === id)
+      expect(card?.parentId).toBe('s1')
+      const positioned = layout.nodes.find((node) => node.id === id)
+      if (!positioned) throw new Error(`layout lost ${id}`)
+      expect(card?.position).toEqual({
+        x: positioned.x - absBox.x,
+        y: positioned.y - absBox.y,
+      })
+    }
+  })
+
+  it('leaves top-level cards absolute and unparented', () => {
+    for (const id of ['s0', 's2']) {
+      const card = graph.nodes.find((node) => node.id === id)
+      expect(card?.parentId).toBeUndefined()
+      const positioned = layout.nodes.find((node) => node.id === id)
+      if (!positioned) throw new Error(`layout lost ${id}`)
+      expect(card?.position).toEqual({ x: positioned.x, y: positioned.y })
+    }
+  })
+
+  it('fans out from Build into each lane and fans back into Report', () => {
+    const ids = graph.edges.map((edge) => edge.id)
+    expect(ids).toContain('s0->s1/p0')
+    expect(ids).toContain('s0->s1/p1')
+    expect(ids).toContain('s0->s1/p2')
+    expect(ids).toContain('s1/p0->s2')
+    expect(ids).toContain('s1/p1->s2')
+    expect(ids).toContain('s1/p2->s2')
+  })
+})
+
+describe('buildFlowGraph with nested parallel containers', () => {
+  const NESTED = `pipeline {
+  stages {
+    stage('Seed') {
+      steps { echo 'seed' }
+    }
+    stage('Farm') {
+      failFast true
+      parallel {
+        stage('Pen A') {
+          stages {
+            stage('Herd') {
+              parallel {
+                stage('Goat') { steps { echo 'goat' } }
+                stage('Ewe') { steps { echo 'ewe' } }
+              }
+            }
+          }
+        }
+        stage('Pen B') {
+          steps { echo 'b' }
+        }
+      }
+    }
+    stage('Count') {
+      steps { echo 'done' }
+    }
+  }
+}
+`
+  const { layout, graph } = flow(NESTED)
+
+  it('recovers both container levels from geometry alone', () => {
+    expect(layout.containers).toHaveLength(2)
+    const outer = layout.containers.find((box) => box.id === 's1')
+    const inner = layout.containers.find((box) => box.id !== 's1')
+    expect(outer && inner).toBeTruthy()
+    if (!outer || !inner) return
+    // Inner strictly inside outer - the precondition the converter relies on.
+    expect(inner.x).toBeGreaterThanOrEqual(outer.x)
+    expect(inner.y).toBeGreaterThanOrEqual(outer.y)
+    expect(inner.x + inner.width).toBeLessThanOrEqual(outer.x + outer.width)
+    expect(inner.y + inner.height).toBeLessThanOrEqual(outer.y + outer.height)
+
+    const innerNode = graph.nodes.find((node) => node.id === inner.id)
+    expect(innerNode?.type).toBe('parallelContainer')
+    expect(innerNode?.parentId).toBe(outer.id)
+    expect(innerNode?.position).toEqual({ x: inner.x - outer.x, y: inner.y - outer.y })
+  })
+
+  it('parents deep cards to the innermost container only', () => {
+    // The two Herd-lane cards live inside both boxes geometrically but must
+    // attach to the inner one with offsets measured from the inner origin.
+    const inner = layout.containers.find((box) => box.id !== 's1')
+    if (!inner) throw new Error('inner container missing')
+    const laneIds = layout.nodes
+      .filter((node) => node.name === 'Goat' || node.name === 'Ewe')
+      .map((node) => node.id)
+    expect(laneIds).toHaveLength(2)
+    for (const id of laneIds) {
+      const card = graph.nodes.find((node) => node.id === id)
+      expect(card?.parentId).toBe(inner.id)
+      const positioned = layout.nodes.find((node) => node.id === id)
+      expect(card?.position).toEqual({
+        x: (positioned?.x ?? 0) - inner.x,
+        y: (positioned?.y ?? 0) - inner.y,
+      })
+    }
+  })
+
+  it('keeps mid-level cards parented to the outer container', () => {
+    const penB = graph.nodes.find((node) => node.id === 's1/p1')
+    expect(penB?.parentId).toBe('s1')
+  })
+})
+
+describe('buildFlowGraph edge cases', () => {
+  it('maps an empty layout to empty arrays', () => {
+    const model = parseJenkinsfile('')
+    const graph = buildFlowGraph(model, computeLayout(model))
+    expect(graph).toEqual({ nodes: [], edges: [] })
+  })
+})

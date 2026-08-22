@@ -262,7 +262,7 @@ img {
   border-top: 1px solid var(--border);
 }
 
-/* Canvas area: React Flow's future home, currently hosting the empty state. */
+/* Canvas area: hosts either the React Flow canvas or the how-to card. */
 .canvas-area {
   flex: 1;
   position: relative;
@@ -271,9 +271,20 @@ img {
   display: grid;
   place-items: center;
   padding: 32px;
-  /* Dot grid foreshadows the dotted React Flow Background arriving at M3. */
+}
+
+/* The CSS dot grid backs the how-to card only; once FlowCanvas mounts it
+   draws its own 22px React Flow Background, so the static grid steps aside
+   instead of doubling up underneath it. */
+.canvas-area:not(:has(.flow-canvas-host)) {
   background-image: radial-gradient(rgba(125, 211, 252, 0.13) 1px, transparent 1px);
   background-size: 22px 22px;
+}
+
+/* React Flow needs explicit dimensions; absolute fill of the pane. */
+.flow-canvas-host {
+  position: absolute;
+  inset: 0;
 }
 
 /* Empty-state card: explains the product instead of showing a void. */
@@ -349,6 +360,198 @@ img {
   margin-bottom: 0 !important;
 }
 
+/* ==========================================================================
+   Flow graph: stage cards, parallel containers, React Flow chrome.
+   Card anatomy per mockup §6; container per §7/§8. All interaction states
+   are CSS-only - React Flow toggles .selected on the node wrapper.
+   ========================================================================== */
+
+/* ---- Stage card ------------------------------------------------------------
+   Fixed 220x72 comes from the layout constants via inline node style; the
+   card simply fills its node box. The category stripe is a ::before strip
+   pinned to the inner left edge, full height, per mockup §6. */
+.stage-card {
+  width: 100%;
+  height: 100%;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 4px;
+  padding: 10px 14px 10px 18px;
+  overflow: hidden;
+  background: var(--surface-strong);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  box-shadow: 0 8px 24px rgba(2, 6, 23, 0.35);
+  cursor: pointer;
+  transition: border-color 120ms ease, box-shadow 120ms ease;
+}
+
+.stage-card::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  border-radius: 9px 0 0 9px;
+  background: var(--ink-muted);
+}
+
+/* Category stripes; hex values mirror src/graph/categories.ts (mockup §2). */
+.stage-card[data-category='build']::before {
+  background: #22d3ee;
+}
+.stage-card[data-category='test']::before {
+  background: #a78bfa;
+}
+.stage-card[data-category='deploy']::before {
+  background: #34d399;
+}
+
+.stage-card-title {
+  font-size: 13px;
+  font-weight: 650;
+  color: var(--ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.stage-card-badges {
+  font-size: 11.5px;
+  color: var(--ink-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Hover: border brightens exactly one token step (mockup §6 states row). */
+.stage-card:hover {
+  border-color: var(--border-strong);
+}
+
+/* Selected: double accent ring + soft glow. The two rings come from the
+   card's own border plus a spread box-shadow separated by a dark gap. */
+.react-flow__node.selected .stage-card,
+.stage-card:focus-visible {
+  border-color: rgba(34, 211, 238, 0.55);
+  box-shadow:
+    0 0 0 2px var(--bg-1),
+    0 0 0 3.5px var(--accent),
+    0 0 26px var(--accent-glow);
+}
+
+/* ---- Parallel container -----------------------------------------------------
+   Stands in for the cardless parallel parent: translucent elevated surface
+   with a header bar carrying the PARALLEL label and its badges (§7/§8). */
+.parallel-container {
+  width: 100%;
+  height: 100%;
+  background: rgba(15, 23, 42, 0.35);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  box-shadow: inset 0 0 32px rgba(2, 6, 23, 0.25);
+  pointer-events: auto;
+}
+
+.parallel-container-header {
+  height: 28px; /* matches layout CONTAINER_HEADER */
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.parallel-container-label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.parallel-container-chip {
+  flex: none;
+  font-size: 11px;
+  color: var(--accent);
+  background: var(--accent-soft);
+  border: 1px solid rgba(34, 211, 238, 0.35);
+  border-radius: 999px;
+  padding: 1px 8px;
+  white-space: nowrap;
+}
+
+.react-flow__node.selected .parallel-container {
+  border-color: rgba(34, 211, 238, 0.55);
+  box-shadow:
+    0 0 0 2px var(--bg-1),
+    0 0 0 3.5px var(--accent),
+    0 0 26px var(--accent-glow);
+}
+
+/* ---- Invisible handles -------------------------------------------------------
+   Edges must anchor to both card sides without showing sockets (§6):
+   keep the elements in the DOM at zero visual cost. */
+.card-handle {
+  opacity: 0;
+  pointer-events: none;
+  min-width: 0;
+  min-height: 0;
+  width: 1px;
+  height: 1px;
+  border: none;
+  background: transparent;
+}
+
+/* ---- React Flow chrome theming ----------------------------------------------
+   Controls bottom-left, minimap bottom-right (mockup §8); buttons and
+   panels pick up the app's surfaces so the canvas reads as one system. */
+.react-flow__controls {
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  box-shadow: var(--shadow-card);
+}
+
+.react-flow__controls-button {
+  background: rgba(15, 23, 42, 0.85);
+  border-bottom: 1px solid var(--border);
+  color: var(--ink-secondary);
+  width: 28px;
+  height: 28px;
+}
+
+.react-flow__controls-button:hover {
+  background: rgba(30, 41, 59, 0.95);
+  color: var(--ink);
+}
+
+.react-flow__controls-button svg {
+  fill: currentColor;
+}
+
+.flow-minimap {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  box-shadow: var(--shadow-card);
+}
+
+.react-flow__attribution {
+  background: transparent;
+  color: var(--ink-muted);
+  opacity: 0.55;
+}
+
+.react-flow__attribution a {
+  color: inherit;
+}
+
 /* ---- Status bar ------------------------------------------------------------*/
 .status-bar {
   display: flex;
@@ -374,6 +577,28 @@ img {
   border-radius: 50%;
   background: var(--success);
   box-shadow: 0 0 8px rgba(52, 211, 153, 0.6);
+}
+
+/* Busy state while the re-parse debounce settles (mockup §14): accent dot
+   with a gentle pulse; prefers-reduced-motion flattens it globally. */
+.status-dot.status-busy {
+  background: var(--accent);
+  box-shadow: 0 0 8px var(--accent-glow);
+  animation: status-pulse 900ms ease-in-out infinite alternate;
+}
+
+@keyframes status-pulse {
+  from {
+    opacity: 0.35;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* Error/warning tally line: danger-colored glyph, text carries the counts. */
+.status-problem-icon {
+  color: var(--danger);
 }
 
 .status-note {
