@@ -54,6 +54,66 @@
 
   /* Elevation: one soft ambient shadow reused by floating panels/cards. */
   --shadow-card: 0 18px 50px rgba(2, 6, 23, 0.45);
+
+  /* Chrome surfaces: translucent slate overlays over the page gradient.
+     Tokens (M6) so the light theme is a variable swap, not a hunt. */
+  --header-bg: rgba(15, 23, 42, 0.70);
+  --panel-bg: rgba(15, 23, 42, 0.55);
+  --bar-bg: rgba(15, 23, 42, 0.78);
+  --container-bg: rgba(15, 23, 42, 0.35);
+  --container-inset: inset 0 0 32px rgba(2, 6, 23, 0.25);
+  --control-bg: rgba(15, 23, 42, 0.85);
+  --control-bg-hover: rgba(30, 41, 59, 0.95);
+  --node-shadow: 0 8px 24px rgba(2, 6, 23, 0.35);
+  /* Static dot grid behind the empty-state card only. */
+  --dot-grid-color: rgba(125, 211, 252, 0.13);
+
+  /* Dark is the native widget scheme; [data-theme] below mirrors it. */
+  color-scheme: dark;
+}
+
+/* ---- Light theme (M6 opt-in) -------------------------------------------------
+   Same structure, daylight values: slate inks invert to dark-on-light,
+   accents deepen for AA contrast on white surfaces, and every chrome
+   overlay turns translucent white. Category stripes keep their vivid
+   hexes from categories.ts - mid-tones read on both grounds. */
+[data-theme='light'] {
+  --bg-0: #e7edf5;
+  --bg-1: #f1f5f9;
+
+  --surface: rgba(255, 255, 255, 0.65);
+  --surface-strong: rgba(255, 255, 255, 0.88);
+  --surface-solid: #ffffff;
+
+  --border: rgba(71, 85, 105, 0.20);
+  --border-strong: rgba(71, 85, 105, 0.36);
+
+  --ink: #0f172a;
+  --ink-secondary: #475569;
+  --ink-muted: #7c8ba1;
+
+  --accent: #0891b2;
+  --accent-2: #0284c7;
+  --accent-soft: rgba(8, 145, 178, 0.10);
+  --accent-glow: rgba(8, 145, 178, 0.28);
+
+  --success: #059669;
+  --warning: #b45309;
+  --danger: #dc2626;
+
+  --shadow-card: 0 18px 50px rgba(15, 23, 42, 0.14);
+
+  --header-bg: rgba(255, 255, 255, 0.78);
+  --panel-bg: rgba(248, 250, 252, 0.72);
+  --bar-bg: rgba(255, 255, 255, 0.85);
+  --container-bg: rgba(226, 232, 240, 0.45);
+  --container-inset: inset 0 0 32px rgba(148, 163, 184, 0.20);
+  --control-bg: rgba(255, 255, 255, 0.92);
+  --control-bg-hover: #f1f5f9;
+  --node-shadow: 0 8px 24px rgba(15, 23, 42, 0.10);
+  --dot-grid-color: rgba(71, 85, 105, 0.18);
+
+  color-scheme: light;
 }
 
 /* ---- Reset ---------------------------------------------------------------- */
@@ -150,7 +210,7 @@ img {
   /* The M4 action cluster can wrap under the brand on tight windows. */
   flex-wrap: wrap;
   /* Slightly denser than body so chrome reads as furniture, not content. */
-  background: rgba(15, 23, 42, 0.70);
+  background: var(--header-bg);
   backdrop-filter: blur(8px);
   border-bottom: 1px solid var(--border);
 }
@@ -339,7 +399,7 @@ img {
   display: flex;
   flex-direction: column;
   min-height: 0;
-  background: rgba(15, 23, 42, 0.55);
+  background: var(--panel-bg);
   border-right: 1px solid var(--border);
 }
 
@@ -404,7 +464,7 @@ img {
    draws its own 22px React Flow Background, so the static grid steps aside
    instead of doubling up underneath it. */
 .canvas-area:not(:has(.flow-canvas-host)) {
-  background-image: radial-gradient(rgba(125, 211, 252, 0.13) 1px, transparent 1px);
+  background-image: radial-gradient(var(--dot-grid-color) 1px, transparent 1px);
   background-size: 22px 22px;
 }
 
@@ -673,7 +733,7 @@ img {
   background: var(--surface-strong);
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
-  box-shadow: 0 8px 24px rgba(2, 6, 23, 0.35);
+  box-shadow: var(--node-shadow);
   cursor: pointer;
   transition: border-color 120ms ease, box-shadow 120ms ease;
 }
@@ -739,10 +799,10 @@ img {
 .parallel-container {
   width: 100%;
   height: 100%;
-  background: rgba(15, 23, 42, 0.35);
+  background: var(--container-bg);
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-md);
-  box-shadow: inset 0 0 32px rgba(2, 6, 23, 0.25);
+  box-shadow: var(--container-inset);
   pointer-events: auto;
 }
 
@@ -809,7 +869,7 @@ img {
 }
 
 .react-flow__controls-button {
-  background: rgba(15, 23, 42, 0.85);
+  background: var(--control-bg);
   border-bottom: 1px solid var(--border);
   color: var(--ink-secondary);
   width: 28px;
@@ -817,7 +877,7 @@ img {
 }
 
 .react-flow__controls-button:hover {
-  background: rgba(30, 41, 59, 0.95);
+  background: var(--control-bg-hover);
   color: var(--ink);
 }
 
@@ -850,7 +910,7 @@ img {
 .status-bar {
   display: flex;
   flex-direction: column;
-  background: rgba(15, 23, 42, 0.78);
+  background: var(--bar-bg);
   border-top: 1px solid var(--border);
 }
 

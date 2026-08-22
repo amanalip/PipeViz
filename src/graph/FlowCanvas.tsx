@@ -31,8 +31,10 @@ import type { Node, NodeProps } from '@xyflow/react'
 
 import { exportCanvasPng } from './exportPng'
 
-import type { LayoutOptions, LayoutResult, PositionedStage } from '../layout/computeLayout'
+import type { LayoutResult, PositionedStage } from '../layout/computeLayout'
 import type { PipelineModel } from '../model/types'
+import { CANVAS_PALETTES } from '../theme'
+import type { Theme } from '../theme'
 import { CATEGORY_COLORS } from './categories'
 import type { FlowEdge, FlowNode, GroupContainerNode, StageCardData } from './toFlow'
 import { buildFlowGraph } from './toFlow'
@@ -96,6 +98,8 @@ interface FlowCanvasProps {
   onStageDoubleClick?: (stage: PositionedStage) => void
   /** Matrix expansion toggle; must match the flag computeLayout ran with. */
   expandMatrix?: boolean
+  /** Active color scheme; picks edge/dot/minimap palettes + RF chrome. */
+  theme?: Theme
 }
 
 /**
@@ -137,15 +141,17 @@ export function FlowCanvas({
   apiRef,
   onStageDoubleClick,
   expandMatrix = false,
+  theme = 'dark',
 }: FlowCanvasProps) {
   const hostRef = useRef<HTMLDivElement>(null)
   // Fresh RF objects per (model, layout); memo keeps StrictMode double
   // renders and unrelated parent updates from rebuilding the graph data.
-  const flowOptions: LayoutOptions = useMemo(() => ({ expandMatrix }), [expandMatrix])
+  const flowOptions = useMemo(() => ({ expandMatrix, theme }), [expandMatrix, theme])
   const graph = useMemo(
     () => buildFlowGraph(model, layout, flowOptions),
     [model, layout, flowOptions],
   )
+  const palette = CANVAS_PALETTES[theme]
 
   return (
     <div className="flow-canvas-host" ref={hostRef}>
@@ -172,14 +178,14 @@ export function FlowCanvas({
             onStageDoubleClick((node.data as StageCardData).stage)
           }
         }}
-        colorMode="dark"
+        colorMode={theme}
       >
         <SelectionBridge apiRef={apiRef} hostRef={hostRef} />
         <Background
           variant={BackgroundVariant.Dots}
           gap={22}
           size={1.6}
-          color="rgba(100, 116, 139, 0.4)"
+          color={palette.dots}
         />
         <Controls position="bottom-left" showInteractive={false} />
         <MiniMap
@@ -187,7 +193,7 @@ export function FlowCanvas({
           pannable
           zoomable
           nodeColor={(node) => minimapColor(node)}
-          maskColor="rgba(15, 23, 42, 0.75)"
+          maskColor={palette.mask}
           className="flow-minimap"
         />
       </ReactFlow>

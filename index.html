@@ -6,10 +6,24 @@
     <meta charset="UTF-8" />
     <!-- Viewport keeps rendering crisp; mobile is a non-goal (plan NG5) but this costs nothing. -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <!-- Dark UI only for v1 (plan section 10); tells browsers to render native widgets dark too. -->
-    <meta name="color-scheme" content="dark" />
-    <!-- Browser chrome color on mobile OSes; mirrors the background token in global.css. -->
+    <!-- Dark UI by default (plan section 10; light joined as an M6 opt-in).
+         Both schemes are declared so the browser knows the app supports
+         theming, and the inline script below applies a saved choice before
+         first paint - without it, light-mode users would see one dark flash. -->
+    <meta name="color-scheme" content="dark light" />
+    <!-- Browser chrome color on mobile OSes; mirrors the background token in global.css.
+         The pre-paint script keeps this in step with the saved theme. -->
     <meta name="theme-color" content="#0f172a" />
+    <script>
+      try {
+        if (localStorage.getItem('pipeviz-theme') === 'light') {
+          document.documentElement.dataset.theme = 'light'
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#e7edf5')
+        }
+      } catch (e) {
+        /* private mode: storage throws, defaults apply */
+      }
+    </script>
     <!-- One-line pitch reused by search engines and link unfurlers. -->
     <meta
       name="description"

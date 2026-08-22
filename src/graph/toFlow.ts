@@ -25,6 +25,8 @@ import type { LayoutOptions, LayoutResult, PositionedStage } from '../layout/com
 import { NODE_H, NODE_W } from '../layout/computeLayout'
 import { axesLabel, computeMatrixCombos } from '../layout/matrixCombos'
 import type { PipelineModel, StageNode } from '../model/types'
+import { CANVAS_PALETTES } from '../theme'
+import type { Theme } from '../theme'
 import { categorize } from './categories'
 
 /** Data payload of a `stage` card node; StageNodeCard renders only this. */
@@ -90,21 +92,28 @@ function indexStages(model: PipelineModel): Map<string, StageNode> {
   return byId
 }
 
+/** Options steering conversion variants. */
+export interface FlowOptions extends LayoutOptions {
+  /** Color scheme for edge strokes/arrows; must match the active theme. */
+  theme?: Theme
+}
+
 /**
- * Shared edge styling: smoothstep with an arrowhead, muted slate stroke that
- * reads on the dark canvas. (Ghost cards and dashed edges into unparsed
- * material stay deferred: the parser emits no unparsed-region markers yet,
- * so there is nothing honest to draw them from.)
+ * Shared edge styling: smoothstep with an arrowhead in the theme's muted
+ * slate. (Ghost cards and dashed edges into unparsed material stay
+ * deferred: the parser emits no unparsed-region markers yet, so there is
+ * nothing honest to draw them from.)
  */
-function toFlowEdge(edge: LayoutResult['edges'][number]): FlowEdge {
+function toFlowEdge(edge: LayoutResult['edges'][number], theme: Theme): FlowEdge {
+  const palette = CANVAS_PALETTES[theme]
   return {
     id: edge.id,
     source: edge.source,
     target: edge.target,
     type: 'smoothstep',
     animated: false,
-    style: { stroke: 'rgba(148, 163, 184, 0.45)', strokeWidth: 1.5 },
-    markerEnd: { type: MarkerType.ArrowClosed, color: 'rgba(148, 163, 184, 0.65)' },
+    style: { stroke: palette.edgeStroke, strokeWidth: 1.5 },
+    markerEnd: { type: MarkerType.ArrowClosed, color: palette.edgeArrow },
   }
 }
 
@@ -112,13 +121,15 @@ function toFlowEdge(edge: LayoutResult['edges'][number]): FlowEdge {
  * Convert a parsed model plus its computed layout into React Flow objects.
  * Deterministic and side-effect free; empty layouts map to empty arrays.
  * `options.expandMatrix` must match the flag the layout ran with so
- * container headers report the right lane counts for expanded matrices.
+ * container headers report the right lane counts for expanded matrices;
+ * `options.theme` picks the edge palette.
  */
 export function buildFlowGraph(
   model: PipelineModel,
   layout: LayoutResult,
-  options: LayoutOptions = {},
+  options: FlowOptions = {},
 ): FlowGraph {
+  const theme = options.theme === 'light' ? 'light' : 'dark'
   if (layout.nodes.length === 0 && layout.containers.length === 0) {
     return { nodes: [], edges: [] }
   }
@@ -219,5 +230,5 @@ export function buildFlowGraph(
     })
   }
 
-  return { nodes, edges: layout.edges.map(toFlowEdge) }
+  return { nodes, edges: layout.edges.map((edge) => toFlowEdge(edge, theme)) }
 }

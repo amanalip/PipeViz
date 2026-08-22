@@ -38,6 +38,8 @@ import { parseJenkinsfile } from './parser'
 import { SAMPLES } from './samples'
 import type { Sample } from './samples'
 import { readHashSource, sourceToHash } from './share/hash'
+import { loadStoredTheme, storeTheme } from './theme'
+import type { Theme } from './theme'
 import { DiagnosticsBar } from './ui/DiagnosticsBar'
 import { DetailsPanel } from './ui/DetailsPanel'
 import { EditorPane } from './ui/EditorPane'
@@ -98,6 +100,11 @@ export default function App() {
   // M6 view preference: expand matrix stages into one card per axis combo
   // (mockups §10). Session-only; flipping it re-fits and clears selection.
   const [expandMatrix, setExpandMatrix] = useState(false)
+  // M6 color scheme (mockups §2 shipped dark-only v1): persisted choice,
+  // dark unless the visitor explicitly picked light.
+  const [theme, setTheme] = useState<Theme>(() =>
+    typeof window === 'undefined' ? 'dark' : loadStoredTheme(window.localStorage),
+  )
 
   // Imperative handles into the two interactive regions.
   const editorApi = useRef<EditorApi | null>(null)
@@ -152,7 +159,8 @@ export default function App() {
 
   // Matrix toggle rides the same revision path as a fresh parse: remount
   // re-fits the view and drops any selection pointing at pre-toggle ids.
-  // The ref skips the mount run so revision stays 0 until something happens.
+  // Theme flips join the ride so canvas palettes swap through the same
+  // remount. The ref skips the mount run so revision stays 0 until then.
   const mounted = useRef(false)
   useEffect(() => {
     if (!mounted.current) {
@@ -161,7 +169,20 @@ export default function App() {
     }
     setRevision((current) => current + 1)
     setSelectedId(null)
-  }, [expandMatrix])
+  }, [expandMatrix, theme])
+
+  // Reflect the theme on <html>, persist it, and keep browser chrome in
+  // step (widget colors + mobile status bar).
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme
+    storeTheme(window.localStorage, theme)
+    document
+      .querySelector('meta[name="color-scheme"]')
+      ?.setAttribute('content', theme === 'light' ? 'light' : 'dark')
+    document
+      .querySelector('meta[name="theme-color"]')
+      ?.setAttribute('content', theme === 'light' ? '#e7edf5' : '#0f172a')
+  }, [theme])
 
   // Pure derived pipeline: parse then lay out. Both are cheap enough to run
   // synchronously on settle, and memoizing keeps renders side-effect free.
@@ -394,7 +415,16 @@ export default function App() {
               {pngState === 'working' ? 'Rendering…' : pngState === 'failed' ? 'Export failed' : 'Export PNG'}
             </button>
           </div>
-          <a className="repo-link" href={REPO_URL} target="_blank" rel="noopener noreferrer">
+            <button
+              type="button"
+              className="btn"
+              onClick={() => setTheme((current) => (current === 'dark' ? 'light' : 'dark'))}
+              aria-pressed={theme === 'light'}
+              title={theme === 'dark' ? 'Switch to the light color scheme' : 'Switch to the dark color scheme'}
+            >
+              {theme === 'dark' ? 'Light mode' : 'Dark mode'}
+            </button>
+            <a className="repo-link" href={REPO_URL} target="_blank" rel="noopener noreferrer">
             GitHub ↗
           </a>
         </nav>
@@ -438,6 +468,7 @@ export default function App() {
               apiRef={flowApi}
               onStageDoubleClick={(stage) => revealLine(stage.line)}
               expandMatrix={expandMatrix}
+              theme={theme}
             />
           ) : (
             <div className="empty-state">
