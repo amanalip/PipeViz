@@ -117,6 +117,22 @@ function findAssignment(tokens: readonly Token[]): number {
 }
 
 /**
+ * Read an optional `failFast true|false` out of statement tokens. Returns
+ * undefined when the statement carries no boolean failFast argument.
+ */
+function readFailFast(tokens: readonly Token[]): boolean | undefined {
+  for (let k = 0; k < tokens.length - 1; k += 1) {
+    const t = tokens[k]
+    const next = tokens[k + 1]
+    if (t?.type === 'ident' && t.value === 'failFast') {
+      if (next?.type === 'ident' && next.value === 'true') return true
+      if (next?.type === 'ident' && next.value === 'false') return false
+    }
+  }
+  return undefined
+}
+
+/**
  * Convert one brace-less statement into a Step. Call-shaped statements keep
  * their name plus verbatim argument text; everything else degrades to a
  * 'script' kind step so arbitrary Groovy stays visible instead of vanishing.
@@ -376,19 +392,15 @@ export function interpretStage(
 
     switch (keyword) {
       case 'steps': {
-        if (item.block) stage.steps = collectSteps(flattenScope(item.block.children), ctx)
+        // Append, never overwrite: generic steps captured from earlier
+        // unknown directives must survive a later `steps { … }` block.
+        if (item.block) stage.steps.push(...collectSteps(flattenScope(item.block.children), ctx))
         break
       }
       case 'parallel': {
-        // failFast may ride along in the same statement (`failFast true`).
-        for (let k = 1; k < item.tokens.length - 1; k += 1) {
-          const t = item.tokens[k]
-          const next = item.tokens[k + 1]
-          if (t?.type === 'ident' && t.value === 'failFast') {
-            if (next?.type === 'ident' && next.value === 'true') stage.failFast = true
-            if (next?.type === 'ident' && next.value === 'false') stage.failFast = false
-          }
-        }
+        // failFast may ride along in the same statement (`parallel failFast: true`)
+        const riding = readFailFast(item.tokens)
+        if (riding !== undefined) stage.failFast = riding
         if (item.block) {
           const branches: StageNode[] = []
           for (const branchItem of flattenScope(item.block.children)) {
@@ -396,6 +408,10 @@ export function interpretStage(
               branches.push(
                 interpretStage(branchItem.block, `${id}/p${branches.length}`, ctx),
               )
+            } else if (!branchItem.block && startsWithKeyword(branchItem.tokens, 'failFast')) {
+              // Documented placement: `failFast true` adjacent inside the group.
+              const ff = readFailFast(branchItem.tokens)
+              if (ff !== undefined) stage.failFast = ff
             } else {
               warn(
                 ctx,
@@ -435,6 +451,12 @@ export function interpretStage(
           const conditions = summarizeWhen(item.block, ctx)
           if (conditions.length > 0) stage.when = conditions
         }
+        break
+      }
+      case 'failFast': {
+        // Documented placement: `failFast true` adjacent to `parallel`.
+        const ff = readFailFast(item.tokens)
+        if (ff !== undefined) stage.failFast = ff
         break
       }
       case 'input': {

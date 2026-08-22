@@ -47,17 +47,18 @@ const PUNCT = new Set(['{', '}', '(', ')', '[', ']', ',', ':', '=', ';'])
 
 /**
  * Consume one quoted literal starting at offset `start` (src[start] === quote).
- * Returns the offset just past the closing delimiter and the line number at
- * that point. Handles backslash escapes, multi-line triple literals, and
- * ${ … } interpolation with brace counting plus nested-quote skipping so a
- * brace or quote inside an expression can never unbalance the stream.
+ * Returns the offset just past the closing delimiter, the line number at
+ * that point, and whether a real closing delimiter was found. Handles
+ * backslash escapes, multi-line triple literals, and ${ … } interpolation
+ * with brace counting plus nested-quote skipping so a brace or quote inside
+ * an expression can never unbalance the stream.
  */
 function scanString(
   src: string,
   start: number,
   quote: string,
   lineAtStart: number,
-): { end: number; lineEnd: number } {
+): { end: number; lineEnd: number; closed: boolean } {
   const triple = src.slice(start, start + 3) === quote.repeat(3)
   const delim = triple ? 3 : 1
   let line = lineAtStart
@@ -104,21 +105,21 @@ function scanString(
     // Newlines are legal only inside triple-quoted literals; a bare newline
     // under an unterminated normal string ends the token there (recovery).
     if (c === '\n') {
-      if (!triple) return { end: j, lineEnd: line }
+      if (!triple) return { end: j, lineEnd: line, closed: false }
       line += 1
       j += 1
       continue
     }
 
-    if (!triple && c === quote) return { end: j + 1, lineEnd: line }
+    if (!triple && c === quote) return { end: j + 1, lineEnd: line, closed: true }
     if (triple && c === quote && src.slice(j, j + 3) === quote.repeat(3)) {
-      return { end: j + 3, lineEnd: line }
+      return { end: j + 3, lineEnd: line, closed: true }
     }
 
     j += 1
   }
 
-  return { end: src.length, lineEnd: line }
+  return { end: src.length, lineEnd: line, closed: false }
 }
 
 /**
@@ -184,15 +185,26 @@ export function tokenize(source: string): TokenizeResult {
       const scanned = scanString(source, start, ch, startLine)
       line = scanned.lineEnd
       const raw = source.slice(start, scanned.end)
-      // Decode display value: strip quotes, drop backslash escapes.
+      // Decode display value: strip quotes, drop backslash escapes. A
+      // recovered unterminated literal has no closing delimiter to trim.
       const triple = raw.startsWith(ch.repeat(3))
       const delim = triple ? 3 : 1
-      const value =
-        raw.length >= delim * 2
-          ? raw.slice(delim, raw.length - delim).replace(/\\(.)/g, '$1')
-          : ''
+      const inner =
+        scanned.closed && raw.length >= delim * 2
+          ? raw.slice(delim, raw.length - delim)
+          : raw.slice(delim)
+      const value = inner.replace(/\\(.)/g, '$1')
       tokens.push({ type: 'string', value, raw, start, end: scanned.end, line: startLine, nlBefore })
       nlBefore = false
+      // Recovery exit (newline or EOF instead of a closing delimiter) is an
+      // error per plan §6.5; the token still emits so parsing continues.
+      if (!scanned.closed) {
+        diagnostics.push({
+          severity: 'error',
+          message: 'String literal opened here is never closed',
+          line: startLine,
+        })
+      }
       i = scanned.end
       continue
     }
