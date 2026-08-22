@@ -5,7 +5,7 @@ Human readable log of every commit on main, plus the planned sequence ahead. Upd
 | | |
 |---|---|
 | Created | Saturday, 22 August 2026 at 01:36 EDT |
-| Last updated | Saturday, 22 August 2026 at 01:49 EDT |
+| Last updated | Saturday, 22 August 2026 at 02:15 EDT |
 | Branch tracked | main |
 | Owner | Aman Ali |
 
@@ -69,6 +69,7 @@ Newest first.
 
 | Hash | Date | Type/scope | Summary |
 |---|---|---|---|
+| 7376885 | Sat, 22 Aug 2026 at 02:17 EDT | chore(scaffold) | M0 complete: Vite + React + TypeScript app shell (header, editor pane, canvas empty state, status bar); TS pinned to 5.9.3 per plan risk fallback; lint/typecheck/build/dev smoke all green |
 | f22f201 | Sat, 22 Aug 2026 at 01:55 EDT | docs(branding) | Add logo assets (public/logo.svg, public/favicon.svg) and Branding section in project_plan.md |
 | 2d3bae3 | Sat, 22 Aug 2026 at 01:40 EDT | docs | Add project_plan.md and commit_tracker.md with TOCs and timestamps |
 | 9e6a01f | Sat, 22 Aug 2026 | ci | Create static.yml GitHub Pages deploy workflow (repo root upload) |
@@ -81,8 +82,8 @@ Mapped to milestones in project_plan.md section 14. Order is sequential; hashes 
 | Status | Planned type/scope | Milestone | Summary |
 |---|---|---|---|
 | done (recorded in History) | docs(branding) | M0 | Add logo assets (The Branch concept) and branding section in plan |
-| in progress | docs(readme) | M0 | Rewrite README with logo, TOC, status, stack links, doc index |
-| planned | chore(scaffold) | M0 | Vite + React + TypeScript scaffold: package.json, tsconfig, vite config, index.html, minimal App, .gitignore |
+| done (recorded in History) | docs(readme) | M0 | Rewrite README with logo, TOC, status, stack links, doc index |
+| done (recorded in History) | chore(scaffold) | M0 | Vite + React + TypeScript scaffold: package.json, tsconfig, vite config, index.html, minimal App, .gitignore. TypeScript pinned to 5.9.3 per plan risk fallback (typescript-eslint peer range blocks 7.x); stack table and README updated to match. **Milestone M0 complete.** |
 | planned | feat(parser) | M1 | Tokenizer and block tree with line tracking and string/comment handling |
 | planned | feat(parser) | M1 | Declarative interpreter plus scripted fallback producing PipelineModel with diagnostics |
 | planned | test(parser) | M1 | Corpus fixtures for 7 samples, never-throw fuzz test, model snapshots |
