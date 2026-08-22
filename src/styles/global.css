@@ -19,6 +19,9 @@
   /* Raised surfaces sitting above the page background. */
   --surface: rgba(30, 41, 59, 0.55);
   --surface-strong: rgba(30, 41, 59, 0.85);
+  /* Opaque sibling of --surface-strong for sticky headers that must mask
+     scrolling content without leaning on backdrop-filter. */
+  --surface-solid: #16202f;
 
   /* Hairline borders; two steps so hover states can brighten subtly. */
   --border: rgba(148, 163, 184, 0.16);
@@ -392,6 +395,28 @@ img {
   inset: 0;
 }
 
+/* Canvas caption (mockups §5/§8/§11): quiet provenance pill top-left. It
+   names the loaded sample while the text matches it and flips to the honest
+   parse-failed line when errors exist; floats above the flow, below the
+   details panel (z-30). */
+.canvas-caption {
+  position: absolute;
+  top: 14px;
+  left: 16px;
+  z-index: 20;
+  max-width: calc(100% - 32px);
+  padding: 4px 12px;
+  font-size: 12px;
+  color: var(--ink-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  background: var(--surface-strong);
+  backdrop-filter: blur(8px);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+}
+
 /* Empty-state card: explains the product instead of showing a void. */
 .empty-state {
   max-width: 540px;
@@ -499,7 +524,7 @@ img {
   gap: 10px;
   padding: 12px 14px;
   /* Opaque enough to mask scrolling content beneath the sticky bar. */
-  background: #16202f;
+  background: var(--surface-solid);
   border-bottom: 1px solid var(--border);
 }
 

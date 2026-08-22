@@ -68,6 +68,10 @@ export default function App() {
   const [selectedId, setSelectedId] = useState<string | null>(null)
   // Copy JSON button feedback: idle -> copied/failed -> idle after a flash.
   const [copyState, setCopyState] = useState<'idle' | 'copied' | 'failed'>('idle')
+  // Name of the bundled sample the editor currently holds (§5/§8 caption).
+  // Cleared as soon as the content diverges via edit/upload/paste, so the
+  // label only ever names text that really is that sample.
+  const [sampleName, setSampleName] = useState<string | null>(null)
 
   // Imperative handles into the two interactive regions.
   const editorApi = useRef<EditorApi | null>(null)
@@ -148,9 +152,27 @@ export default function App() {
 
   // ---- Header actions ------------------------------------------------------
 
-  /** Sample pick replaces the editor immediately (§12); debounce settles it. */
+  /**
+   * Sample pick replaces the editor immediately (§12) and settles just as
+   * immediately (§17: "fresh parse, revision bump clears stale selection") -
+   * no reason to make the user wait out the typing debounce for a whole-file
+   * swap. Provenance records which sample the text came from.
+   */
   function pickSample(sample: Sample) {
+    setSampleName(sample.name)
     setSource(sample.source)
+    setSettledSource(sample.source)
+    setRevision((current) => current + 1)
+    setSelectedId(null)
+  }
+
+  /**
+   * Manual edits (typing, Tab, paste into the textarea) diverge the content
+   * from any named sample, so provenance drops and the caption goes quiet.
+   */
+  function changeSource(next: string) {
+    setSampleName(null)
+    setSource(next)
   }
 
   /** Same path as paste (§17): read the file as text, swap the editor. */
@@ -158,6 +180,7 @@ export default function App() {
     const file = event.target.files?.[0]
     event.target.value = ''
     if (!file) return
+    setSampleName(null)
     setSource(await file.text())
   }
 
@@ -241,12 +264,21 @@ export default function App() {
 
       {/* ---- Region 2: workspace = editor pane + canvas area --------------- */}
       <main className="workspace">
-        <EditorPane value={source} onChange={setSource} apiRef={editorApi} />
+        <EditorPane value={source} onChange={changeSource} apiRef={editorApi} />
 
         {/* Canvas area: the live graph once anything parsed, otherwise the
             how-to card. FlowCanvas fills the pane absolutely; React Flow
             provides its own dotted background and floating controls. */}
         <section className="canvas-area" aria-label="Pipeline graph canvas">
+          {/* Canvas caption (§5/§8/§11): names the loaded sample while the
+              text still is that sample; swaps to the honest parse-failed
+              line whenever errors exist and something rendered. */}
+          {canvasStats.stages > 0 && problems.errors > 0 && (
+            <div className="canvas-caption">parse failed — showing what parsed</div>
+          )}
+          {canvasStats.stages > 0 && problems.errors === 0 && sampleName && (
+            <div className="canvas-caption">sample · {sampleName}</div>
+          )}
           {canvasStats.stages > 0 ? (
             <FlowCanvas
               model={model}
@@ -270,7 +302,7 @@ export default function App() {
                 <li className="chip chip-ready">Upload</li>
                 <li className="chip chip-ready">Samples</li>
               </ul>
-              <p className="empty-footnote">Everything runs locally in your browser.</p>
+              <p className="empty-footnote">Nothing leaves your browser.</p>
             </div>
           )}
 
