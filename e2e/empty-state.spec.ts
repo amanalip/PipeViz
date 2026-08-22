@@ -60,6 +60,11 @@ test.describe('empty-state input paths', () => {
     await expect(content).toBeFocused()
     await page.keyboard.type("stage('X')")
     await expect(content).toContainText("stage('X')")
+
+    // The fallback is never silent: the pane flashes and a hint names the
+    // manual Ctrl+V path.
+    await expect(page.locator('.editor-pane.editor-flash')).toBeAttached()
+    await expect(page.locator('.empty-hint')).toContainText('Ctrl+V')
   })
 
   test('Upload chip opens a file chooser and the picked file renders', async ({ page }) => {

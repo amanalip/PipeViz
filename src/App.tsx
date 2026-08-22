@@ -70,6 +70,9 @@ const REPARSE_DEBOUNCE_MS = 400
 /** How long the Copy JSON button flashes feedback before resetting. */
 const COPY_FLASH_MS = 1500
 
+/** How long the empty-state paste hint stays up before fading out. */
+const PASTE_HINT_MS = 6000
+
 /**
  * App renders the three-region layout from the UI spec (plan section 10):
  * header / workspace (editor + canvas) / diagnostics bar.
@@ -101,6 +104,9 @@ export default function App() {
   // M6 view preference: expand matrix stages into one card per axis combo
   // (mockups §10). Session-only; flipping it re-fits and clears selection.
   const [expandMatrix, setExpandMatrix] = useState(false)
+  // Empty-state Paste chip guidance (§4): shown when the clipboard could
+  // not be read, pointing at the manual Ctrl+V path. Auto-clears.
+  const [pasteHint, setPasteHint] = useState(false)
   // M6 color scheme (mockups §2 shipped dark-only v1): persisted choice,
   // dark unless the visitor explicitly picked light.
   const [theme, setTheme] = useState<Theme>(() =>
@@ -135,6 +141,14 @@ export default function App() {
     const timer = window.setTimeout(() => setCopyState('idle'), COPY_FLASH_MS)
     return () => window.clearTimeout(timer)
   }, [copyState])
+
+  // Paste hint reset: the manual-path guidance outlives a glance but not
+  // the visit; any successful clipboard insert clears it immediately.
+  useEffect(() => {
+    if (!pasteHint) return
+    const timer = window.setTimeout(() => setPasteHint(false), PASTE_HINT_MS)
+    return () => window.clearTimeout(timer)
+  }, [pasteHint])
 
   // Copy link flash reset; identical pattern to the JSON button.
   useEffect(() => {
@@ -294,21 +308,24 @@ export default function App() {
    * Empty-state Paste chip: be literal about the label. Read the clipboard
    * and drop its text straight into the editor, then leave a focused caret
    * so typing continues seamlessly. When the browser refuses (permission
-   * denied, API unsupported on insecure contexts), fall back to just
-   * focusing the editor so manual Ctrl+V still lands there. An empty
-   * clipboard also falls back - there is nothing to insert.
+   * denied, API unsupported on insecure contexts) or the clipboard holds no
+   * text, say so out loud: flash the editor pane and show a hint naming the
+   * manual path, so the click can never look like it did nothing.
    */
   async function pasteFromClipboard() {
     try {
       const text = await navigator.clipboard.readText()
       if (text.length > 0) {
+        setPasteHint(false)
         changeSource(text)
         editorApi.current?.focus()
         return
       }
     } catch {
-      // Clipboard unavailable; the focus fallback below still helps.
+      // Clipboard unavailable; the guided fallback below takes over.
     }
+    setPasteHint(true)
+    flashEditorPane()
     editorApi.current?.focus()
   }
 
@@ -393,6 +410,20 @@ export default function App() {
     void el.offsetWidth // restart the animation if it is already flashing
     el.classList.add('node-flash')
     window.setTimeout(() => el.classList.remove('node-flash'), 1000)
+  }
+
+  /**
+   * One-shot highlight on the editor pane: same restart-safe pattern as
+   * flashNode, used by the empty-state Paste chip to point eyes at the
+   * source column when the clipboard could not be read.
+   */
+  function flashEditorPane() {
+    const el = document.querySelector('.editor-pane')
+    if (!(el instanceof HTMLElement)) return
+    el.classList.remove('editor-flash')
+    void el.offsetWidth // restart the animation if it is already flashing
+    el.classList.add('editor-flash')
+    window.setTimeout(() => el.classList.remove('editor-flash'), 1000)
   }
 
   /** Diagnostic row click: jump the caret, flash the related card if any. */
@@ -553,6 +584,11 @@ export default function App() {
                   </button>
                 </li>
               </ul>
+              {pasteHint && (
+                <p className="empty-hint" role="status">
+                  Clipboard not readable here — click in the editor and press Ctrl+V / ⌘V.
+                </p>
+              )}
               <p className="empty-footnote">Nothing leaves your browser.</p>
             </div>
           )}
