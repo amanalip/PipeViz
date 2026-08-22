@@ -314,39 +314,120 @@ export function summarizeWhen(whenBlock: BlockNode, ctx: InterpretContext): stri
 
 /** Collect axis names declared under a matrix block (`axis { name 'OS' … }`). */
 export function collectMatrixAxes(matrixBlock: BlockNode): string[] {
-  const axes: string[] = []
+  return collectMatrixAxisSpecs(matrixBlock).map((axis) => axis.name)
+}
 
-  const visitAxis = (axisBlock: BlockNode): void => {
-    const hunt = (nodes: readonly TreeNode[]): void => {
-      for (const node of nodes) {
-        const tokens = node.kind === 'block' ? node.header : node.tokens
-        for (let k = 0; k < tokens.length - 1; k += 1) {
-          const t = tokens[k]
-          const next = tokens[k + 1]
-          if (t?.type === 'ident' && t.value === 'name' && next?.type === 'string') {
-            axes.push(next.value)
-            return
-          }
+/** One captured `axis { name … values … }` entry of a matrix block. */
+export interface MatrixAxisSpec {
+  name: string
+  values: string[]
+}
+
+/**
+ * String literals following a `values` keyword in one statement, tolerating
+ * both `values 'a', 'b'` and list forms; stops at the first non-separator.
+ */
+function collectValueStrings(tokens: readonly Token[]): string[] {
+  const valuesIdx = tokens.findIndex((t) => t.type === 'ident' && t.value === 'values')
+  if (valuesIdx < 0) return []
+  const out: string[] = []
+  for (let k = valuesIdx + 1; k < tokens.length; k += 1) {
+    const t = tokens[k]
+    if (!t) break
+    if (t.type === 'string') out.push(t.value)
+    else if (t.type === 'punct' && (t.value === ',' || t.value === '[' || t.value === ']')) continue
+    else break
+  }
+  return out
+}
+
+/** First direct child block led by the given keyword, if any. */
+function childBlock(block: BlockNode, keyword: string): BlockNode | undefined {
+  for (const item of flattenScope(block.children)) {
+    if (item.block && startsWithKeyword(item.tokens, keyword)) return item.block
+  }
+  return undefined
+}
+
+/**
+ * Capture every axis of a matrix as `{ name, values }`, walking `axes { … }`
+ * wherever it sits under the block. Axes without a name are skipped; ones
+ * without values survive with an empty list so names stay honest.
+ */
+export function collectMatrixAxisSpecs(matrixBlock: BlockNode): MatrixAxisSpec[] {
+  const axesBlock = childBlock(matrixBlock, 'axes')
+  if (!axesBlock) return []
+  const specs: MatrixAxisSpec[] = []
+  for (const item of flattenScope(axesBlock.children)) {
+    if (!item.block || !startsWithKeyword(item.tokens, 'axis')) continue
+    let name: string | undefined
+    const values: string[] = []
+    for (const inner of flattenScope(item.block.children)) {
+      const tokens = inner.tokens
+      const nameIdx = tokens.findIndex((t) => t.type === 'ident' && t.value === 'name')
+      const nameValue = nameIdx >= 0 ? tokens[nameIdx + 1] : undefined
+      if (name === undefined && nameValue?.type === 'string') name = nameValue.value
+      values.push(...collectValueStrings(tokens))
+      if (inner.block) values.push(...collectValueStrings(inner.block.header))
+    }
+    if (name !== undefined) specs.push({ name, values })
+  }
+  return specs
+}
+
+/**
+ * Capture `excludes { exclude { axis { name 'OS' values 'windows' } } }`
+ * rules. Each exclude becomes a partial map axis -> forbidden values;
+ * combination filtering lives in layout/matrixCombos so the parser stays a
+ * dumb recorder.
+ */
+export function collectMatrixExcludes(matrixBlock: BlockNode): { [axisName: string]: string[] }[] {
+  const excludesBlock = childBlock(matrixBlock, 'excludes')
+  if (!excludesBlock) return []
+  const rules: { [axisName: string]: string[] }[] = []
+  for (const item of flattenScope(excludesBlock.children)) {
+    if (!item.block || !startsWithKeyword(item.tokens, 'exclude')) continue
+    const rule: { [axisName: string]: string[] } = {}
+    for (const inner of flattenScope(item.block.children)) {
+      if (!inner.block || !startsWithKeyword(inner.tokens, 'axis')) continue
+      let name: string | undefined
+      const values: string[] = []
+      for (const leaf of flattenScope(inner.block.children)) {
+        const tokens = leaf.tokens
+        const nameIdx = tokens.findIndex((t) => t.type === 'ident' && t.value === 'name')
+        const nameValue = nameIdx >= 0 ? tokens[nameIdx + 1] : undefined
+        if (name === undefined && nameValue?.type === 'string') name = nameValue.value
+        values.push(...collectValueStrings(tokens))
+        if (leaf.block) values.push(...collectValueStrings(leaf.block.header))
+      }
+      if (name !== undefined) rule[name] = values
+    }
+    if (Object.keys(rule).length > 0) rules.push(rule)
+  }
+  return rules
+}
+
+/**
+ * Steps executed in every cell: everything declared inside the nested
+ * `stages { … }` of a matrix block. Collected flat so expansion can stamp
+ * the same step list onto every combination node.
+ */
+export function collectMatrixCellSteps(matrixBlock: BlockNode, ctx: InterpretContext): Step[] {
+  const stagesBlock = childBlock(matrixBlock, 'stages')
+  if (!stagesBlock) return []
+  const steps: Step[] = []
+  const hunt = (block: BlockNode): void => {
+    for (const item of flattenScope(block.children)) {
+      if (item.block) {
+        if (startsWithKeyword(item.tokens, 'steps')) {
+          steps.push(...collectSteps(flattenScope(item.block.children), ctx))
         }
-        if (node.kind === 'block') hunt(node.children)
+        hunt(item.block)
       }
     }
-    hunt(axisBlock.children)
   }
-
-  const visit = (node: TreeNode): void => {
-    if (node.kind !== 'block') return
-    if (startsWithKeyword(node.header, 'axes')) {
-      for (const child of node.children) {
-        if (child.kind === 'block' && startsWithKeyword(child.header, 'axis')) visitAxis(child)
-      }
-      return
-    }
-    for (const child of node.children) visit(child)
-  }
-
-  for (const child of matrixBlock.children) visit(child)
-  return axes
+  hunt(stagesBlock)
+  return steps
 }
 
 function warn(ctx: InterpretContext, message: string, line: number): void {
@@ -425,7 +506,17 @@ export function interpretStage(
         break
       }
       case 'matrix': {
-        if (item.block) stage.matrixAxes = collectMatrixAxes(item.block)
+        if (item.block) {
+          const specs = collectMatrixAxisSpecs(item.block)
+          stage.matrixAxes = specs.map((axis) => axis.name)
+          if (specs.some((axis) => axis.values.length > 0)) {
+            stage.matrixAxisValues = specs.map((axis) => axis.values)
+          }
+          const excludes = collectMatrixExcludes(item.block)
+          if (excludes.length > 0) stage.matrixExcludes = excludes
+          const cellSteps = collectMatrixCellSteps(item.block, ctx)
+          if (cellSteps.length > 0) stage.matrixCellSteps = cellSteps
+        }
         break
       }
       case 'stages': {

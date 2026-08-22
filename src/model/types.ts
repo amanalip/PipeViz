@@ -10,7 +10,9 @@
 // Two deliberate extensions beyond the plan's sketch, both implied by §6.3
 // and needed by the UI: `failFast` on StageNode (parallel capture), `options`
 // on PipelineModel and a `stage` tag on PostHandler (stage-level post blocks
-// are folded into the pipeline list without losing their scope).
+// are folded into the pipeline list without losing their scope). A third,
+// added for the M6 expansion toggle: `matrixAxisValues`, `matrixExcludes`,
+// and `matrixCellSteps` carry everything one-node-per-combo rendering needs.
 // ---------------------------------------------------------------------------
 
 /** Where a step came from / whether we can render a known icon for it. */
@@ -49,6 +51,18 @@ export interface StageNode {
   parallelBranches?: StageNode[]
   /** Axis names when this stage is a `matrix`. */
   matrixAxes?: string[]
+  /**
+   * Axis values aligned index-wise with `matrixAxes`; present only when the
+   * matrix declares them (M6 expansion needs the actual combinations).
+   */
+  matrixAxisValues?: string[][]
+  /**
+   * Rules from the matrix `excludes { … }` block: each entry maps an axis
+   * name to the values that disqualify a combination mentioning them.
+   */
+  matrixExcludes?: { [axisName: string]: string[] }[]
+  /** Steps captured from the nested stages a matrix runs in every cell. */
+  matrixCellSteps?: Step[]
   /** Captured `failFast` flag belonging to a parallel group. */
   failFast?: boolean
   /** Sequential sub-chain inside this stage (nested `stages` block). */

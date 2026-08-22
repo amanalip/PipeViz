@@ -11,8 +11,9 @@
 //     branch tail into the next sequential stage.
 //   - Nested `stages` groups unfold inline: the parent card stays (SEQ badge)
 //     and its children continue in successive columns after it.
-//   - Matrix stages stay single cards; axis-combo expansion is deferred to M6
-//     (plan Q1), so layout treats them as leaves.
+//   - Matrix stages render as single cards by default; passing
+//     `{ expandMatrix: true }` swaps each expandable matrix into a container
+//     holding one card per axis combination (M6 toggle, mockups §10).
 //
 // The algorithm is a pure two-pass recursion: bottom-up bounding boxes
 // (`measure`), then top-down placement (`placeStage`) where every subtree is
@@ -23,6 +24,16 @@
 // ---------------------------------------------------------------------------
 
 import type { PipelineModel, StageNode } from '../model/types'
+import { comboLabel, computeMatrixCombos } from './matrixCombos'
+
+/** Options steering layout variants. */
+export interface LayoutOptions {
+  /**
+   * Expand matrix stages into one combination card per cell inside a
+   * container (default false: compact MATRIX cards, mockups §10 default).
+   */
+  expandMatrix?: boolean
+}
 
 /** Card size and inter-column / inter-lane gaps for v1 (mockups §19). */
 export const NODE_W = 220
@@ -91,17 +102,40 @@ interface WalkContext {
 }
 
 /**
- * Bottom-up pass: bounding box of one stage's whole subtree. Sequential lists
- * sum widths per link and take max height; parallel groups take the widest
- * lane plus horizontal padding and stack lane heights with V_GAP between.
+ * The lanes a stage fans out into: its own parallel branches, or — when
+ * matrix expansion is on — one synthesized card per axis combination.
+ * Synthesized branches keep the matrix's line/when/agent so combo cards
+ * still badge and jump to source honestly; ids derive from the parent
+ * (`<id>/m<i>`), deterministic across re-parses like every other id.
  */
-function measure(stage: StageNode): Box {
-  const branches = stage.parallelBranches
+function branchesOf(stage: StageNode, expandMatrix: boolean): StageNode[] | undefined {
+  if (stage.parallelBranches && stage.parallelBranches.length > 0) return stage.parallelBranches
+  if (!expandMatrix || !stage.matrixAxes) return undefined
+  const combos = computeMatrixCombos(stage)
+  const cellSteps = stage.matrixCellSteps ?? []
+  return combos.map((combo, index) => ({
+    id: `${stage.id}/m${index}`,
+    name: comboLabel(combo),
+    line: stage.line,
+    steps: cellSteps,
+    ...(stage.when ? { when: stage.when } : {}),
+    ...(stage.agent ? { agent: stage.agent } : {}),
+    ...(stage.hasInput ? { hasInput: true } : {}),
+  }))
+}
+
+/**
+ * Bottom-up pass: bounding box of one stage's whole subtree. Sequential lists
+ * sum widths per link and take max height; parallel/matrix groups take the
+ * widest lane plus horizontal padding and stack lane heights with V_GAP.
+ */
+function measure(stage: StageNode, expandMatrix: boolean): Box {
+  const branches = branchesOf(stage, expandMatrix)
   if (branches && branches.length > 0) {
     let lanes = 0
     let widest = 0
     for (const branch of branches) {
-      const inner = measure(branch)
+      const inner = measure(branch, expandMatrix)
       widest = Math.max(widest, inner.width)
       lanes += inner.height
     }
@@ -117,7 +151,7 @@ function measure(stage: StageNode): Box {
   }
 
   if (stage.sequentialChildren && stage.sequentialChildren.length > 0) {
-    const chain = measureChain(stage.sequentialChildren)
+    const chain = measureChain(stage.sequentialChildren, expandMatrix)
     return { width: NODE_W + H_GAP + chain.width, height: Math.max(NODE_H, chain.height) }
   }
 
@@ -125,11 +159,11 @@ function measure(stage: StageNode): Box {
 }
 
 /** Bounding box of a sequential list: width sums with gaps, height is tallest. */
-function measureChain(stages: readonly StageNode[]): Box {
+function measureChain(stages: readonly StageNode[], expandMatrix: boolean): Box {
   let width = 0
   let height = 0
   for (const stage of stages) {
-    const inner = measure(stage)
+    const inner = measure(stage, expandMatrix)
     width += inner.width
     height = Math.max(height, inner.height)
   }
@@ -154,10 +188,10 @@ function connect(ctx: WalkContext, sources: readonly string[], targets: readonly
 }
 
 /** Ids of the first rendered card(s) flow touches when entering a subtree. */
-function headIds(stage: StageNode): string[] {
-  const branches = stage.parallelBranches
+function headIds(stage: StageNode, expandMatrix: boolean): string[] {
+  const branches = branchesOf(stage, expandMatrix)
   if (branches && branches.length > 0) {
-    return branches.flatMap((branch) => headIds(branch))
+    return branches.flatMap((branch) => headIds(branch, expandMatrix))
   }
   return [stage.id]
 }
@@ -177,25 +211,28 @@ function placeStage(
   bandH: number,
   entries: readonly string[],
   ctx: WalkContext,
+  expandMatrix = false,
 ): string[] {
-  const box = measure(stage)
+  const box = measure(stage, expandMatrix)
   // Center this subtree's band within whatever the parent allocated.
   const ownTop = top + (bandH - box.height) / 2
 
-  const branches = stage.parallelBranches
+  const branches = branchesOf(stage, expandMatrix)
   if (branches && branches.length > 0) {
     // Container instead of a card: lanes start one shared column in, stacked
     // under the header bar. Incoming edges fan out straight to branch heads,
-    // skipping the cardless parent exactly like mockup §7 draws it.
+    // skipping the cardless parent exactly like mockup §7 draws it. Matrix
+    // stages take the same shape when expanded; toFlow reads `.matrixAxes`
+    // off the parent stage to label the container MATRIX instead of PARALLEL.
     ctx.containers.push({ id: stage.id, x, y: ownTop, ...box })
-    connect(ctx, entries, branches.flatMap((branch) => headIds(branch)))
+    connect(ctx, entries, branches.flatMap((branch) => headIds(branch, expandMatrix)))
 
     const laneX = x + CONTAINER_PAD_X
     let laneTop = ownTop + CONTAINER_HEADER + CONTAINER_PAD_Y
     const exits: string[] = []
     for (const branch of branches) {
-      const laneHeight = measure(branch).height
-      exits.push(...placeChain([branch], laneX, laneTop, laneHeight, [], ctx))
+      const laneHeight = measure(branch, expandMatrix).height
+      exits.push(...placeChain([branch], laneX, laneTop, laneHeight, [], ctx, expandMatrix))
       laneTop += laneHeight + V_GAP
     }
     return exits
@@ -215,6 +252,7 @@ function placeStage(
       box.height,
       [stage.id],
       ctx,
+      expandMatrix,
     )
   }
 
@@ -234,12 +272,13 @@ function placeChain(
   bandH: number,
   entries: readonly string[],
   ctx: WalkContext,
+  expandMatrix = false,
 ): string[] {
   let cursorX = x
   let sources: readonly string[] = entries
   for (const stage of stages) {
-    sources = placeStage(stage, cursorX, top, bandH, sources, ctx)
-    cursorX += measure(stage).width + H_GAP
+    sources = placeStage(stage, cursorX, top, bandH, sources, ctx, expandMatrix)
+    cursorX += measure(stage, expandMatrix).width + H_GAP
   }
   return [...sources]
 }
@@ -249,15 +288,16 @@ function placeChain(
  * cards. Pure: identical input yields byte-identical output. Never throws on
  * any PipelineModel shape, including empty ones.
  */
-export function computeLayout(model: PipelineModel): LayoutResult {
+export function computeLayout(model: PipelineModel, options: LayoutOptions = {}): LayoutResult {
+  const expandMatrix = options.expandMatrix === true
   const ctx: WalkContext = { nodes: [], containers: [], edges: [] }
 
   if (model.rootStages.length === 0) {
     return { nodes: [], edges: [], containers: [], width: 0, height: 0 }
   }
 
-  const whole = measureChain(model.rootStages)
-  placeChain(model.rootStages, 0, 0, whole.height, [], ctx)
+  const whole = measureChain(model.rootStages, expandMatrix)
+  placeChain(model.rootStages, 0, 0, whole.height, [], ctx, expandMatrix)
 
   return { nodes: ctx.nodes, edges: ctx.edges, containers: ctx.containers, ...whole }
 }

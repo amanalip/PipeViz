@@ -397,14 +397,22 @@ img {
 
 /* Canvas caption (mockups §5/§8/§11): quiet provenance pill top-left. It
    names the loaded sample while the text matches it and flips to the honest
-   parse-failed line when errors exist; floats above the flow, below the
-   details panel (z-30). */
-.canvas-caption {
+   parse-failed line when errors exist; shares a floating toolbar row with
+   the M6 matrix toggle and sits above the flow, below the details panel
+   (z-20). */
+.canvas-toolbar {
   position: absolute;
   top: 14px;
   left: 16px;
   z-index: 20;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
   max-width: calc(100% - 32px);
+}
+
+.canvas-caption {
   padding: 4px 12px;
   font-size: 12px;
   color: var(--ink-secondary);
@@ -415,6 +423,22 @@ img {
   backdrop-filter: blur(8px);
   border: 1px solid var(--border);
   border-radius: 999px;
+}
+
+/* M6 matrix expansion toggle (§10): same pill language as the caption,
+   lights up while expanded so the state is visible at a glance. */
+.canvas-toggle {
+  font-size: 12px;
+  padding: 4px 12px;
+  border-radius: 999px;
+  background: var(--surface-strong);
+  backdrop-filter: blur(8px);
+}
+
+.canvas-toggle.active {
+  color: var(--accent);
+  border-color: rgba(34, 211, 238, 0.4);
+  background: var(--accent-soft);
 }
 
 /* Empty-state card: explains the product instead of showing a void. */

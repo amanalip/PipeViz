@@ -21,8 +21,9 @@
 import type { Edge, Node } from '@xyflow/react'
 import { MarkerType } from '@xyflow/react'
 
-import type { LayoutResult, PositionedStage } from '../layout/computeLayout'
+import type { LayoutOptions, LayoutResult, PositionedStage } from '../layout/computeLayout'
 import { NODE_H, NODE_W } from '../layout/computeLayout'
+import { axesLabel, computeMatrixCombos } from '../layout/matrixCombos'
 import type { PipelineModel, StageNode } from '../model/types'
 import { categorize } from './categories'
 
@@ -32,17 +33,25 @@ export interface StageCardData extends Record<string, unknown> {
   category: ReturnType<typeof categorize>
 }
 
-/** Data payload of a `parallelContainer` node (mockups §7/§8). */
-export interface ParallelContainerData extends Record<string, unknown> {
-  /** Parent stage display name (kept for a11y/title; header shows PARALLEL). */
+/**
+ * Data payload of a group container node (mockups §7/§8/§10). Parallel and
+ * expanded-matrix groups share the double-line surface; `kind` picks the
+ * header copy and chips (PARALLEL + PAR ×n vs MATRIX + axis list).
+ */
+export interface GroupContainerData extends Record<string, unknown> {
+  /** Parent stage display name (kept for a11y/title). */
   label: string
+  kind: 'parallel' | 'matrix'
+  /** Lane count feeding the PAR ×n chip (parallel only). */
   branchCount: number
   failFast: boolean
+  /** Axis names joined for the MATRIX header chip, e.g. `OS × BROWSER`. */
+  matrixAxes?: string
 }
 
 export type StageCardNode = Node<StageCardData, 'stage'>
-export type ParallelContainerNode = Node<ParallelContainerData, 'parallelContainer'>
-export type FlowNode = StageCardNode | ParallelContainerNode
+export type GroupContainerNode = Node<GroupContainerData, 'groupContainer'>
+export type FlowNode = StageCardNode | GroupContainerNode
 export type FlowEdge = Edge
 
 export interface FlowGraph {
@@ -102,11 +111,18 @@ function toFlowEdge(edge: LayoutResult['edges'][number]): FlowEdge {
 /**
  * Convert a parsed model plus its computed layout into React Flow objects.
  * Deterministic and side-effect free; empty layouts map to empty arrays.
+ * `options.expandMatrix` must match the flag the layout ran with so
+ * container headers report the right lane counts for expanded matrices.
  */
-export function buildFlowGraph(model: PipelineModel, layout: LayoutResult): FlowGraph {
+export function buildFlowGraph(
+  model: PipelineModel,
+  layout: LayoutResult,
+  options: LayoutOptions = {},
+): FlowGraph {
   if (layout.nodes.length === 0 && layout.containers.length === 0) {
     return { nodes: [], edges: [] }
   }
+  const expandMatrix = options.expandMatrix === true
 
   const stagesById = indexStages(model)
 
@@ -181,17 +197,22 @@ export function buildFlowGraph(model: PipelineModel, layout: LayoutResult): Flow
   // ---- Container nodes themselves -----------------------------------------
   for (const box of boxes) {
     const parentStage = stagesById.get(box.id)
-    const branchCount = parentStage?.parallelBranches?.length ?? 0
+    const isMatrix = expandMatrix && parentStage !== undefined && parentStage.matrixAxes !== undefined
+    const branchCount =
+      parentStage?.parallelBranches?.length ??
+      (isMatrix ? computeMatrixCombos(parentStage as StageNode).length : 0)
     const grandparentId = parentOf.get(box.id) ?? null
     nodes.push({
       id: box.id,
-      type: 'parallelContainer',
+      type: 'groupContainer',
       position: relPos.get(box.id) as { x: number; y: number },
       style: { width: box.width, height: box.height },
       data: {
         label: parentStage?.name ?? box.id,
+        kind: isMatrix ? 'matrix' : 'parallel',
         branchCount,
-        failFast: parentStage?.failFast ?? false,
+        failFast: !isMatrix && (parentStage?.failFast ?? false),
+        ...(isMatrix ? { matrixAxes: axesLabel(parentStage as StageNode) } : {}),
       },
       // Nested groups chain onto their outer subflow exactly like cards do.
       ...(grandparentId ? { parentId: grandparentId } : {}),

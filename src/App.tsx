@@ -32,6 +32,7 @@ import { FlowCanvas } from './graph/FlowCanvas'
 import type { FlowApi } from './graph/FlowCanvas'
 import { computeLayout } from './layout/computeLayout'
 import type { PositionedStage } from './layout/computeLayout'
+import { hasExpandableMatrix } from './layout/matrixCombos'
 import type { Diagnostic } from './model/types'
 import { parseJenkinsfile } from './parser'
 import { SAMPLES } from './samples'
@@ -72,6 +73,9 @@ export default function App() {
   // Cleared as soon as the content diverges via edit/upload/paste, so the
   // label only ever names text that really is that sample.
   const [sampleName, setSampleName] = useState<string | null>(null)
+  // M6 view preference: expand matrix stages into one card per axis combo
+  // (mockups §10). Session-only; flipping it re-fits and clears selection.
+  const [expandMatrix, setExpandMatrix] = useState(false)
 
   // Imperative handles into the two interactive regions.
   const editorApi = useRef<EditorApi | null>(null)
@@ -101,10 +105,26 @@ export default function App() {
     return () => window.clearTimeout(timer)
   }, [copyState])
 
+  // Matrix toggle rides the same revision path as a fresh parse: remount
+  // re-fits the view and drops any selection pointing at pre-toggle ids.
+  // The ref skips the mount run so revision stays 0 until something happens.
+  const mounted = useRef(false)
+  useEffect(() => {
+    if (!mounted.current) {
+      mounted.current = true
+      return
+    }
+    setRevision((current) => current + 1)
+    setSelectedId(null)
+  }, [expandMatrix])
+
   // Pure derived pipeline: parse then lay out. Both are cheap enough to run
   // synchronously on settle, and memoizing keeps renders side-effect free.
   const model = useMemo(() => parseJenkinsfile(settledSource), [settledSource])
-  const layout = useMemo(() => computeLayout(model), [model])
+  const layout = useMemo(
+    () => computeLayout(model, { expandMatrix }),
+    [model, expandMatrix],
+  )
 
   // True between a keystroke and the debounce settling (status bar "busy").
   const parsing = source !== settledSource
@@ -135,6 +155,21 @@ export default function App() {
     const surfaces = layout.nodes.length + layout.containers.length
     return partialGraphNote(surfaces, candidateStageCount(settledSource))
   }, [problems.errors, layout, settledSource])
+
+  // Canvas caption pill (§5/§8/§11): provenance while it holds, honest
+  // parse-failed line whenever errors exist, quiet when nothing applies.
+  const caption = useMemo(() => {
+    if (canvasStats.stages === 0) return null
+    if (problems.errors > 0) return 'parse failed — showing what parsed'
+    if (sampleName !== null) return `sample · ${sampleName}`
+    return null
+  }, [canvasStats.stages, problems.errors, sampleName])
+
+  // The §10 expansion toggle only exists when there is a matrix to expand.
+  const showMatrixToggle = useMemo(
+    () => canvasStats.stages > 0 && hasExpandableMatrix(model.rootStages),
+    [canvasStats.stages, model],
+  )
 
   // Display name for the selection segment of the status line (§9), plus the
   // resolved stage that feeds the details panel (containers resolve to null:
@@ -270,14 +305,26 @@ export default function App() {
             how-to card. FlowCanvas fills the pane absolutely; React Flow
             provides its own dotted background and floating controls. */}
         <section className="canvas-area" aria-label="Pipeline graph canvas">
-          {/* Canvas caption (§5/§8/§11): names the loaded sample while the
-              text still is that sample; swaps to the honest parse-failed
-              line whenever errors exist and something rendered. */}
-          {canvasStats.stages > 0 && problems.errors > 0 && (
-            <div className="canvas-caption">parse failed — showing what parsed</div>
-          )}
-          {canvasStats.stages > 0 && problems.errors === 0 && sampleName && (
-            <div className="canvas-caption">sample · {sampleName}</div>
+          {/* Canvas caption (§5/§8/§11) plus the M6 matrix toggle share one
+              floating toolbar: the pill names the loaded sample while the
+              text still is that sample and swaps to the honest parse-failed
+              line whenever errors exist; the toggle only appears when the
+              model actually carries an expandable matrix (§10). */}
+          {(caption !== null || showMatrixToggle) && (
+            <div className="canvas-toolbar">
+              {caption !== null && <div className="canvas-caption">{caption}</div>}
+              {showMatrixToggle && (
+                <button
+                  type="button"
+                  className={expandMatrix ? 'btn canvas-toggle active' : 'btn canvas-toggle'}
+                  onClick={() => setExpandMatrix((value) => !value)}
+                  aria-pressed={expandMatrix}
+                  title="Toggle between the compact matrix card and one card per axis combination"
+                >
+                  {expandMatrix ? 'Collapse matrix' : 'Expand matrix'}
+                </button>
+              )}
+            </div>
           )}
           {canvasStats.stages > 0 ? (
             <FlowCanvas
@@ -287,6 +334,7 @@ export default function App() {
               onSelect={setSelectedId}
               apiRef={flowApi}
               onStageDoubleClick={(stage) => revealLine(stage.line)}
+              expandMatrix={expandMatrix}
             />
           ) : (
             <div className="empty-state">

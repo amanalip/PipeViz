@@ -153,6 +153,72 @@ describe('layout - matrix-build', () => {
   })
 })
 
+describe('layout - matrix-build, expanded (M6 toggle)', () => {
+  const model = modelOf('matrix-build')
+  const result = computeLayout(model, { expandMatrix: true })
+
+  it('swaps the matrix card for a container of three combo lanes', () => {
+    // 2×2 axes minus the windows/firefox exclude = three combinations.
+    expect(result.containers.map((box) => box.id)).toEqual(['s1'])
+    expect(result.nodes.map((node) => node.id)).toEqual([
+      's0',
+      's1/m0',
+      's1/m1',
+      's1/m2',
+      's2',
+    ])
+    expect(result.nodes.find((node) => node.id === 's1')).toBeUndefined()
+  })
+
+  it('names combos from axis values and carries the cell steps', () => {
+    const byIdMap = byId(result)
+    const first = req(byIdMap.get('s1/m0'))
+    expect(first.name).toBe('linux / chrome')
+    expect(first.steps).toEqual(req(model.rootStages[1]).matrixCellSteps)
+    expect(first.steps.length).toBeGreaterThan(0)
+  })
+
+  it('fans out of Deps into every combo and back into Bundle', () => {
+    expect(result.edges.map((edge) => `${edge.id}:${edge.kind}`)).toEqual([
+      's0->s1/m0:fan-out',
+      's0->s1/m1:fan-out',
+      's0->s1/m2:fan-out',
+      's1/m0->s2:fan-in',
+      's1/m1->s2:fan-in',
+      's1/m2->s2:fan-in',
+    ])
+  })
+
+  it('keeps combo cards inside the container box without overlap', () => {
+    const box = req(result.containers[0])
+    for (const id of ['s1/m0', 's1/m1', 's1/m2']) {
+      const node = req(byId(result).get(id))
+      expect(node.x).toBeGreaterThanOrEqual(box.x)
+      expect(node.y).toBeGreaterThanOrEqual(box.y)
+      expect(node.x + NODE_W).toBeLessThanOrEqual(box.x + box.width)
+      expect(node.y + NODE_H).toBeLessThanOrEqual(box.y + box.height)
+    }
+    const rects = result.nodes.map(nodeRect)
+    for (let i = 0; i < rects.length; i++) {
+      for (let j = i + 1; j < rects.length; j++) {
+        expect(rectsOverlap(rects[i] as Rect, rects[j] as Rect)).toBe(false)
+      }
+    }
+  })
+
+  it('is deterministic across repeated calls', () => {
+    expect(computeLayout(modelOf('matrix-build'), { expandMatrix: true })).toEqual(
+      computeLayout(modelOf('matrix-build'), { expandMatrix: true }),
+    )
+  })
+
+  it('leaves matrices as single cards when the toggle is off', () => {
+    const collapsed = computeLayout(model)
+    expect(collapsed.containers).toEqual([])
+    expect(collapsed.nodes.map((node) => node.id)).toEqual(['s0', 's1', 's2'])
+  })
+})
+
 describe('layout - sequential-groups (golden)', () => {
   const result = computeLayout(modelOf('sequential-groups'))
 

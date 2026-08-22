@@ -153,6 +153,34 @@ exports[`corpus - invariants across every sample > matrix-build: matches its mod
         "OS",
         "BROWSER",
       ],
+      "matrixAxisValues": [
+        [
+          "linux",
+          "windows",
+        ],
+        [
+          "chrome",
+          "firefox",
+        ],
+      ],
+      "matrixCellSteps": [
+        {
+          "args": "'make ci OS=\${OS} BROWSER=\${BROWSER}'",
+          "kind": "known",
+          "line": 37,
+          "name": "sh",
+        },
+      ],
+      "matrixExcludes": [
+        {
+          "BROWSER": [
+            "firefox",
+          ],
+          "OS": [
+            "windows",
+          ],
+        },
+      ],
       "name": "Matrix Build",
       "steps": [],
     },

@@ -115,16 +115,17 @@ describe('buildFlowGraph on the parallel sample (parallel-tests)', () => {
 
   it('replaces the parallel parent card with exactly one container node', () => {
     expect(model.rootStages[1]?.parallelBranches).toHaveLength(3)
-    const containers = graph.nodes.filter((node) => node.type === 'parallelContainer')
+    const containers = graph.nodes.filter((node) => node.type === 'groupContainer')
     expect(containers).toHaveLength(1)
     expect(containers.map((container) => container.id)).toEqual(['s1'])
     expect(graph.nodes.some((node) => node.id === 's1' && node.type === 'stage')).toBe(false)
   })
 
   it('labels the container from the parent stage plus failFast', () => {
-    const box = graph.nodes.find((node) => node.type === 'parallelContainer')
-    expect(box?.type === 'parallelContainer' && box.data).toMatchObject({
+    const box = graph.nodes.find((node) => node.type === 'groupContainer')
+    expect(box?.type === 'groupContainer' && box.data).toMatchObject({
       label: 'Test',
+      kind: 'parallel',
       branchCount: 3,
       failFast: true,
     })
@@ -213,7 +214,7 @@ describe('buildFlowGraph with nested parallel containers', () => {
     expect(inner.y + inner.height).toBeLessThanOrEqual(outer.y + outer.height)
 
     const innerNode = graph.nodes.find((node) => node.id === inner.id)
-    expect(innerNode?.type).toBe('parallelContainer')
+    expect(innerNode?.type).toBe('groupContainer')
     expect(innerNode?.parentId).toBe(outer.id)
     expect(innerNode?.position).toEqual({ x: inner.x - outer.x, y: inner.y - outer.y })
   })
@@ -241,6 +242,39 @@ describe('buildFlowGraph with nested parallel containers', () => {
   it('keeps mid-level cards parented to the outer container', () => {
     const penB = graph.nodes.find((node) => node.id === 's1/p1')
     expect(penB?.parentId).toBe('s1')
+  })
+})
+
+describe('buildFlowGraph with an expanded matrix (matrix-build)', () => {
+  const source = sampleById('matrix-build')?.source ?? ''
+  const model = parseJenkinsfile(source)
+  const layout = computeLayout(model, { expandMatrix: true })
+  const graph = buildFlowGraph(model, layout, { expandMatrix: true })
+
+  it('reports the container as kind matrix with the axis list', () => {
+    const box = graph.nodes.find((node) => node.type === 'groupContainer')
+    expect(box?.type === 'groupContainer' && box.data).toMatchObject({
+      label: 'Matrix Build',
+      kind: 'matrix',
+      branchCount: 3,
+      failFast: false,
+      matrixAxes: 'OS × BROWSER',
+    })
+  })
+
+  it('parents combo cards to the matrix container with relative positions', () => {
+    const absBox = layout.containers.find((container) => container.id === 's1')
+    if (!absBox) throw new Error('layout lost its matrix container')
+    for (const id of ['s1/m0', 's1/m1', 's1/m2']) {
+      const card = graph.nodes.find((node) => node.id === id)
+      expect(card?.parentId).toBe('s1')
+      const positioned = layout.nodes.find((node) => node.id === id)
+      if (!positioned) throw new Error(`layout lost ${id}`)
+      expect(card?.position).toEqual({
+        x: positioned.x - absBox.x,
+        y: positioned.y - absBox.y,
+      })
+    }
   })
 })
 

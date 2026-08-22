@@ -29,17 +29,17 @@ import { useImperativeHandle, useMemo } from 'react'
 import type { RefObject } from 'react'
 import type { Node, NodeProps } from '@xyflow/react'
 
-import type { LayoutResult, PositionedStage } from '../layout/computeLayout'
+import type { LayoutOptions, LayoutResult, PositionedStage } from '../layout/computeLayout'
 import type { PipelineModel } from '../model/types'
 import { CATEGORY_COLORS } from './categories'
-import type { FlowEdge, FlowNode, ParallelContainerNode, StageCardData } from './toFlow'
+import type { FlowEdge, FlowNode, GroupContainerNode, StageCardData } from './toFlow'
 import { buildFlowGraph } from './toFlow'
 import { StageNodeCard } from './StageNodeCard'
 
 /** Node renderers keyed by the `type` field assigned in toFlow. */
 const NODE_TYPES = {
   stage: StageNodeCard,
-  parallelContainer: ParallelContainerNodeView,
+  groupContainer: GroupContainerNodeView,
 }
 
 /**
@@ -76,20 +76,31 @@ interface FlowCanvasProps {
   apiRef?: RefObject<FlowApi | null>
   /** Double-clicking a stage card hands its source line to App (§17). */
   onStageDoubleClick?: (stage: PositionedStage) => void
+  /** Matrix expansion toggle; must match the flag computeLayout ran with. */
+  expandMatrix?: boolean
 }
 
 /**
- * Container header node standing in for a parallel parent stage
- * (mockups §7/§8): double-ring surface, "PARALLEL" label bar carrying the
- * PAR ×n badge plus failFast when captured.
+ * Group container node standing in for a cardless parent stage
+ * (mockups §7/§8/§10): double-ring surface with a header bar whose copy
+ * depends on `kind` — PARALLEL + PAR ×n + failFast, or MATRIX + axis list.
  */
-function ParallelContainerNodeView({ data }: NodeProps<ParallelContainerNode>) {
+function GroupContainerNodeView({ data }: NodeProps<GroupContainerNode>) {
   return (
-    <div className="parallel-container" title={data.label}>
+    <div className={data.kind === 'matrix' ? 'parallel-container matrix' : 'parallel-container'} title={data.label}>
       <header className="parallel-container-header">
-        <span className="parallel-container-label">Parallel</span>
-        <span className="parallel-container-chip">PAR ×{data.branchCount}</span>
-        {data.failFast && <span className="parallel-container-chip">failFast</span>}
+        <span className="parallel-container-label">{data.kind === 'matrix' ? 'Matrix' : 'Parallel'}</span>
+        {data.kind === 'matrix' ? (
+          <>
+            {data.matrixAxes && <span className="parallel-container-chip">{data.matrixAxes}</span>}
+            <span className="parallel-container-chip">×{data.branchCount}</span>
+          </>
+        ) : (
+          <>
+            <span className="parallel-container-chip">PAR ×{data.branchCount}</span>
+            {data.failFast && <span className="parallel-container-chip">failFast</span>}
+          </>
+        )}
       </header>
     </div>
   )
@@ -100,10 +111,22 @@ function ParallelContainerNodeView({ data }: NodeProps<ParallelContainerNode>) {
  * all interaction state (viewport, selection highlight) lives inside the
  * keyed ReactFlow instance and resets exactly when a new graph arrives.
  */
-export function FlowCanvas({ model, layout, revision, onSelect, apiRef, onStageDoubleClick }: FlowCanvasProps) {
+export function FlowCanvas({
+  model,
+  layout,
+  revision,
+  onSelect,
+  apiRef,
+  onStageDoubleClick,
+  expandMatrix = false,
+}: FlowCanvasProps) {
   // Fresh RF objects per (model, layout); memo keeps StrictMode double
   // renders and unrelated parent updates from rebuilding the graph data.
-  const graph = useMemo(() => buildFlowGraph(model, layout), [model, layout])
+  const flowOptions: LayoutOptions = useMemo(() => ({ expandMatrix }), [expandMatrix])
+  const graph = useMemo(
+    () => buildFlowGraph(model, layout, flowOptions),
+    [model, layout, flowOptions],
+  )
 
   return (
     <div className="flow-canvas-host">
