@@ -56,8 +56,11 @@ Colors cannot render in ASCII; hex values live in §2. Where a mockup shows
 
 ## 2. Design Language
 
-Dark theme only for v1. Every value below already exists as a CSS custom
+Dark theme is the default. Every value below already exists as a CSS custom
 property in `src/styles/global.css` — the mockups consume them verbatim.
+M6 added an opt-in light scheme as a `[data-theme='light']` override of the
+same tokens (header toggle, persisted in localStorage), so this table stays
+the dark-truth reference and the light palette lives beside it in one file.
 
 ### Color tokens
 
@@ -377,7 +380,8 @@ Sections hide entirely when empty — no stub rows.
 ## 10. State 04 · Matrix & Conditional Stages
 
 **Matrix** renders as a container summarizing its axes; one-node-per-combo
-expansion is an M6 toggle, not the default.
+expansion is the M6 **Expand matrix** toggle on the canvas toolbar, not the
+default. Collapsed stays exactly what the frame below draws:
 
 ```
   ┌────────────┐   ╔═════════════════╗   ┌────────────┐
@@ -457,18 +461,24 @@ Rules:
 ## 12. Header Anatomy
 
 ```
-┌────────────────────────────────────────────────────────────────────────────────────────┐
-│ ◉ PipeViz  ⟨ Jenkinsfile → graph ⟩         [ Samples ▾ ]  [ Upload ]  [ Copy JSON ]  [ GitHub ↗ ] │
-└────────────────────────────────────────────────────────────────────────────────────────┘
-   │    │        │                               │          │            │            │
-   │    │        │                               │          │            │            └ external link, new tab
-   │    │        │                               │          │            └ copies PipelineModel JSON to clipboard
-   │    │        │                               │          └ file input styled as button (.groovy/.txt/Jenkinsfile)
-   │    │        │                               └ dropdown of bundled samples (below)
-   │    │        └ pitch chip, quiet border pill
-   │    └ wordmark, plain HTML text (never baked into the SVG)
-   └ logo mark (The Branch), 28px, links nowhere
+┌──────────────────────────────────────────────────────────────────────────────────────────────┐
+│ ◉ PipeViz  ⟨ Jenkinsfile → graph ⟩  [ Samples ▾ ] [ Upload ] [ Copy JSON ]                   │
+│                                     [ Copy link ] [ Export PNG ] [ Light mode ] [ GitHub ↗ ] │
+└──────────────────────────────────────────────────────────────────────────────────────────────┘
+   │    │        │                          │         │          │           │           │
+   │    │        │                          │         │          │           │           └ external link, new tab
+   │    │        │                          │         │          │           └ M6 theme toggle (Light mode ⇄ Dark mode), persisted
+   │    │        │                          │         │          └ M6: downloads the graph as PNG; disabled while nothing parses
+   │    │        │                          │         └ M6: copies the page URL whose hash reopens this pipeline
+   │    │        │                          └ copies PipelineModel JSON to clipboard
+   │    │        └ file input styled as button (.groovy/.txt/Jenkinsfile)
+   │    └ dropdown of bundled samples (below)
+   └ logo mark (The Branch), 28px, links nowhere; wordmark is plain HTML text, tagline is the quiet pitch pill
 ```
+
+(The ASCII frames elsewhere in this document predate M6 and draw the shorter
+four-chip header; the anatomy above is the authoritative chip set. The header
+wraps under the brand on tight windows rather than shrinking chips.)
 
 Sample picker open state — native-feeling menu, keyboard navigable:
 
@@ -492,14 +502,17 @@ diagnostics story demos itself.
 
 ## 13. Editor Pane Anatomy
 
-Fixed 380px column, three stacked parts:
+Fixed 380px column, three stacked parts. M6 note: the plain textarea is now
+a CodeMirror 6 editor (Groovy highlighting, line numbers, active-line
+marker, undo history, line wrapping) behind the same component API — the
+anatomy and behaviors below are unchanged:
 
 ```
 ┌────────────────────────────┐
 │ PIPELINE SOURCE            │  label bar, uppercase micro-caps
 ├────────────────────────────┤
 │                            │
-│ pipeline {                 │  textarea: mono 13px, tab = 2 spaces,
+│ pipeline {                 │  editor: mono 13px, tab = 2 spaces,
 │   agent any                │  spellcheck off, focused by default,
 │   stages {                 │  debounced re-parse 400ms after typing
 │     stage('Build') {       │
@@ -588,7 +601,11 @@ graceful degradation, not a mobile layout):
 | Upload file | same path as paste |
 | Copy JSON | model serialized to clipboard; button flashes "Copied ✓" for 1.5s |
 | Click diagnostic | caret jumps to line; related node flashes once if rendered |
-| Keyboard | Tab edits safely inside textarea; focus ring visible on all chrome |
+| Toggle Expand matrix | matrix stage swaps between compact card and one combo card per cell inside a MATRIX container; view refits, selection clears (M6, §10) |
+| Toggle theme chip | dark ⇄ light via token override; canvas dots/minimap/edges swap palettes; choice persists across visits (M6) |
+| Copy link | URL with `#p=<source>` hash lands on the clipboard; "Copied ✓" flash; opening it restores editor + graph + sample caption (M6) |
+| Export PNG | graph framed by React Flow camera math renders to a downloaded PNG; button flashes "Export failed" on renderer errors (M6) |
+| Keyboard | Tab edits safely inside the editor; focus ring visible on all chrome |
 | Window < 900px | panes stack vertically (§16) |
 
 ---
@@ -605,6 +622,15 @@ graceful degradation, not a mobile layout):
 | Details panel | DetailsPanel | `src/ui/DetailsPanel.tsx` |
 | Bottom bar | DiagnosticsBar | `src/ui/DiagnosticsBar.tsx` |
 | Card data | computeLayout output | `src/layout/computeLayout.ts` |
+
+M6 additions to the map:
+
+| Concern | Module | File |
+|---|---|---|
+| Matrix combos behind §10's toggle | pure combination math | `src/layout/matrixCombos.ts` |
+| Export PNG chip | canvas renderer + framing math | `src/graph/exportPng.ts` |
+| Copy link / shared URLs | base64url source ⇄ hash codec | `src/share/hash.ts` |
+| Theme toggle palettes | scheme plumbing + canvas colors | `src/theme.ts` |
 
 Implementation notes, kept true to the reference:
 

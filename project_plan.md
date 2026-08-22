@@ -5,8 +5,8 @@ A browser based tool that turns Jenkins pipeline definitions into an interactive
 | | |
 |---|---|
 | Created | Saturday, 22 August 2026 at 01:36 EDT |
-| Last updated | Saturday, 22 August 2026 at 03:05 PM EDT |
-| Status | Implementation under way; M0–M4 complete (parser, layout, canvas, full UI), M5 complete as of 22 Aug 2026 03:00 PM EDT (Pages builds and deploys dist/) |
+| Last updated | Saturday, 22 August 2026 at 04:10 PM EDT |
+| Status | Implementation under way; M0–M5 complete (parser, layout, canvas, full UI, Pages builds and deploys dist/); M6 complete as of 22 Aug 2026 04:00 PM EDT (all five backlog candidates shipped: matrix axis expansion, PNG export, URL hash sharing, light theme, CodeMirror editor) |
 | Owner | Aman Ali |
 
 ## Table of Contents
@@ -75,6 +75,8 @@ Versions recorded from the npm registry on Saturday, 22 August 2026. Exact versi
 | UI framework | React | 19.2.8 | Component model fits graph nodes well |
 | Language | TypeScript | 5.9.3 | Research pinned the 7.0.2 native line, but typescript-eslint 8.x peers on `< 6.1.0`, so the documented fallback applies; app code targets ES2022 either way |
 | Graph rendering | @xyflow/react | 12.11.3 | Pan/zoom/selection/minimap out of the box, custom node components |
+| PNG export | html-to-image | 1.11.13 | Canvas-to-PNG via the SVG-in-foreignObject technique with the workarounds that make it dependable; added at M6 |
+| Code editor | CodeMirror 6 (@codemirror/view, state, commands, language, legacy-modes, @lezer/highlight) | 6.x line | Groovy highlighting, line numbers, history for the source pane; replaced the M6 textarea per backlog |
 | Test runner | Vitest | 4.1.11 | Native TS, pairs with Vite config |
 | Linting | ESLint | 10.9.0 | Standard choice |
 | Runtime | Node.js | 24.18.1 (installed locally) | LTS line, matches CI |
@@ -117,6 +119,7 @@ File layout under `src/`:
 src/
   main.tsx              entry
   App.tsx               top level layout and state wiring
+  theme.ts              color scheme plumbing + canvas palettes (M6)
   parser/
     tokenize.ts         string/comment aware tokenizer
     blockTree.ts        brace matching into a block tree
@@ -128,17 +131,21 @@ src/
     types.ts            PipelineModel, StageNode, Step, Diagnostic
   layout/
     computeLayout.ts    model -> positioned nodes + edges
+    matrixCombos.ts     matrix axes/excludes -> one combination per cell (M6)
   graph/
     StageNodeCard.tsx   custom React Flow node
     FlowCanvas.tsx      React Flow wrapper
+    exportPng.ts        canvas -> downloadable PNG via html-to-image (M6)
   ui/
-    EditorPane.tsx      textarea, upload button, sample picker
+    EditorPane.tsx      CodeMirror 6 source editor (M6 swap), upload button, sample picker
     DetailsPanel.tsx    selected node inspector
     DiagnosticsBar.tsx  parse errors/warnings summary
+  share/
+    hash.ts             pipeline source <-> URL hash codec (M6)
   samples/
     index.ts            built-in example Jenkinsfiles
   styles/
-    global.css
+    global.css          design tokens, dark default + light override (M6)
 ```
 
 ## 6. Parser Design
@@ -282,12 +289,13 @@ Single screen, three regions:
 +------------------------------------------------------------------+
 ```
 
-- Editor pane: fixed 380px wide, resizable via drag handle if cheap. Monospace font, tab inserts spaces. Debounced re-parse 400ms after typing stops.
+- Editor pane: fixed 380px wide, resizable via drag handle if cheap. Monospace font, tab inserts spaces. Debounced re-parse 400ms after typing stops. M6: the pane is a CodeMirror 6 editor (Groovy highlighting, line numbers, history) behind the same component API.
 - Upload accepts `.jenkinsfile`, `Jenkinsfile`, `.groovy`, `.txt` via file input styled as a button.
 - Sample picker loads bundled examples without wiping the editor until the user confirms? No: samples replace immediately, undo is out of scope for v1, but a "revert" affordance keeps last manually typed content in memory.
-- Export PNG: serialize the canvas using the SVG-in-foreignObject technique is fragile; v1 ships "Copy JSON" of the model instead, PNG export moves to backlog.
+- Export PNG: shipped at M6 via html-to-image; React Flow's own getNodesBounds/getViewportForBounds frame the shot so controls and minimap stay out of it.
+- URL sharing: shipped at M6; the pipeline source rides in the location hash as base64url UTF-8 under `p=`, synced with replaceState, decoded defensively at boot.
 - Empty states: no input shows a short how-to card on the canvas; unparseable input shows diagnostics prominently with the partial graph behind them.
-- Dark theme only for v1. Light theme is a variable swap later, colors defined as CSS custom properties from day one.
+- Dark theme shipped as the default; the M6 light theme is a CSS variable override keyed off `[data-theme='light']`, toggled and persisted from the header.
 
 ### Branding
 
@@ -362,7 +370,7 @@ Each milestone ends in one or more commits tracked in commit_tracker.md.
 | M3 | Canvas | Samples render as graphs; pan/zoom/select/minimap work; details panel populates |
 | M4 | Full UI | Paste/upload/sample paths all live; diagnostics bar accurate on messy sample |
 | M5 | CI/CD | Pages deploys dist; public URL renders correct app; assets load under /PipeViz/ base |
-| M6 | Backlog candidates | PNG export, light theme, matrix axis expansion, URL hash sharing, CodeMirror editor |
+| M6 | Backlog candidates | PNG export, light theme, matrix axis expansion, URL hash sharing, CodeMirror editor. **Complete as of 22 Aug 2026 04:00 PM EDT**: all five shipped with tests green (253 total) and lint/typecheck/build clean |
 
 Order matters: M1 and M2 are pure logic with tests, M3/M4 make it visible, M5 ships it.
 
@@ -378,7 +386,7 @@ Order matters: M1 and M2 are pure logic with tests, M3/M4 make it visible, M5 sh
 
 ## 16. Open Questions
 
-- Q1: Should `matrix` expand into one node per axis combination now or later? Default plan: summarize in badges first, expand behind a toggle in M6.
+- Q1: Should `matrix` expand into one node per axis combination now or later? Default plan: summarize in badges first, expand behind a toggle in M6. **Answered at M6**: the compact card remains the default; the canvas "Expand matrix" toggle renders one card per combination (exclude rules applied) inside a MATRIX container.
 - Q2: Do we want diff view (paste two versions, highlight structural changes)? Interesting but heavy. Deferred, noted for backlog discussion.
 - Q3: Filename conventions: accept any pasted text regardless of filename. Upload filter list may need widening if users have unconventional setups.
 

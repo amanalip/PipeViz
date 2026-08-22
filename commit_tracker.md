@@ -5,7 +5,7 @@ Human readable log of every commit on main, plus the planned sequence ahead. Upd
 | | |
 |---|---|
 | Created | Saturday, 22 August 2026 at 01:36 EDT |
-| Last updated | Saturday, 22 August 2026 at 03:05 PM EDT |
+| Last updated | Saturday, 22 August 2026 at 04:15 PM EDT |
 | Branch tracked | main |
 | Owner | Aman Ali |
 
@@ -69,6 +69,12 @@ Newest first.
 
 | Hash | Date | Type/scope | Summary |
 |---|---|---|---|
+| (pending) | Sat, 22 Aug 2026 at 04:15 PM EDT | docs(plan) | M6 complete: record the five feature commits, update plan/mockups/README to match shipped reality |
+| bf72dd0 | Sat, 22 Aug 2026 at 04:08 PM EDT | feat(editor) | CodeMirror 6 source editor behind EditorPane's unchanged API: Groovy highlighting via StreamLanguage with token-bound colors (theme flips restyle it for free), line numbers, active line, bracket matching, history, wrapping; Tab still indents two spaces; controlled shell over uncontrolled view with echo guard; revealLine now selects + centers the line. Six exact-pinned @codemirror/@lezer packages; chunkSizeWarningLimit raised to 900 with rationale |
+| 03cf9be | Sat, 22 Aug 2026 at 03:58 PM EDT | feat(ui) | Light color scheme behind a persisted header toggle: [data-theme='light'] token overrides, hardcoded chrome rgba values moved onto tokens, theme.ts (sanitize/load/store + CANVAS_PALETTES for dots/minimap/edges that CSS cannot reach), ReactFlow colorMode follows, index.html pre-paint script kills the dark flash on reload; dark palette byte-identical to pre-theme values |
+| 6742bd5 | Sat, 22 Aug 2026 at 03:44 PM EDT | feat(ui) | URL hash sharing: pipeline source as base64url UTF-8 under #p=, dependency-free codec whose decode never throws (bad payloads boot empty); App boots settled from the hash with sample-provenance restore; replaceState sync keeps typing out of history; Copy link button flushes unsaved edits before writing the clipboard |
+| 2fd9b86 | Sat, 22 Aug 2026 at 03:34 PM EDT | feat(ui) | Export PNG via html-to-image 1.11.13: pure frameFor sizing math (2400px cap / 640px floor / degenerate guard), getNodesBounds + getViewportForBounds framing so only .react-flow__viewport renders (no controls/minimap/caption leakage), FlowApi.exportPng bridge, header button with Rendering.../Export failed states disabled while nothing parses |
+| d62c3c9 | Sat, 22 Aug 2026 at 03:29 PM EDT | feat(graph) | Matrix axis expansion behind canvas toggle: parser captures matrixAxisValues/matrixExcludes/matrixCellSteps, layout/matrixCombos computes deterministic combos minus Jenkins-style exclude rules, computeLayout({expandMatrix}) reuses parallel container machinery for synthesized combo lanes, toFlow containers gain kind parallel/matrix with axis chips, App adds Expand/Collapse matrix pill shown only when a matrix exists; snapshots updated for extended model |
 | a968a0c | Sat, 22 Aug 2026 at 03:03 PM EDT | docs(readme) | M5 README rewrite: live-site link and v0.1.0 status (M0–M5), features/usage sections for the shipped app (samples, upload, details panel, Copy JSON, diagnostics jump-to-line), deployment section documenting the build-and-deploy workflow, repository layout expanded to the real src/ tree, ui_mockups.md added to doc index |
 | 3b590ae | Sat, 22 Aug 2026 at 03:00 PM EDT | ci(static) | M5 Pages deploy fix — site previously blank because static.yml uploaded the repo root verbatim, serving unbuilt source. Workflow now splits into build + deploy jobs: setup-node@v4 (node 24, npm cache), npm ci, npm run build (typecheck included), artifact path ./dist; vite base './' was already in place from scaffold so dist assets resolve under /PipeViz/. Verified locally: npm ci clean, 212 tests green, lint/typecheck/build pass, dist/index.html emits relative ./assets URLs |
 | (pending) | Sat, 22 Aug 2026 at 02:55 PM EDT | docs(tracker) | M4 style row complete: record style(ui) commit 82a32bf, backfill pending hashes |
@@ -110,3 +116,8 @@ Mapped to milestones in project_plan.md section 14. Order is sequential; hashes 
 | done (82a32bf) | style | M4 | Dark theme polish, empty states, responsive split panes. Delivered incrementally across the scaffold/M3/M4 commits (tokens, how-to card, 900px stacking); closed out by 82a32bf: canvas sample/parse-failed captions, instant sample settle, --surface-solid token, §4 footnote wording. **Milestone M4 fully complete** |
 | done (3b590ae) | ci | M5 | Rework static.yml: setup-node, npm build, upload dist/, vite base './'. **Milestone M5 complete: workflow builds on node 24 and deploys dist/; public URL renders the built app** |
 | done (a968a0c) | docs(readme) | M5 | README rewrite describing app, usage, local dev, deployment |
+| done (d62c3c9) | feat(graph) | M6 | Matrix axis expansion: parser captures axis values/excludes/cell steps, pure combo math with Jenkins exclude semantics, layout toggle reusing container machinery, MATRIX container headers, canvas toolbar pill; snapshots updated for the richer model |
+| done (2fd9b86) | feat(ui) | M6 | PNG export via html-to-image: React Flow camera framing, viewport-only rendering, header button with honest busy/failure states, framing math unit-tested |
+| done (6742bd5) | feat(ui) | M6 | URL hash sharing: never-throw base64url codec, hash-boot with sample provenance restore, replaceState sync, Copy link button |
+| done (03cf9be) | feat(ui) | M6 | Light theme: token overrides + chrome tokens extracted, canvas palette module, persisted toggle, pre-paint script against dark flash |
+| done (bf72dd0) | feat(editor) | M6 | CodeMirror 6 editor swap behind the unchanged EditorPane API; Groovy highlighting themed via CSS variables; six exact-pinned packages. **Milestone M6 complete: all five backlog candidates shipped, 253 tests green, lint/typecheck/build clean** |

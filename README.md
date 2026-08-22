@@ -15,8 +15,8 @@
 | | |
 |---|---|
 | Created | Saturday, 22 August 2026 at 01:36 EDT |
-| Last updated | Saturday, 22 August 2026 at 03:00 PM EDT |
-| Status | v0.1.0 — parser, layout, canvas, and full UI shipped (M0–M4); auto-deploy to Pages live (M5) |
+| Last updated | Saturday, 22 August 2026 at 04:10 PM EDT |
+| Status | v0.2.0 — M0–M6 complete: parser, layout, canvas, full UI, Pages auto-deploy, plus the whole M6 batch (matrix expansion, PNG export, share links, light theme, CodeMirror editor) |
 | License | [GPL-3.0](LICENSE) |
 
 ## Table of Contents
@@ -48,12 +48,15 @@ Shipped:
 - **Canvas** (M3): React Flow rendering with pan, zoom, minimap, selection, and category-colored stage cards
 - **Full UI** (M4): editor pane with debounced re-parse, file upload, seven bundled samples, details panel, Copy JSON export, expandable diagnostics bar with click-to-jump
 - **CI/CD** (M5): every push to main builds `dist/` and deploys it to GitHub Pages automatically
-
-Backlog (M6 candidates): PNG export, light theme, matrix axis expansion, URL hash sharing, CodeMirror editor. See [Milestones](project_plan.md#14-milestones).
+- **M6 batch**: matrix axis expansion behind a canvas toggle, Export PNG of the graph, share links that encode the pipeline in the URL, a persisted light/dark theme toggle, and a CodeMirror 6 editor with Groovy highlighting
 
 ## 3. Features
 
-- Declarative pipeline support: stages, `parallel` blocks (with failFast), `matrix` blocks, sequential nested stages, `when` conditions, `input`, stage/pipeline `post` handlers, agent and environment metadata
+- Declarative pipeline support: stages, `parallel` blocks (with failFast), `matrix` blocks with axis values and excludes, sequential nested stages, `when` conditions, `input`, stage/pipeline `post` handlers, agent and environment metadata
+- Matrix expansion toggle: one card per axis combination (exclude rules applied), or the compact MATRIX summary card
+- Share links: the pipeline rides in the URL hash, so a pasted Jenkinsfile is one "Copy link" away from being shared; opening such a link restores editor, graph, and even sample provenance
+- Export PNG: download the current graph as an image, framed by React Flow's own camera math (no controls or minimap in the shot)
+- Light and dark color schemes: dark is the default, the toggle persists locally
 - Scripted pipeline fallback: detects `stage('name')` calls anywhere in Groovy and nests them by brace containment
 - Graceful failure: parse errors produce line-numbered diagnostics alongside a partial graph of whatever parsed — never a blank screen
 - Category stripes guessed from stage names: cyan build/test-violet/emerald-deploy/slate neutral
@@ -69,6 +72,8 @@ Versions verified against the npm registry on Saturday, 22 August 2026:
 | UI framework | [React](https://www.npmjs.com/package/react) | 19.2.8 |
 | Language | [TypeScript](https://www.npmjs.com/package/typescript) | 5.9.3 |
 | Graph rendering | [@xyflow/react](https://www.npmjs.com/package/@xyflow/react) (React Flow 12) | 12.11.3 |
+| Code editor | [@codemirror/*](https://www.npmjs.com/package/codemirror) 6 + [@codemirror/legacy-modes](https://www.npmjs.com/package/@codemirror/legacy-modes) Groovy | see package.json (exact-pinned) |
+| PNG export | [html-to-image](https://www.npmjs.com/package/html-to-image) | 1.11.13 |
 | Test runner | [Vitest](https://www.npmjs.com/package/vitest) | 4.1.11 |
 | Linting | [ESLint](https://www.npmjs.com/package/eslint) | 10.9.0 |
 | Runtime | [Node.js](https://nodejs.org/) | 24 LTS |
@@ -85,7 +90,11 @@ Versions verified against the npm registry on Saturday, 22 August 2026:
    - **Click a card** for its steps, `when` text, agent override, and post handlers,
    - **Double-click** a card to jump to its source line in the editor,
    - Pan/zoom the canvas; the minimap tracks the viewport,
-   - **Copy JSON** exports the parsed model to your clipboard.
+   - **Expand matrix** swaps a matrix stage between the compact summary card and one card per axis combination,
+   - **Copy JSON** exports the parsed model to your clipboard,
+   - **Copy link** shares the exact pipeline via the URL (it rides in the hash),
+   - **Export PNG** downloads the graph as an image,
+   - **Light mode / Dark mode** flips and remembers the color scheme.
 5. Parse problems appear in the bottom bar; click a row to jump to that line.
 
 Your code never leaves the browser tab — there is no backend at all.
@@ -120,14 +129,16 @@ The site lives at <https://amanalip.github.io/PipeViz/>.
 PipeViz/
   .github/workflows/   GitHub Pages deploy workflow (build + deploy dist/)
   public/              logo.svg, favicon.svg (static assets)
-  src/
-    parser/            tokenizer, block tree, interpreter, scripted fallback
-    model/             PipelineModel / StageNode / Step / Diagnostic types
-    layout/            computeLayout engine
-    graph/             FlowCanvas, StageNodeCard, flow conversion
-    ui/                EditorPane, SamplePicker, DetailsPanel, DiagnosticsBar
-    samples/           seven bundled example Jenkinsfiles
-    styles/            global.css design tokens
+   src/
+     parser/            tokenizer, block tree, interpreter, scripted fallback
+     model/             PipelineModel / StageNode / Step / Diagnostic types
+     layout/            computeLayout engine + matrix combination math
+     graph/             FlowCanvas, StageNodeCard, flow conversion, PNG export
+     ui/                EditorPane (CodeMirror), SamplePicker, DetailsPanel, DiagnosticsBar
+     share/             URL hash codec for shareable pipeline links
+     samples/           seven bundled example Jenkinsfiles
+     theme.ts           color scheme plumbing and canvas palettes
+     styles/            global.css design tokens (dark + light)
   index.html           Vite entry document
   vite.config.ts       dev server and build config (relative base for Pages)
   tsconfig.json        strict TypeScript configuration
