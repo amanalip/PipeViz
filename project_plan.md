@@ -5,7 +5,7 @@ A browser based tool that turns Jenkins pipeline definitions into an interactive
 | | |
 |---|---|
 | Created | Saturday, 22 August 2026 at 01:36 EDT |
-| Last updated | Saturday, 22 August 2026 at 01:36 EDT |
+| Last updated | Saturday, 22 August 2026 at 01:49 EDT |
 | Status | Planning complete, implementation not started |
 | Owner | Aman Ali |
 
@@ -59,11 +59,11 @@ The visual language follows the horizontal flow made familiar by Jenkins Blue Oc
 
 Claims below were verified on Saturday, 22 August 2026.
 
-**Blue Ocean status.** Jenkins documents that Blue Ocean will be deprecated in July 2026 and receives no new functionality or security fixes. The actively maintained successor for execution visualization is the Pipeline Graph View plugin (jenkins.io/projects/blueocean/about). This matters for positioning: PipeViz does not compete with live execution views. It occupies the niche Blue Ocean's editor occupied, understanding the structure of a pipeline definition from source text, without needing a Jenkins server.
+**Blue Ocean status.** Jenkins documents that Blue Ocean will be deprecated in July 2026 and receives no new functionality or security fixes ([Blue Ocean status page](https://www.jenkins.io/projects/blueocean/about/), [plugin deprecation notice](https://plugins.jenkins.io/blueocean/)). The actively maintained successor for execution visualization is the [Pipeline Graph View plugin](https://plugins.jenkins.io/pipeline-graph-view/). This matters for positioning: PipeViz does not compete with live execution views. It occupies the niche Blue Ocean's editor occupied, understanding the structure of a pipeline definition from source text, without needing a Jenkins server.
 
-**Declarative syntax surface.** Per the Jenkins Pipeline syntax reference (jenkins.io/doc/book/pipeline/syntax), a declarative pipeline has three top level sections (`agent`, `stages`, `post`) and supports these directives inside `stage`: `agent`, `environment`, `tools`, `input`, `when`, plus three structural children: `steps`, `parallel`, and `matrix`, and one more: nested `stages` (sequential groups). A declarative `parallel` block contains only `stage` entries; failFast can be set via `options { parallelsAlwaysUseFresh() }` style options or the `failFast true` argument. Common `when` conditions include `branch`, `tag`, `environment`, `equals`, `expression`, `allOf`, `anyOf`, `not`, `regex`, `buildingTag`, `changeset`, and `changelog`.
+**Declarative syntax surface.** Per the [Jenkins Pipeline syntax reference](https://www.jenkins.io/doc/book/pipeline/syntax/), a declarative pipeline has three top level sections (`agent`, `stages`, `post`) and supports these directives inside `stage`: `agent`, `environment`, `tools`, `input`, `when`, plus three structural children: `steps`, `parallel`, and `matrix`, and one more: nested `stages` (sequential groups). A declarative `parallel` block contains only `stage` entries; failFast can be set via `options { parallelsAlwaysUseFresh() }` style options or the `failFast true` argument. Common `when` conditions include `branch`, `tag`, `environment`, `equals`, `expression`, `allOf`, `anyOf`, `not`, `regex`, `buildingTag`, `changeset`, and `changelog`.
 
-**React Flow package name.** React Flow ships as `@xyflow/react` for version 12.x. The older `reactflow` package serves version 11 and is legacy. Verified via npm registry: latest `@xyflow/react` is 12.11.3.
+**React Flow package name.** React Flow ships as [`@xyflow/react`](https://www.npmjs.com/package/@xyflow/react) for version 12.x ([project docs](https://xyflow.dev/)). The older `reactflow` package serves version 11 and is legacy. Verified via npm registry: latest `@xyflow/react` is 12.11.3.
 
 ## 4. Tech Stack
 
@@ -289,6 +289,36 @@ Single screen, three regions:
 - Empty states: no input shows a short how-to card on the canvas; unparseable input shows diagnostics prominently with the partial graph behind them.
 - Dark theme only for v1. Light theme is a variable swap later, colors defined as CSS custom properties from day one.
 
+### Branding
+
+Logo concept chosen Saturday, 22 August 2026 at 01:49 EDT: **The Branch**, three parallel lanes merging into one flow ending in an arrowhead. ASCII reference sketch:
+
+```
+ ●━━━┓
+     ┃
+ ●━━━╋━━━▶
+     ┃
+ ●━━━┛
+```
+
+Assets live in `public/` so Vite copies them verbatim into the build:
+
+| File | Use |
+|---|---|
+| `public/logo.svg` | Header mark, about pages, social preview base |
+| `public/favicon.svg` | Browser tab icon (same art, SVG favicons supported by all modern browsers) |
+
+Design tokens baked into the art, matching the app palette:
+
+| Token | Value | Applied to |
+|---|---|---|
+| Background gradient | `#0f172a` to `#1e293b`, 112px corner radius | Badge square |
+| Lane stroke gradient | `#22d3ee` to `#38bdf8`, 42px width, round caps | The three input lanes |
+| Lane dots | `#7dd3fc` | Circle at each lane origin |
+| Merge junction, trunk, arrowhead | `#f1f5f9` | Convergence point and output flow |
+
+Rules: the wordmark is plain HTML text next to the mark in the header, never baked into the SVG (keeps fonts consistent with the UI). Minimum legible size is 16px for the favicon; below that the lanes read as a single blob, which still works. Clear space around the mark equals one lane gap (about 12 percent of canvas).
+
 ## 11. Sample Pipeline Corpus
 
 Bundled examples double as documentation and parser fixtures:
@@ -356,8 +386,17 @@ Order matters: M1 and M2 are pure logic with tests, M3/M4 make it visible, M5 sh
 
 All accessed Saturday, 22 August 2026:
 
-- jenkins.io/projects/blueocean/about : deprecation July 2026 statement, Pipeline Graph View named successor
-- plugins.jenkins.io/blueocean : deprecation banner confirming no further development
-- jenkins.io/doc/book/pipeline/syntax : declarative sections, directives, when conditions, matrix structure (long standing reference, re-checked)
-- npm registry (via `npm view`): vite 8.2.2, react 19.2.8, react-dom 19.2.8, typescript 7.0.2 (latest tag; beta line 6.0.0-beta), @vitejs/plugin-react 6.1.0, @xyflow/react 12.11.3, vitest 4.1.11, eslint 10.9.0, @types/react 19.2.18, @types/react-dom 19.2.4
+- [Jenkins: About Blue Ocean](https://www.jenkins.io/projects/blueocean/about/) : deprecation July 2026 statement, Pipeline Graph View named successor
+- [Jenkins plugins site: Blue Ocean](https://plugins.jenkins.io/blueocean/) : deprecation banner confirming no further development
+- [Jenkins: Pipeline Graph View plugin](https://plugins.jenkins.io/pipeline-graph-view/) : actively maintained execution visualization successor
+- [Jenkins: Pipeline Syntax reference](https://www.jenkins.io/doc/book/pipeline/syntax/) : declarative sections, directives, when conditions, matrix structure (long standing reference, re-checked)
+- npm registry (via `npm view`), package pages linked per name:
+  - [vite](https://www.npmjs.com/package/vite) 8.2.2
+  - [react](https://www.npmjs.com/package/react) 19.2.8 and [react-dom](https://www.npmjs.com/package/react-dom) 19.2.8
+  - [typescript](https://www.npmjs.com/package/typescript) 7.0.2 (latest tag; beta line 6.0.0-beta)
+  - [@vitejs/plugin-react](https://www.npmjs.com/package/@vitejs/plugin-react) 6.1.0
+  - [@xyflow/react](https://www.npmjs.com/package/@xyflow/react) 12.11.3
+  - [vitest](https://www.npmjs.com/package/vitest) 4.1.11
+  - [eslint](https://www.npmjs.com/package/eslint) 10.9.0
+  - [@types/react](https://www.npmjs.com/package/@types/react) 19.2.18 and [@types/react-dom](https://www.npmjs.com/package/@types/react-dom) 19.2.4
 - Local environment: node 24.18.1, npm 12.0.2, git history (`git log --format=...`) for existing commits

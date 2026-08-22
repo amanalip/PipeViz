@@ -5,7 +5,7 @@ Human readable log of every commit on main, plus the planned sequence ahead. Upd
 | | |
 |---|---|
 | Created | Saturday, 22 August 2026 at 01:36 EDT |
-| Last updated | Saturday, 22 August 2026 at 01:36 EDT |
+| Last updated | Saturday, 22 August 2026 at 01:49 EDT |
 | Branch tracked | main |
 | Owner | Aman Ali |
 
@@ -25,7 +25,7 @@ Human readable log of every commit on main, plus the planned sequence ahead. Upd
 
 ## 2. Conventions
 
-Commits follow Conventional Commits:
+Commits follow [Conventional Commits](https://www.conventionalcommits.org/en/):
 
 ```
 <type>(<optional scope>): <imperative summary, max ~72 chars>
@@ -69,6 +69,7 @@ Newest first.
 
 | Hash | Date | Type/scope | Summary |
 |---|---|---|---|
+| 2d3bae3 | Sat, 22 Aug 2026 at 01:40 EDT | docs | Add project_plan.md and commit_tracker.md with TOCs and timestamps |
 | 9e6a01f | Sat, 22 Aug 2026 | ci | Create static.yml GitHub Pages deploy workflow (repo root upload) |
 | 4b1f14a | Sat, 22 Aug 2026 | chore | Initial commit: README, LICENSE, .gitattributes |
 
@@ -78,7 +79,8 @@ Mapped to milestones in project_plan.md section 14. Order is sequential; hashes 
 
 | Status | Planned type/scope | Milestone | Summary |
 |---|---|---|---|
-| in progress | docs | M0 | Add project_plan.md and commit_tracker.md with TOCs and timestamps |
+| done (recorded in History) | docs(branding) | M0 | Add logo assets (The Branch concept) and branding section in plan |
+| in progress | docs(readme) | M0 | Rewrite README with logo, TOC, status, stack links, doc index |
 | planned | chore(scaffold) | M0 | Vite + React + TypeScript scaffold: package.json, tsconfig, vite config, index.html, minimal App, .gitignore |
 | planned | feat(parser) | M1 | Tokenizer and block tree with line tracking and string/comment handling |
 | planned | feat(parser) | M1 | Declarative interpreter plus scripted fallback producing PipelineModel with diagnostics |
