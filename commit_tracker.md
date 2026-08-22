@@ -5,7 +5,7 @@ Human readable log of every commit on main, plus the planned sequence ahead. Upd
 | | |
 |---|---|
 | Created | Saturday, 22 August 2026 at 01:36 EDT |
-| Last updated | Saturday, 22 August 2026 at 01:25 PM EDT |
+| Last updated | Saturday, 22 August 2026 at 02:07 PM EDT |
 | Branch tracked | main |
 | Owner | Aman Ali |
 
@@ -69,6 +69,8 @@ Newest first.
 
 | Hash | Date | Type/scope | Summary |
 |---|---|---|---|
+| (pending) | Sat, 22 Aug 2026 at 02:07 PM EDT | docs(tracker) | M3 complete: record feat(graph) commit ad1cef1, mark milestone done |
+| ad1cef1 | Sat, 22 Aug 2026 at 02:06 PM EDT | feat(graph) | React Flow canvas wired end to end on a 400ms debounced re-parse: StageNodeCard (220x72, category stripe, badge row), parallel parents rebuilt as subflow containers with relative-coordinate math from geometric containment, dotted background, controls, pannable/zoomable category-colored minimap, smoothstep arrow edges, click-to-select reporting to App; status bar grows Parsing/Ready/diagnostics/selection states; 21 converter/category tests |
 | (pending) | Sat, 22 Aug 2026 at 01:25 PM EDT | docs(tracker) | M2 complete: record feat(layout) commit 193397c, mark milestone done |
 | 193397c | Sat, 22 Aug 2026 at 01:25 PM EDT | feat(layout) | Column/lane bounding-box layout engine: sequential columns, parallel containers with stacked lanes and fan-out/fan-in edges, inline unfolding of nested stages, matrix leaves; 46 golden/property tests (overlap, bounds, monotonic chains, determinism, linear growth, risk-R3 nested fixture) |
 | (pending) | Sat, 22 Aug 2026 at 03:20 EDT | docs(tracker) | M1 complete: record fix(parser) and test(parser) commits, mark milestone done |
@@ -97,7 +99,7 @@ Mapped to milestones in project_plan.md section 14. Order is sequential; hashes 
 | done (recorded in History) | fix(parser) | M1 | Correctness gaps surfaced by the test suite: steps-block overwrite, failFast placements, unterminated-string diagnostics |
 | done (recorded in History) | test(parser) | M1 | Corpus fixtures for 7 samples, never-throw fuzz test, model snapshots. **Milestone M1 complete: 129 tests green, lint/typecheck/build clean, acceptance criteria met** |
 | done (193397c) | feat(layout) | M2 | Column/lane layout engine with bounding box recursion (measure + band-centered placement), parallel containers and fan-out/fan-in edges, inline nested-stage unfolding; overlap/bounds/monotonicity/linearity property tests plus corpus goldens. **Milestone M2 complete: 175 tests green (129 parser + 46 layout), lint/typecheck/build clean** |
-| planned | feat(graph) | M3 | React Flow canvas: StageNodeCard, edges, minimap, fitView, selection wiring |
+| done (ad1cef1) | feat(graph) | M3 | React Flow canvas: StageNodeCard, parallel subflow containers, smoothstep arrow edges, dotted background, controls, pannable/zoomable minimap, fitView-per-revision and selection wiring; 400ms debounced re-parse in App with honest status bar states. **Milestone M3 canvas acceptance met: samples render as graphs via paste, pan/zoom/select/minimap work, converter covered by 21 tests (196 total green), lint/typecheck/build clean** |
 | planned | feat(ui) | M4 | Editor pane, upload, sample picker, details panel, diagnostics bar |
 | planned | style | M4 | Dark theme polish, empty states, responsive split panes |
 | planned | ci | M5 | Rework static.yml: setup-node, npm build, upload dist/, vite base './' |
