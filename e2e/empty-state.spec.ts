@@ -15,19 +15,49 @@ test.describe('empty-state input paths', () => {
     await expect(page.locator('.empty-state')).toBeVisible()
   })
 
-  test('Paste chip focuses the source editor so pasted text lands there', async ({
+  test('Paste chip inserts the clipboard contents and renders the graph', async ({
+    page,
+    browserName,
+  }) => {
+    // The chip reads the clipboard literally; grant it so readText resolves.
+    await page.context().grantPermissions(['clipboard-read', 'clipboard-write'])
+    await page.evaluate(() =>
+      navigator.clipboard.writeText(
+        ['pipeline {', '  agent any', '  stages {', '    stage("FromClipboard") {', '      steps {', '        echo "pasted"', '      }', '    }', '  }', '}'].join(
+          '\n',
+        ),
+      ),
+    )
+
+    await page.locator('.empty-state').getByRole('button', { name: 'Paste' }).click()
+
+    await expect(page.locator('.cm-content')).toContainText('FromClipboard')
+    // The graph follows without touching the editor again.
+    await expect(
+      page.locator('.react-flow__node .stage-card', { hasText: 'FromClipboard' }),
+    ).toBeVisible()
+    await expect(page.locator('.empty-state')).toBeHidden()
+    // Caret stays live afterwards for immediate typing tweaks.
+    if (browserName === 'chromium') {
+      await page.keyboard.type(' ')
+      await expect(page.locator('.cm-content')).toContainText('echo "pasted" ')
+    }
+  })
+
+  test('Paste chip falls back to focusing the editor when the clipboard is off limits', async ({
     page,
   }) => {
     const content = page.locator('.cm-content')
 
-    // Click elsewhere first so passing means the chip really refocused.
+    // No permissions granted: readText() rejects headless, so the chip
+    // must still hand over a usable caret instead of dying silently.
+    // Click elsewhere first so passing proves the chip refocused.
     await page.locator('.empty-state h2').click()
     await expect(content).not.toBeFocused()
 
     await page.locator('.empty-state').getByRole('button', { name: 'Paste' }).click()
 
     await expect(content).toBeFocused()
-    // Proof of focus: keyboard input flows straight into the editor.
     await page.keyboard.type("stage('X')")
     await expect(content).toContainText("stage('X')")
   })

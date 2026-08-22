@@ -290,6 +290,28 @@ export default function App() {
     setSource(next)
   }
 
+  /**
+   * Empty-state Paste chip: be literal about the label. Read the clipboard
+   * and drop its text straight into the editor, then leave a focused caret
+   * so typing continues seamlessly. When the browser refuses (permission
+   * denied, API unsupported on insecure contexts), fall back to just
+   * focusing the editor so manual Ctrl+V still lands there. An empty
+   * clipboard also falls back - there is nothing to insert.
+   */
+  async function pasteFromClipboard() {
+    try {
+      const text = await navigator.clipboard.readText()
+      if (text.length > 0) {
+        changeSource(text)
+        editorApi.current?.focus()
+        return
+      }
+    } catch {
+      // Clipboard unavailable; the focus fallback below still helps.
+    }
+    editorApi.current?.focus()
+  }
+
   /** Same path as paste (§17): read the file as text, swap the editor. */
   async function handleUploadFile(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0]
@@ -504,8 +526,8 @@ export default function App() {
                   <button
                     type="button"
                     className="chip chip-ready"
-                    onClick={() => editorApi.current?.focus()}
-                    title="Focus the editor, then paste your Jenkinsfile"
+                    onClick={pasteFromClipboard}
+                    title="Paste the Jenkinsfile on your clipboard straight into the editor"
                   >
                     Paste
                   </button>
