@@ -188,7 +188,8 @@ export function EditorPane({ value, onChange, apiRef }: EditorPaneProps) {
     [viewRef],
   )
 
-  return (    <section className="editor-pane" aria-label="Pipeline source editor">
+  return (
+    <section className="editor-pane" aria-label="Pipeline source editor">
       <label className="pane-title" htmlFor="pipeline-source">
         Pipeline source
       </label>

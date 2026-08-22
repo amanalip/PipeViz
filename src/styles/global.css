@@ -70,6 +70,21 @@
   /* Hatch fill for §11 ghost cards (unparsed material). */
   --ghost-hatch: rgba(148, 163, 184, 0.09);
 
+  /* Effect tints hardcoded per rule before M7; tokenized so the light
+     scheme can deepen each one instead of glowing cyan on white.
+       ring  = selection double-ring   | pill = toggle/ready chip borders
+       chip  = container chip borders  | glow = success dot halo
+       tint/line = copied & failed button flashes | row = list hover wash */
+  --accent-ring: rgba(34, 211, 238, 0.55);
+  --accent-pill: rgba(34, 211, 238, 0.40);
+  --accent-chip: rgba(34, 211, 238, 0.35);
+  --success-glow: rgba(52, 211, 153, 0.60);
+  --success-tint: rgba(52, 211, 153, 0.08);
+  --success-line: rgba(52, 211, 153, 0.45);
+  --danger-tint: rgba(248, 113, 113, 0.08);
+  --danger-line: rgba(248, 113, 113, 0.45);
+  --row-hover: rgba(148, 163, 184, 0.08);
+
   /* Dark is the native widget scheme; [data-theme] below mirrors it. */
   color-scheme: dark;
 }
@@ -115,6 +130,18 @@
   --node-shadow: 0 8px 24px rgba(15, 23, 42, 0.10);
   --dot-grid-color: rgba(71, 85, 105, 0.18);
   --ghost-hatch: rgba(71, 85, 105, 0.08);
+
+  /* Deeper effect tints so rings, chips, and flashes keep their contrast
+     on white ground; roles mirror the dark declarations above. */
+  --accent-ring: rgba(8, 145, 178, 0.50);
+  --accent-pill: rgba(8, 145, 178, 0.45);
+  --accent-chip: rgba(8, 145, 178, 0.40);
+  --success-glow: rgba(5, 150, 105, 0.45);
+  --success-tint: rgba(5, 150, 105, 0.10);
+  --success-line: rgba(5, 150, 105, 0.50);
+  --danger-tint: rgba(220, 38, 38, 0.09);
+  --danger-line: rgba(220, 38, 38, 0.45);
+  --row-hover: rgba(71, 85, 105, 0.10);
 
   color-scheme: light;
 }
@@ -302,16 +329,16 @@ img {
 .btn-copied,
 .btn-copied:hover {
   color: var(--success);
-  border-color: rgba(52, 211, 153, 0.45);
-  background: rgba(52, 211, 153, 0.08);
+  border-color: var(--success-line);
+  background: var(--success-tint);
 }
 
 /* Failure flash on the Export PNG button (M6): danger tint for 1.5s. */
 .btn-export-failed,
 .btn-export-failed:hover {
   color: var(--danger);
-  border-color: rgba(248, 113, 113, 0.45);
-  background: rgba(248, 113, 113, 0.08);
+  border-color: var(--danger-line);
+  background: var(--danger-tint);
 }
 
 .btn:disabled {
@@ -508,7 +535,7 @@ img {
 
 .canvas-toggle.active {
   color: var(--accent);
-  border-color: rgba(34, 211, 238, 0.4);
+  border-color: var(--accent-pill);
   background: var(--accent-soft);
 }
 
@@ -575,7 +602,7 @@ img {
 .chip-ready {
   /* The one live path gets accent treatment so eyes land there first. */
   color: var(--accent);
-  border-color: rgba(34, 211, 238, 0.4);
+  border-color: var(--accent-pill);
   background: var(--accent-soft);
 }
 
@@ -778,7 +805,7 @@ img {
    card's own border plus a spread box-shadow separated by a dark gap. */
 .react-flow__node.selected .stage-card,
 .stage-card:focus-visible {
-  border-color: rgba(34, 211, 238, 0.55);
+  border-color: var(--accent-ring);
   box-shadow:
     0 0 0 2px var(--bg-1),
     0 0 0 3.5px var(--accent),
@@ -823,14 +850,14 @@ img {
   font-size: 11px;
   color: var(--accent);
   background: var(--accent-soft);
-  border: 1px solid rgba(34, 211, 238, 0.35);
+  border: 1px solid var(--accent-chip);
   border-radius: 999px;
   padding: 1px 8px;
   white-space: nowrap;
 }
 
 .react-flow__node.selected .parallel-container {
-  border-color: rgba(34, 211, 238, 0.55);
+  border-color: var(--accent-ring);
   box-shadow:
     0 0 0 2px var(--bg-1),
     0 0 0 3.5px var(--accent),
@@ -987,7 +1014,7 @@ img {
   height: 8px;
   border-radius: 50%;
   background: var(--success);
-  box-shadow: 0 0 8px rgba(52, 211, 153, 0.6);
+  box-shadow: 0 0 8px var(--success-glow);
 }
 
 /* Busy state while the re-parse debounce settles (mockup §14): accent glyph
@@ -1067,7 +1094,7 @@ img {
 }
 
 .diag-row:hover {
-  background: rgba(148, 163, 184, 0.08);
+  background: var(--row-hover);
   color: var(--ink);
 }
 

@@ -37,7 +37,7 @@ import type { Diagnostic } from './model/types'
 import { parseJenkinsfile } from './parser'
 import { SAMPLES } from './samples'
 import type { Sample } from './samples'
-import { readHashSource, sourceToHash } from './share/hash'
+import { readHashSource, sourceToHash, pageUrlWithHash } from './share/hash'
 import { loadStoredTheme, storeTheme } from './theme'
 import type { Theme } from './theme'
 import { DiagnosticsBar } from './ui/DiagnosticsBar'
@@ -330,16 +330,20 @@ export default function App() {
    * Copy the page URL with its up-to-date share hash (M6). The hash effect
    * keeps the address bar in sync with the settled source, but a user may
    * copy before the debounce settles - flush the current text into the hash
-   * first so the clipboard never trails the editor.
+   * first so the clipboard never trails the editor. The URL is assembled
+   * from location parts (not by resolving the hash against the origin) so
+   * the /PipeViz/ deployment subpath survives into copied links.
    */
   async function copyShareLink() {
     if (source.length === 0) return
     try {
-      let url = window.location.href
-      if (source !== settledSource) {
-        const hash = sourceToHash(source)
-        url = new URL(hash === '' ? window.location.pathname : hash, window.location.origin).href
-      }
+      const hash = source !== settledSource ? sourceToHash(source) : window.location.hash
+      const url = pageUrlWithHash(
+        window.location.origin,
+        window.location.pathname,
+        window.location.search,
+        hash,
+      )
       await navigator.clipboard.writeText(url)
       setLinkState('copied')
     } catch {
@@ -427,16 +431,16 @@ export default function App() {
               {pngState === 'working' ? 'Rendering…' : pngState === 'failed' ? 'Export failed' : 'Export PNG'}
             </button>
           </div>
-            <button
-              type="button"
-              className="btn"
-              onClick={() => setTheme((current) => (current === 'dark' ? 'light' : 'dark'))}
-              aria-pressed={theme === 'light'}
-              title={theme === 'dark' ? 'Switch to the light color scheme' : 'Switch to the dark color scheme'}
-            >
-              {theme === 'dark' ? 'Light mode' : 'Dark mode'}
-            </button>
-            <a className="repo-link" href={REPO_URL} target="_blank" rel="noopener noreferrer">
+          <button
+            type="button"
+            className="btn"
+            onClick={() => setTheme((current) => (current === 'dark' ? 'light' : 'dark'))}
+            aria-pressed={theme === 'light'}
+            title={theme === 'dark' ? 'Switch to the light color scheme' : 'Switch to the dark color scheme'}
+          >
+            {theme === 'dark' ? 'Light mode' : 'Dark mode'}
+          </button>
+          <a className="repo-link" href={REPO_URL} target="_blank" rel="noopener noreferrer">
             GitHub ↗
           </a>
         </nav>

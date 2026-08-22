@@ -12,6 +12,7 @@ import {
   HASH_PREFIX,
   decodeSource,
   encodeSource,
+  pageUrlWithHash,
   readHashSource,
   sourceToHash,
 } from './hash'
@@ -63,5 +64,22 @@ describe('sourceToHash / readHashSource', () => {
     expect(readHashSource('#p=!!!not-base64!!!')).toBe(null)
     expect(readHashSource('#p=8J')).toBe(null) // truncated utf-8 sequence
     expect(readHashSource('#p=////')).toBe(null)
+  })
+})
+
+describe('pageUrlWithHash', () => {
+  it('keeps deployment subpaths in copied share links', () => {
+    // Regression: resolving the hash against the origin alone used to drop
+    // GitHub Pages' /PipeViz/ prefix, producing dead links.
+    expect(
+      pageUrlWithHash('https://user.github.io', '/PipeViz/', '', '#p=abc'),
+    ).toBe('https://user.github.io/PipeViz/#p=abc')
+  })
+
+  it('preserves an existing search string and the bare page when empty', () => {
+    expect(
+      pageUrlWithHash('https://x.io', '/PipeViz/', '?utm=test', '#p=abc'),
+    ).toBe('https://x.io/PipeViz/?utm=test#p=abc')
+    expect(pageUrlWithHash('https://x.io', '/', '', '')).toBe('https://x.io/')
   })
 })

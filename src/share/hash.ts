@@ -56,6 +56,16 @@ export function sourceToHash(text: string): string {
 }
 
 /**
+ * Absolute URL carrying a share hash. Assembled from location parts rather
+ * than resolving the hash against the origin (new URL would do that), so a
+ * deployment subpath like GitHub Pages' `/PipeViz/` survives into copied
+ * links. An empty hash yields the bare page URL.
+ */
+export function pageUrlWithHash(origin: string, pathname: string, search: string, hash: string): string {
+  return `${origin}${pathname}${search}${hash}`
+}
+
+/**
  * Extract shared source from a location hash. Null means "nothing (or
  * nothing valid) shared"; '' means an explicit empty share.
  */
