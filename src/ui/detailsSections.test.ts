@@ -155,7 +155,7 @@ describe('buildContainerSections', () => {
       ],
     })
     expect(buildContainerSections(container)).toEqual([
-      { title: 'BRANCHES (2)', lines: ['Unit · 1 steps', 'Lint · 0 steps'], bullet: true },
+      { title: 'BRANCHES (2)', lines: ['Unit · 1 step', 'Lint · No steps'], bullet: true },
       { title: 'FAIL FAST', lines: ['true'], bullet: false },
     ])
   })
@@ -174,7 +174,7 @@ describe('buildContainerSections', () => {
     expect(buildContainerSections(container)).toEqual([
       { title: 'AXES', lines: ['OS: linux, windows', 'BROWSER: chrome, firefox'], bullet: true },
       { title: 'EXCLUDES (1)', lines: ['OS ∉ {windows} AND BROWSER ∉ {firefox}'], bullet: true },
-      { title: 'CELLS', lines: ['3 combinations × 1 shared steps'], bullet: false },
+      { title: 'CELLS', lines: ['3 combinations × 1 shared step'], bullet: false },
     ])
   })
 
@@ -187,8 +187,31 @@ describe('buildContainerSections', () => {
     })
     expect(buildContainerSections(container)).toEqual([
       { title: 'AXES', lines: ['OS: linux'], bullet: true },
-      { title: 'CELLS', lines: ['1 combinations'], bullet: false },
+      { title: 'CELLS', lines: ['1 combination'], bullet: false },
       { title: 'FAIL FAST', lines: ['true'], bullet: false },
+    ])
+  })
+
+  it('describes nested parallel lanes by structure rather than zero steps', () => {
+    const container = stage({
+      parallelBranches: [
+        stage({
+          id: 's0/p0',
+          name: 'Linux flow',
+          sequentialChildren: [stage({ id: 's0/p0/sq0', name: 'Build' })],
+        }),
+      ],
+    })
+    expect(buildContainerSections(container)[0]?.lines).toEqual([
+      'Linux flow · 1 nested stage',
+    ])
+  })
+
+  it('labels incomplete matrices without blank axis values or numeric zeroes', () => {
+    const sections = buildContainerSections(stage({ matrixAxes: ['OS'] }))
+    expect(sections).toEqual([
+      { title: 'AXES', lines: ['OS: (no values)'], bullet: true },
+      { title: 'CELLS', lines: ['No runnable combinations'], bullet: false },
     ])
   })
 

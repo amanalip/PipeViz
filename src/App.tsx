@@ -62,6 +62,7 @@ import {
   loadStoredEditorWidth,
   storeEditorWidth,
 } from './ui/editorResize'
+import { pipelineStats } from './ui/pipelineStats'
 
 // Repository URL for the header link; same repo this code lives in.
 const REPO_URL = 'https://github.com/amanalip/PipeViz'
@@ -435,20 +436,10 @@ export default function App() {
   // True between a keystroke and the debounce settling (status bar "busy").
   const parsing = source !== settledSource
 
-  // Canvas summary numbers use the same semantics as mockup §8's status
-  // line: every rendered card counts as a stage, steps summed across them.
-  // Ghost cards (§11 unparsed material) are honest about not being stages,
-  // so they stay out of these tallies while still occupying the canvas.
-  const canvasStats = useMemo(() => {
-    let stages = 0
-    let steps = 0
-    for (const node of layout.nodes) {
-      if (node.ghost) continue
-      stages += 1
-      steps += node.steps.length
-    }
-    return { stages, steps }
-  }, [layout])
+  // Status numbers describe the source's compact graph and therefore stay
+  // stable when a matrix is expanded. Matrix cells and their shared step
+  // declarations are named separately instead of appearing as zero steps.
+  const canvasStats = useMemo(() => pipelineStats(model.rootStages), [model])
 
   // Diagnostic tallies drive the error state of the diagnostics bar.
   const problems = useMemo(() => {
@@ -1127,6 +1118,10 @@ export default function App() {
         kind={model.kind}
         stagesRendered={canvasStats.stages}
         stepsCount={canvasStats.steps}
+        hasMatrix={canvasStats.hasMatrix}
+        matrixCells={canvasStats.matrixCells}
+        matrixCellsOverLimit={canvasStats.matrixCellsOverLimit}
+        sharedMatrixSteps={canvasStats.sharedMatrixSteps}
         diagnostics={model.diagnostics}
         selectionName={selectedName}
         partialNote={partialNote}

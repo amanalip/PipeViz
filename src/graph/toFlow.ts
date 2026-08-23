@@ -28,6 +28,7 @@ import type { PipelineModel, StageNode } from '../model/types'
 import { CANVAS_PALETTES } from '../theme'
 import type { Theme } from '../theme'
 import { categorize } from './categories'
+import { stagePrimaryLabel } from './stageBadges'
 
 /** Data payload of a `stage` card node; StageNodeCard renders only this. */
 export interface StageCardData extends Record<string, unknown> {
@@ -216,10 +217,10 @@ export function buildFlowGraph(
     // its owner, size, and failFast instead of letting React Flow fall
     // back to opaque node ids.
     const ariaLabel = expandedMatrix
-      ? `Matrix group ${parentStage?.name ?? box.id}, axes ${axesLabel(parentStage)}, ${branchCount} combinations${
+      ? `Matrix group ${parentStage?.name ?? box.id}, axes ${axesLabel(parentStage)}, ${branchCount} ${branchCount === 1 ? 'combination' : 'combinations'}${
           parentStage?.failFast ? ', fail fast' : ''
         }`
-      : `Parallel group ${parentStage?.name ?? box.id}, ${branchCount} branches${
+      : `Parallel group ${parentStage?.name ?? box.id}, ${branchCount} ${branchCount === 1 ? 'branch' : 'branches'}${
           parentStage?.failFast ? ', fail fast' : ''
         }`
     nodes.push({
@@ -294,9 +295,7 @@ export function buildFlowGraph(
       type: 'stage',
       position: { x, y },
       style: { width: NODE_W, height: NODE_H },
-      ariaLabel: `${stage.name} stage, ${stage.steps.length} ${
-        stage.steps.length === 1 ? 'step' : 'steps'
-      }, line ${stage.line}`,
+      ariaLabel: `${stage.name} stage, ${stagePrimaryLabel(stage)}, line ${stage.line}`,
       data: { stage, category: categorize(stage.name) },
       ...(hostId ? { parentId: hostId } : {}),
     })

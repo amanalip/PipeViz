@@ -16,6 +16,7 @@
 import { useEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 
+import { MATRIX_CELL_LIMIT } from '../layout/matrixCombos'
 import type { Diagnostic, ModelKind } from '../model/types'
 
 /** Deployed build marker; helps issue reports (mockup §15). Injected from
@@ -29,8 +30,15 @@ interface DiagnosticsBarProps {
   kind: ModelKind
   /** Rendered stage cards (status counts, matching M3 semantics). */
   stagesRendered: number
-  /** Steps summed across rendered cards. */
+  /** Non-matrix step declarations represented by the compact graph. */
   stepsCount: number
+  /** Whether the compact source model contains at least one matrix. */
+  hasMatrix: boolean
+  /** Surviving cells across matrices, capped just past the render ceiling. */
+  matrixCells: number
+  matrixCellsOverLimit: boolean
+  /** Step declarations shared by matrix cells, counted once per source. */
+  sharedMatrixSteps: number
   /** Diagnostics from the settled parse, source order preserved. */
   diagnostics: readonly Diagnostic[]
   /** Selected stage name for the status echo (§9), null when none. */
@@ -51,6 +59,10 @@ export function DiagnosticsBar({
   kind,
   stagesRendered,
   stepsCount,
+  hasMatrix,
+  matrixCells,
+  matrixCellsOverLimit,
+  sharedMatrixSteps,
   diagnostics,
   selectionName,
   partialNote,
@@ -62,6 +74,25 @@ export function DiagnosticsBar({
 
   const [expanded, setExpanded] = useState(false)
   const previousProblems = useRef(errors + warnings)
+  const readyMetrics: string[] = []
+  if (stepsCount > 0) readyMetrics.push(plural(stepsCount, 'step'))
+  if (hasMatrix) {
+    readyMetrics.push(
+      matrixCells === 0
+        ? 'no runnable matrix cells'
+        : matrixCellsOverLimit
+          ? `${MATRIX_CELL_LIMIT}+ matrix cells`
+          : plural(matrixCells, 'matrix cell'),
+    )
+  }
+  if (sharedMatrixSteps > 0) {
+    readyMetrics.push(
+      matrixCells === 0
+        ? `${sharedMatrixSteps} declared matrix ${sharedMatrixSteps === 1 ? 'step' : 'steps'}`
+        : plural(sharedMatrixSteps, 'shared matrix step'),
+    )
+  }
+  if (!hasMatrix && stepsCount === 0) readyMetrics.push('no steps')
 
   // Auto-reveal on new problems, auto-collapse on a clean bill (§11: fixing
   // the last error returns the bar to one line). Manual toggles in between
@@ -98,6 +129,7 @@ export function DiagnosticsBar({
         {errors > 0 && plural(errors, 'error')}
         {errors > 0 && warnings > 0 && ' · '}
         {warnings > 0 && plural(warnings, 'warning')}
+        {stagesRendered > 0 && <> · {plural(stagesRendered, 'stage')} shown</>}
         {expanded ? ' · click a row to jump' : ' · click to expand'}
       </button>
     )
@@ -113,7 +145,7 @@ export function DiagnosticsBar({
             {' · '}
             {plural(stagesRendered, 'stage')}
             {' · '}
-            {plural(stepsCount, 'step')}
+            {readyMetrics.join(' · ')}
           </>
         )}
         {selectionName && <> · selection: {selectionName}</>}

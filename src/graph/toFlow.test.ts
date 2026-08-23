@@ -92,18 +92,16 @@ describe('buildFlowGraph on the sequential sample (simple-ci)', () => {
     }
   })
 
-  it('gives stage cards explicit aria labels naming name, steps, and line', () => {
+  it('gives stage cards explicit aria labels naming content and line', () => {
     // Screen readers must not fall back to opaque node ids (a11y #21).
     for (const node of graph.nodes) {
-      expect(node.ariaLabel).toMatch(/^.+ stage, \d+ steps?, line \d+$/)
+      expect(node.ariaLabel).toMatch(/^.+ stage, (No steps|\d+ steps?), line \d+$/)
     }
     const checkout = graph.nodes.find((node) => node.id === 's0')
     const positioned = layout.nodes.find((node) => node.id === 's0')
     if (!positioned) throw new Error('layout lost s0')
     expect(checkout?.ariaLabel).toBe(
-      `${positioned.name} stage, ${positioned.steps.length} ${
-        positioned.steps.length === 1 ? 'step' : 'steps'
-      }, line ${positioned.line}`,
+      `${positioned.name} stage, ${positioned.steps.length === 0 ? 'No steps' : `${positioned.steps.length} ${positioned.steps.length === 1 ? 'step' : 'steps'}`}, line ${positioned.line}`,
     )
   })
 
@@ -286,6 +284,18 @@ describe('buildFlowGraph with nested parallel containers', () => {
   })
 })
 
+describe('buildFlowGraph with a compact matrix (matrix-build)', () => {
+  const source = sampleById('matrix-build')?.source ?? ''
+  const { graph } = flow(source)
+
+  it('describes matrix cells instead of claiming the card has no steps', () => {
+    const matrix = graph.nodes.find(
+      (node) => node.type === 'stage' && node.data.stage.name === 'Matrix Build',
+    )
+    expect(matrix?.ariaLabel).toMatch(/^Matrix Build stage, 3 cells, line \d+$/)
+  })
+})
+
 describe('buildFlowGraph with an expanded matrix (matrix-build)', () => {
   const source = sampleById('matrix-build')?.source ?? ''
   const model = parseJenkinsfile(source)
@@ -331,6 +341,7 @@ describe('buildFlowGraph with an expanded matrix (matrix-build)', () => {
       kind: 'matrix',
       failFast: true,
     })
+    expect(box?.ariaLabel).toBe('Matrix group M, axes OS, 1 combination, fail fast')
   })
 
   it('parents combo cards to the matrix container with relative positions', () => {

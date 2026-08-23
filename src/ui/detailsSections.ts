@@ -18,6 +18,7 @@
 
 import type { PostHandler, StageNode, Step } from '../model/types'
 import { MATRIX_CELL_LIMIT, matrixCombinationCount } from '../layout/matrixCombos'
+import { stagePrimaryLabel } from '../graph/stageBadges'
 
 /** One collapsible-looking block of the details panel. */
 export interface DetailSection {
@@ -95,7 +96,7 @@ export function buildContainerSections(stage: StageNode): DetailSection[] {
     sections.push({
       title: `BRANCHES (${stage.parallelBranches.length})`,
       lines: stage.parallelBranches.map(
-        (branch) => `${branch.name} · ${branch.steps.length} steps`,
+        (branch) => `${branch.name} · ${stagePrimaryLabel(branch)}`,
       ),
       bullet: true,
     })
@@ -107,7 +108,8 @@ export function buildContainerSections(stage: StageNode): DetailSection[] {
     sections.push({
       title: 'AXES',
       lines: stage.matrixAxes.map((name, index) => {
-        const allowed = (values[index] ?? []).join(', ')
+        const allowedValues = values[index] ?? []
+        const allowed = allowedValues.length > 0 ? allowedValues.join(', ') : '(no values)'
         const forbidden = notValues[index] ?? []
         return forbidden.length > 0
           ? `${name}: ${allowed} (not: ${forbidden.join(', ')})`
@@ -131,14 +133,19 @@ export function buildContainerSections(stage: StageNode): DetailSection[] {
     // Counting stops just past the expansion ceiling, so monster products
     // answer instantly and are reported as "1000+" instead of freezing.
     const combos = matrixCombinationCount(stage, MATRIX_CELL_LIMIT + 1)
-    const comboLabel = combos > MATRIX_CELL_LIMIT ? `${MATRIX_CELL_LIMIT}+` : `${combos}`
+    const comboLabel =
+      combos === 0
+        ? 'No runnable combinations'
+        : combos > MATRIX_CELL_LIMIT
+          ? `${MATRIX_CELL_LIMIT}+ combinations`
+          : `${combos} ${combos === 1 ? 'combination' : 'combinations'}`
     const cellSteps = stage.matrixCellSteps?.length ?? 0
     sections.push({
       title: 'CELLS',
       lines: [
-        cellSteps > 0
-          ? `${comboLabel} combinations × ${cellSteps} shared steps`
-          : `${comboLabel} combinations`,
+        combos === 0 || cellSteps === 0
+          ? comboLabel
+          : `${comboLabel} × ${cellSteps} shared ${cellSteps === 1 ? 'step' : 'steps'}`,
       ],
       bullet: false,
     })
