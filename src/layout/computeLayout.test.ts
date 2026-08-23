@@ -342,6 +342,16 @@ describe('layout - unparsed-region ghosts (mockups §11)', () => {
     ])
   })
 
+  it('positions ghosts by source line, interleaved with parsed stages', () => {
+    // A stage demoted from the middle of the file must ghost where it fell,
+    // not trail the graph (regression: regions were appended after roots).
+    const model = swallowedModel()
+    model.rootStages = [leaf('first', { line: 3 }), leaf('last', { line: 8 })]
+    model.unparsedRegions = [{ startLine: 5, endLine: 6, label: 'Middle' }]
+    const result = computeLayout(model)
+    expect(result.nodes.map((n) => n.id)).toEqual(['first', 'u0', 'last'])
+  })
+
   it('renders a lone ghost when nothing parsed at all', () => {
     const model = swallowedModel()
     model.rootStages = []

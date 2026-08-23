@@ -299,18 +299,21 @@ export function computeLayout(model: PipelineModel, options: LayoutOptions = {})
   const expandMatrix = options.expandMatrix === true
   const ctx: WalkContext = { nodes: [], containers: [], edges: [] }
 
-  // Ghost leaves: one per unparsed region, stable ids (`u<i>`), document order.
-  const roots: StageNode[] = [...model.rootStages]
-  model.unparsedRegions.forEach((region, index) => {
-    roots.push({
-      id: `u${index}`,
-      name: region.label ?? 'unparsed',
-      line: region.startLine,
-      steps: [],
-      ghost: true,
-      unparsedRange: { startLine: region.startLine, endLine: region.endLine },
-    })
-  })
+  // Ghost leaves: one per unparsed region, stable ids (`u<i>`). They merge
+  // into the root chain by SOURCE POSITION (a stage demoted from the middle
+  // of the file ghosts where it fell, not at the graph's end); the stable
+  // sort keeps equal keys and same-line ties in document order.
+  const ghostLeaves: StageNode[] = model.unparsedRegions.map((region, index) => ({
+    id: `u${index}`,
+    name: region.label ?? 'unparsed',
+    line: region.startLine,
+    steps: [],
+    ghost: true,
+    unparsedRange: { startLine: region.startLine, endLine: region.endLine },
+  }))
+  const roots: StageNode[] = [...model.rootStages, ...ghostLeaves].sort(
+    (a, b) => a.line - b.line,
+  )
 
   if (roots.length === 0) {
     return { nodes: [], edges: [], containers: [], width: 0, height: 0 }
