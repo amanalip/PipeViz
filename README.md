@@ -16,7 +16,7 @@
 |---|---|
 | Created | Saturday, 22 August 2026 at 01:36 EDT |
 | Last updated | Saturday, 22 August 2026 at 04:10 PM EDT |
-| Status | v0.2.0 — M0–M6 complete: parser, layout, canvas, full UI, Pages auto-deploy, plus the whole M6 batch (matrix expansion, PNG export, share links, light theme, CodeMirror editor) |
+| Status | M0–M6 complete: parser, layout, canvas, full UI, Pages auto-deploy, plus the whole M6 batch (matrix expansion, PNG export, share links, light theme, CodeMirror editor). The app version lives only in [package.json](package.json) and is injected into the UI at build time. |
 | License | [GPL-3.0](LICENSE) |
 
 ## Table of Contents

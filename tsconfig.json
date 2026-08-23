@@ -52,6 +52,9 @@
     "allowImportingTsExtensions": false,
     // Restrict to syntax erasable by type-stripping compilers (TS7 friendly).
     "erasableSyntaxOnly": true,
+    // Let vite.config.ts import package.json so the app version is injected
+    // from a single source of truth instead of being restated in UI code.
+    "resolveJsonModule": true,
     // ---- Globals & environment -------------------------------------------
     // Vite's client types (`import.meta.env` and friends).
     "types": ["vite/client"],

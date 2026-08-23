@@ -13,8 +13,18 @@ import { configDefaults, defineConfig } from 'vitest/config'
 // Official React plugin: JSX transform plus fast refresh during development.
 import react from '@vitejs/plugin-react'
 
+// Single source of truth for the app version: package.json's version field
+// is injected as a compile-time constant (see `define` below), so the UI
+// footer can never drift from the release version again.
+import pkg from './package.json'
+
 // Exported config consumed by the vite CLI through both scripts in package.json.
 export default defineConfig({
+  // Compile-time constants. __APP_VERSION__ is declared in src/env.d.ts.
+  define: {
+    __APP_VERSION__: JSON.stringify(pkg.version),
+  },
+
   // React fast refresh + automatic JSX runtime for all .tsx files.
   plugins: [react()],
 

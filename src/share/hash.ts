@@ -7,12 +7,20 @@
 // btoa/atob cover everything modern browsers need.
 //
 // Decoding is defensive by contract: any malformed payload (bad base64,
-// broken UTF-8, wrong prefix) yields null and the app just starts empty -
-// a corrupt shared link must never throw.
+// broken UTF-8, wrong prefix) yields null and the app reports it instead
+// of throwing - a corrupt shared link must never crash the boot.
 // ---------------------------------------------------------------------------
 
-/** Hash key marking encoded pipeline source, e.g. `#p=GWucG9sZWQ…`. */
-export const HASH_PREFIX = 'p='
+/**
+ * Hash key marking encoded pipeline source. v1 links carry `pv1=` so future
+ * codecs (compression, encryption, chunking) can ship under their own key
+ * without breaking every link ever copied; legacy `p=` payloads still
+ * decode.
+ */
+export const HASH_VERSION_PREFIX = 'pv1='
+
+/** Pre-versioning share key, kept decoding forever (M6 shipped it). */
+export const HASH_LEGACY_PREFIX = 'p='
 
 /** UTF-8 bytes -> base64url (no padding, +/ swapped for -_). */
 function bytesToBase64Url(bytes: Uint8Array): string {
@@ -50,9 +58,10 @@ export function decodeSource(encoded: string): string | null {
   }
 }
 
-/** The full hash string for a source ('' when the editor is empty). */
+/** The full hash string for a source ('' when the editor is empty).
+ * New links always carry the versioned key. */
 export function sourceToHash(text: string): string {
-  return text.length === 0 ? '' : `#${HASH_PREFIX}${encodeSource(text)}`
+  return text.length === 0 ? '' : `#${HASH_VERSION_PREFIX}${encodeSource(text)}`
 }
 
 /**
@@ -67,19 +76,27 @@ export function pageUrlWithHash(origin: string, pathname: string, search: string
 
 /**
  * Extract shared source from a location hash. Null means "nothing (or
- * nothing valid) shared"; '' means an explicit empty share.
+ * nothing valid) shared"; '' means an explicit empty share. Both the
+ * versioned `pv1=` key and the legacy `p=` key decode.
  */
 export function readHashSource(hash: string): string | null {
-  if (!hash.startsWith(`#${HASH_PREFIX}`)) return null
-  return decodeSource(hash.slice(1 + HASH_PREFIX.length))
+  if (hash.startsWith(`#${HASH_VERSION_PREFIX}`)) {
+    return decodeSource(hash.slice(1 + HASH_VERSION_PREFIX.length))
+  }
+  if (hash.startsWith(`#${HASH_LEGACY_PREFIX}`)) {
+    return decodeSource(hash.slice(1 + HASH_LEGACY_PREFIX.length))
+  }
+  return null
 }
 
 /**
- * True when a location hash carries the share payload key at all - valid
- * or not. Callers combine this with readHashSource() to tell "no share"
- * apart from "share arrived but its payload is corrupt", so a broken link
- * can be reported instead of silently booting empty.
+ * True when a location hash carries a share payload key at all - valid or
+ * not, current or legacy. Callers combine this with readHashSource() to
+ * tell "no share" apart from "share arrived but its payload is corrupt",
+ * so a broken link can be reported instead of silently booting empty.
  */
 export function isShareHash(hash: string): boolean {
-  return hash.startsWith(`#${HASH_PREFIX}`)
+  return (
+    hash.startsWith(`#${HASH_VERSION_PREFIX}`) || hash.startsWith(`#${HASH_LEGACY_PREFIX}`)
+  )
 }

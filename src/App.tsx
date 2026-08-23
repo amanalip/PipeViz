@@ -78,9 +78,17 @@ const COPY_FLASH_MS = 1500
 /** How long the empty-state paste hint stays up before fading out. */
 const PASTE_HINT_MS = 6000
 
-/** How long the share-privacy notice stays up after copying a link (§8):
+/** How long the share notices stay up after copying (§8) or refusing:
  * readable warning beats a 1.5s flash for a full sentence of advice. */
 const SHARE_NOTICE_MS = 5000
+
+/**
+ * Ceiling on shareable source, in characters. Encoding inflates ~4×3 into
+ * the URL hash and browsers/terminals degrade on very long URLs; any real
+ * Jenkinsfile sits far below this, so refusal is the honest outcome for
+ * pathologically huge input instead of a link some apps silently truncate.
+ */
+export const MAX_SHARE_SOURCE_LENGTH = 40_000
 
 /** How long the upload-error notice stays up before fading out. */
 const UPLOAD_ERROR_MS = 5000
@@ -111,9 +119,9 @@ export default function App() {
   const [copyState, setCopyState] = useState<'idle' | 'copied' | 'failed'>('idle')
   // Copy link button feedback (M6 URL hash sharing): same flash pattern.
   const [linkState, setLinkState] = useState<'idle' | 'copied' | 'failed'>('idle')
-  // Share-privacy notice: shown alongside the copied flash, outliving it so
-  // the warning is actually read before it fades.
-  const [showShareNotice, setShowShareNotice] = useState(false)
+  // Share notice flavor: privacy advice after a successful copy, or the
+  // too-large refusal when the source exceeds MAX_SHARE_SOURCE_LENGTH.
+  const [shareNotice, setShareNotice] = useState<'privacy' | 'too-large' | null>(null)
   // Export PNG button feedback: idle -> working/failed -> idle (M6).
   const [pngState, setPngState] = useState<'idle' | 'working' | 'failed'>('idle')
   // Name of the bundled sample the editor currently holds (§5/§8 caption).
@@ -198,12 +206,12 @@ export default function App() {
     return () => window.clearTimeout(timer)
   }, [linkState])
 
-  // Share-privacy notice reset: outlives the copied flash on purpose.
+  // Share notice reset: outlives the copied flash on purpose.
   useEffect(() => {
-    if (!showShareNotice) return
-    const timer = window.setTimeout(() => setShowShareNotice(false), SHARE_NOTICE_MS)
+    if (shareNotice === null) return
+    const timer = window.setTimeout(() => setShareNotice(null), SHARE_NOTICE_MS)
     return () => window.clearTimeout(timer)
-  }, [showShareNotice])
+  }, [shareNotice])
 
   // Inbound shared links land as hashchange events after mount: opening a
   // second share URL in the same tab, or back/forward across two share
@@ -492,10 +500,15 @@ export default function App() {
    * stay clean and the encoded link exists only in the clipboard. The URL
    * is assembled from location parts (not by resolving the hash against
    * the origin) so the /PipeViz/ deployment subpath survives into copied
-   * links.
+   * links. Sources past MAX_SHARE_SOURCE_LENGTH are refused with explicit
+   * feedback instead of producing a URL some apps would silently truncate.
    */
   async function copyShareLink() {
     if (source.length === 0) return
+    if (source.length > MAX_SHARE_SOURCE_LENGTH) {
+      setShareNotice('too-large')
+      return
+    }
     try {
       const url = pageUrlWithHash(
         window.location.origin,
@@ -505,7 +518,7 @@ export default function App() {
       )
       await navigator.clipboard.writeText(url)
       setLinkState('copied')
-      setShowShareNotice(true)
+      setShareNotice('privacy')
     } catch {
       setLinkState('failed')
     }
@@ -594,6 +607,11 @@ export default function App() {
               {copyState === 'copied' ? 'Copied ✓' : copyState === 'failed' ? 'Copy failed' : 'Copy JSON'}
             </button>
             <span className="share-wrap">
+              {/* Standing privacy disclosure (§8): the warning must not be
+                  a post-hoc surprise - it lives beside the button always. */}
+              <span className="share-hint" aria-hidden="true">
+                embeds source
+              </span>
               <button
                 type="button"
                 className={linkState === 'copied' ? 'btn btn-copied' : 'btn'}
@@ -603,10 +621,16 @@ export default function App() {
               >
                 {linkState === 'copied' ? 'Copied ✓' : linkState === 'failed' ? 'Copy failed' : 'Copy link'}
               </button>
-              {showShareNotice && (
+              {shareNotice === 'privacy' && (
                 <span className="share-warning" role="status">
                   <strong>Shared links contain your pipeline source.</strong> Review
                   sensitive information before sharing.
+                </span>
+              )}
+              {shareNotice === 'too-large' && (
+                <span className="share-warning share-too-large" role="alert">
+                  <strong>Pipeline too large for a URL link.</strong> Shrink the Jenkinsfile or
+                  use Upload-style file sharing instead.
                 </span>
               )}
             </span>

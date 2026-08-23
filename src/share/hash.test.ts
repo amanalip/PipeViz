@@ -9,7 +9,8 @@
 import { describe, expect, it } from 'vitest'
 
 import {
-  HASH_PREFIX,
+  HASH_LEGACY_PREFIX,
+  HASH_VERSION_PREFIX,
   decodeSource,
   encodeSource,
   isShareHash,
@@ -44,16 +45,22 @@ describe('encodeSource / decodeSource', () => {
 })
 
 describe('sourceToHash / readHashSource', () => {
-  it('prefixes payloads with #p=', () => {
+  it('prefixes payloads with the versioned #pv1= key', () => {
     const hash = sourceToHash(SAMPLE_TEXT)
-    expect(hash.startsWith(`#${HASH_PREFIX}`)).toBe(true)
+    expect(hash.startsWith(`#${HASH_VERSION_PREFIX}`)).toBe(true)
     expect(readHashSource(hash)).toBe(SAMPLE_TEXT)
+  })
+
+  it('still decodes legacy #p= links copied before versioning', () => {
+    const legacy = `#${HASH_LEGACY_PREFIX}${encodeSource(SAMPLE_TEXT)}`
+    expect(readHashSource(legacy)).toBe(SAMPLE_TEXT)
   })
 
   it('maps empty source to an empty hash and back', () => {
     expect(sourceToHash('')).toBe('')
     expect(readHashSource('')).toBe(null) // no key at all: nothing shared
-    expect(readHashSource(`#${HASH_PREFIX}`)).toBe('') // explicit empty share
+    expect(readHashSource(`#${HASH_VERSION_PREFIX}`)).toBe('') // explicit empty share
+    expect(readHashSource(`#${HASH_LEGACY_PREFIX}`)).toBe('') // legacy empty share
   })
 
   it('ignores foreign hash keys', () => {
@@ -62,17 +69,18 @@ describe('sourceToHash / readHashSource', () => {
   })
 
   it('returns null instead of throwing on malformed payloads', () => {
-    expect(readHashSource('#p=!!!not-base64!!!')).toBe(null)
+    expect(readHashSource('#pv1=!!!not-base64!!!')).toBe(null)
     expect(readHashSource('#p=8J')).toBe(null) // truncated utf-8 sequence
-    expect(readHashSource('#p=////')).toBe(null)
+    expect(readHashSource('#pv1=////')).toBe(null)
   })
 })
 
 describe('isShareHash', () => {
-  it('sees the share key even when its payload is corrupt', () => {
+  it('sees a share key even when its payload is corrupt, current or legacy', () => {
     // This is how a broken link is told apart from "no link at all".
-    expect(isShareHash('#p=!!!not-base64!!!')).toBe(true)
-    expect(isShareHash(`#${HASH_PREFIX}`)).toBe(true)
+    expect(isShareHash('#pv1=!!!not-base64!!!')).toBe(true)
+    expect(isShareHash(`#${HASH_VERSION_PREFIX}`)).toBe(true)
+    expect(isShareHash('#p=8J')).toBe(true)
   })
 
   it('rejects foreign keys and empty hashes', () => {

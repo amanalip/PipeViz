@@ -18,8 +18,9 @@ import type { ReactNode } from 'react'
 
 import type { Diagnostic, ModelKind } from '../model/types'
 
-/** Deployed build marker; helps issue reports (mockup §15). */
-const APP_VERSION = 'v0.1.0'
+/** Deployed build marker; helps issue reports (mockup §15). Injected from
+ * package.json by vite `define`, so this can never drift from the release. */
+const APP_VERSION = `v${__APP_VERSION__}`
 
 interface DiagnosticsBarProps {
   /** True between keystroke and debounce settle - the busy state. */

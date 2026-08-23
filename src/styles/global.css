@@ -341,10 +341,25 @@ img {
   background: var(--success-tint);
 }
 
-/* Anchor so the share-privacy notice can drop from the Copy link button
+/* Anchor so the share notices can drop from the Copy link button
    without disturbing the header row's flex layout. */
 .share-wrap {
   position: relative;
+}
+
+/* Standing privacy disclosure (§8): quiet, always-visible microcopy so
+   nobody learns the source-embedding behavior only after copying. */
+.share-hint {
+  font-size: 11px;
+  color: var(--ink-secondary);
+}
+
+/* Refusal variant of the drop-down notice: danger palette because a link
+   was NOT copied and the user needs to know why. */
+.share-too-large {
+  color: var(--danger);
+  border-color: var(--danger-line);
+  background: var(--danger-tint);
 }
 
 /* Privacy notice shown while a copied share link is fresh: the encoded
