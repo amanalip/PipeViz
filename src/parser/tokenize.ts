@@ -162,15 +162,22 @@ export function tokenize(source: string): TokenizeResult {
       const openLine = line
       i += 2
       let closed = false
+      let crossedNewline = false
       while (i < source.length) {
         if (source.charAt(i) === '*' && source.charAt(i + 1) === '/') {
           i += 2
           closed = true
           break
         }
-        if (source.charAt(i) === '\n') line += 1
+        if (source.charAt(i) === '\n') {
+          line += 1
+          crossedNewline = true
+        }
         i += 1
       }
+      // A block comment that spans lines is a statement boundary just like
+      // a bare newline: the next emitted token must see nlBefore.
+      if (crossedNewline) nlBefore = true
       if (!closed) {
         diagnostics.push({
           severity: 'warning',

@@ -133,6 +133,19 @@ describe('tokenize - comments', () => {
     expect(tokens.map((t) => t.value)).toEqual(['a', 'b'])
   })
 
+  it('marks the token after a multiline block comment as newline-preceded', () => {
+    // The comment swallowed the newline, so without this flag `b` would
+    // look like a continuation of the same statement (regression).
+    const { tokens } = tokenize('a /* multi\nline */ b')
+    expect(tokens[1]?.nlBefore).toBe(true)
+    expect(tokens[1]?.line).toBe(2)
+  })
+
+  it('keeps a same-line block comment transparent to statement boundaries', () => {
+    const { tokens } = tokenize('a /* inline */ b')
+    expect(tokens[1]?.nlBefore).toBe(false)
+  })
+
   it('warns when a block comment is never closed', () => {
     const { diagnostics } = tokenize('a /* oops\nstill open')
     expect(diagnostics).toEqual([
