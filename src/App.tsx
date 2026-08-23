@@ -166,6 +166,27 @@ export default function App() {
     window.history.replaceState(null, '', url)
   }, [settledSource])
 
+  // Inbound shared links land as hashchange events after mount: opening a
+  // second share URL in the same tab, or back/forward across two share
+  // URLs, must swap the editor and canvas just like a cold boot would.
+  // Only a valid #p=… payload syncs; foreign or cleared hashes never wipe
+  // current work. Our own hash writes above use replaceState, which fires
+  // no event, so this listener cannot echo.
+  useEffect(() => {
+    const onHashChange = () => {
+      const shared = readHashSource(window.location.hash)
+      if (shared === null || shared === settledSource) return
+      const sample = SAMPLES.find((entry) => entry.source === shared)
+      setSource(shared)
+      setSettledSource(shared) // settle immediately, like a shared-link boot
+      setSelectedId(null)
+      setRevision((current) => current + 1)
+      setSampleName(sample?.name ?? null)
+    }
+    window.addEventListener('hashchange', onHashChange)
+    return () => window.removeEventListener('hashchange', onHashChange)
+  }, [settledSource])
+
   // Export PNG failure flash reset; success needs no timer (download fires).
   useEffect(() => {
     if (pngState !== 'failed') return
