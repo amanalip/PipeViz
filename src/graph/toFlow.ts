@@ -212,11 +212,22 @@ export function buildFlowGraph(
         ? matrixCombinationCount(parentStage)
         : 0)
     const grandparentId = parentOf.get(box.id) ?? null
+    // Screen-reader copy per the a11y audit (#21): name the group shape,
+    // its owner, size, and failFast instead of letting React Flow fall
+    // back to opaque node ids.
+    const ariaLabel = expandedMatrix
+      ? `Matrix group ${parentStage?.name ?? box.id}, axes ${axesLabel(parentStage)}, ${branchCount} combinations${
+          parentStage?.failFast ? ', fail fast' : ''
+        }`
+      : `Parallel group ${parentStage?.name ?? box.id}, ${branchCount} branches${
+          parentStage?.failFast ? ', fail fast' : ''
+        }`
     nodes.push({
       id: box.id,
       type: 'groupContainer',
       position: relPos.get(box.id) as { x: number; y: number },
       style: { width: box.width, height: box.height },
+      ariaLabel,
       data: {
         label: parentStage?.name ?? box.id,
         kind: expandedMatrix ? 'matrix' : 'parallel',
@@ -257,18 +268,21 @@ export function buildFlowGraph(
     // they can neither open the details panel nor hold a selection ring.
     if (stage.ghost) {
       ghostIds.add(stage.id)
+      const startLine = stage.unparsedRange?.startLine ?? stage.line
+      const endLine = stage.unparsedRange?.endLine ?? stage.line
       nodes.push({
         id: stage.id,
         type: 'ghost',
         position: { x, y },
         style: { width: NODE_W, height: NODE_H },
+        ariaLabel: `Unparsed region ${stage.name}, lines ${startLine}-${endLine}`,
         draggable: false,
         selectable: false,
         focusable: false,
         data: {
           label: stage.name,
-          startLine: stage.unparsedRange?.startLine ?? stage.line,
-          endLine: stage.unparsedRange?.endLine ?? stage.line,
+          startLine,
+          endLine,
         },
         ...(hostId ? { parentId: hostId } : {}),
       })
@@ -280,6 +294,9 @@ export function buildFlowGraph(
       type: 'stage',
       position: { x, y },
       style: { width: NODE_W, height: NODE_H },
+      ariaLabel: `${stage.name} stage, ${stage.steps.length} ${
+        stage.steps.length === 1 ? 'step' : 'steps'
+      }, line ${stage.line}`,
       data: { stage, category: categorize(stage.name) },
       ...(hostId ? { parentId: hostId } : {}),
     })

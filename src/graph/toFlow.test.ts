@@ -92,6 +92,21 @@ describe('buildFlowGraph on the sequential sample (simple-ci)', () => {
     }
   })
 
+  it('gives stage cards explicit aria labels naming name, steps, and line', () => {
+    // Screen readers must not fall back to opaque node ids (a11y #21).
+    for (const node of graph.nodes) {
+      expect(node.ariaLabel).toMatch(/^.+ stage, \d+ steps?, line \d+$/)
+    }
+    const checkout = graph.nodes.find((node) => node.id === 's0')
+    const positioned = layout.nodes.find((node) => node.id === 's0')
+    if (!positioned) throw new Error('layout lost s0')
+    expect(checkout?.ariaLabel).toBe(
+      `${positioned.name} stage, ${positioned.steps.length} ${
+        positioned.steps.length === 1 ? 'step' : 'steps'
+      }, line ${positioned.line}`,
+    )
+  })
+
   it('carries category guesses matching the stage names', () => {
     const checkout = graph.nodes.find((node) => node.id === 's0')
     expect(checkout?.type).toBe('stage')
@@ -144,6 +159,11 @@ describe('buildFlowGraph on the parallel sample (parallel-tests)', () => {
       branchCount: 3,
       failFast: true,
     })
+  })
+
+  it('labels the container node for screen readers with shape and size', () => {
+    const box = graph.nodes.find((node) => node.type === 'groupContainer')
+    expect(box?.ariaLabel).toBe('Parallel group Test, 3 branches, fail fast')
   })
 
   it('nests lane cards via parentId with positions relative to the box', () => {
@@ -283,6 +303,11 @@ describe('buildFlowGraph with an expanded matrix (matrix-build)', () => {
     })
   })
 
+  it('reads an explicit matrix aria label on the expanded container', () => {
+    const box = graph.nodes.find((node) => node.type === 'groupContainer')
+    expect(box?.ariaLabel).toBe('Matrix group Matrix Build, axes OS × BROWSER, 3 combinations')
+  })
+
   it('keeps failFast on an expanded matrix container instead of swallowing it', () => {
     // Regression: expansion used to force failFast to false, hiding a
     // directive Jenkins honors on matrices.
@@ -355,6 +380,7 @@ describe('buildFlowGraph with unparsed-region ghosts (mockups §11)', () => {
     if (ghost?.type !== 'ghost') throw new Error('ghost node missing')
     expect(ghost.id).toBe('u0')
     expect(ghost.data).toEqual({ label: 'B', startLine: 5, endLine: 5 })
+    expect(ghost.ariaLabel).toBe('Unparsed region B, lines 5-5')
     expect(ghost.selectable).toBe(false)
     expect(ghost.focusable).toBe(false)
     expect(ghost.draggable).toBe(false)

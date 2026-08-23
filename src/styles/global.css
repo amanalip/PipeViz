@@ -800,6 +800,20 @@ button.chip:active {
   min-width: 0;
 }
 
+/* Jump-to-source + close cluster in the panel header. */
+.details-head-actions {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Compact variant of the standard header button for the panel's width. */
+.btn.details-jump {
+  padding: 4px 9px;
+  font-size: 11.5px;
+}
+
 .details-title {
   font-size: 13px;
   font-weight: 650;

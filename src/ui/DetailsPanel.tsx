@@ -24,9 +24,15 @@ interface DetailsPanelProps {
   /** All post handlers; the panel filters to this stage's own. */
   postHandlers: readonly PostHandler[]
   onClose: () => void
+  /**
+   * Jump the editor caret to this item's source line (§17). The panel
+   * button is the keyboard-reachable path - double-click-to-jump alone was
+   * mouse-only, which locked keyboard users out of the feature entirely.
+   */
+  onJumpToSource?: (line: number) => void
 }
 
-export function DetailsPanel({ stage, container, postHandlers, onClose }: DetailsPanelProps) {
+export function DetailsPanel({ stage, container, postHandlers, onClose, onJumpToSource }: DetailsPanelProps) {
   // Escape closes (mockup §9); listener lives only while the panel does.
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
@@ -45,6 +51,7 @@ export function DetailsPanel({ stage, container, postHandlers, onClose }: Detail
   const sections = stage
     ? buildDetailSections(stage, postHandlers)
     : buildContainerSections(container as StageNode)
+  const sourceLine = stage?.line ?? container?.line
 
   return (
     <aside className="details-panel" role="dialog" aria-label={`Stage details: ${heading}`}>
@@ -53,9 +60,21 @@ export function DetailsPanel({ stage, container, postHandlers, onClose }: Detail
           <h2 className="details-title">{heading}</h2>
           <p className="details-subline">{subline}</p>
         </div>
-        <button type="button" className="details-close" onClick={onClose} aria-label="Close details panel">
-          ✕
-        </button>
+        <div className="details-head-actions">
+          {onJumpToSource && sourceLine !== undefined && (
+            <button
+              type="button"
+              className="btn details-jump"
+              onClick={() => onJumpToSource(sourceLine)}
+              title="Move the editor caret to this stage's source line"
+            >
+              Jump to source
+            </button>
+          )}
+          <button type="button" className="details-close" onClick={onClose} aria-label="Close details panel">
+            ✕
+          </button>
+        </div>
       </header>
       {sections.map((section) => (
         <section key={section.title} className="details-section">

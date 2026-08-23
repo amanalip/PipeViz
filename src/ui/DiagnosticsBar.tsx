@@ -37,6 +37,8 @@ interface DiagnosticsBarProps {
   selectionName: string | null
   /** Partial-graph line when errors suggest missing stages, else null. */
   partialNote: string | null
+  /** Wall-clock cost of the last settled parse, for issue reports. */
+  parseMs?: number
   onSelectDiagnostic: (diagnostic: Diagnostic) => void
 }
 
@@ -52,6 +54,7 @@ export function DiagnosticsBar({
   diagnostics,
   selectionName,
   partialNote,
+  parseMs,
   onSelectDiagnostic,
 }: DiagnosticsBarProps) {
   const errors = diagnostics.filter((d) => d.severity === 'error').length
@@ -125,7 +128,16 @@ export function DiagnosticsBar({
         <span className={partialNote ? 'status-note status-partial' : 'status-note'}>
           {partialNote ?? 'No backend: your code stays in this tab'}
         </span>
-        <span className="status-version">{APP_VERSION}</span>
+        <span
+          className="status-version"
+          title={
+            parseMs !== undefined
+              ? `${APP_VERSION} · last parse settled in ${parseMs} ms`
+              : APP_VERSION
+          }
+        >
+          {APP_VERSION}
+        </span>
       </div>
       {expanded && !parsing && diagnostics.length > 0 && (
         <ul className="diag-list">

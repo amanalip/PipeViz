@@ -72,6 +72,14 @@ function bootFromHash(): { source: string; sampleName: string | null; shareInval
 // Mockup §13: re-parse fires 400ms after typing stops.
 const REPARSE_DEBOUNCE_MS = 400
 
+/**
+ * Ceiling on synchronously parsed source. Parsing runs on the UI thread;
+ * past ~256 KB of Jenkinsfile the pause becomes a freeze, so oversized
+ * input refuses to parse (with a visible notice) until it shrinks. Any
+ * real Jenkinsfile sits orders of magnitude below this.
+ */
+export const SOURCE_LENGTH_LIMIT = 262_144
+
 /** How long the Copy JSON button flashes feedback before resetting. */
 const COPY_FLASH_MS = 1500
 
@@ -277,7 +285,20 @@ export default function App() {
 
   // Pure derived pipeline: parse then lay out. Both are cheap enough to run
   // synchronously on settle, and memoizing keeps renders side-effect free.
-  const model = useMemo(() => parseJenkinsfile(settledSource), [settledSource])
+  // Oversized sources skip parsing entirely (see SOURCE_LENGTH_LIMIT) - the
+  // banner below explains, instead of freezing the tab. Parse duration is
+  // measured for the status bar's issue-report tooltip; the ref write is an
+  // idempotent measurement, not render state.
+  const parseMsRef = useRef(0)
+  const model = useMemo(() => {
+    const withinLimit = settledSource.length <= SOURCE_LENGTH_LIMIT
+    const started = performance.now()
+    const parsed = parseJenkinsfile(withinLimit ? settledSource : '')
+    parseMsRef.current = Math.round(performance.now() - started)
+    return parsed
+  }, [settledSource])
+  // True while the live editor holds more than PipeViz will parse.
+  const sourceTooLarge = source.length > SOURCE_LENGTH_LIMIT
   const layout = useMemo(
     () => computeLayout(model, { expandMatrix }),
     [model, expandMatrix],
@@ -531,6 +552,31 @@ export default function App() {
     editorApi.current?.revealLine(line)
   }
 
+  // Keyboard path for §17's jump-to-source (a11y audit #22): pressing `j`
+  // jumps the caret to the selected card/container's source line, so the
+  // feature never depends on a double-click. Typing targets (editor, any
+  // text field) are ignored.
+  useEffect(() => {
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key !== 'j' || event.metaKey || event.ctrlKey || event.altKey) return
+      const target = event.target as HTMLElement | null
+      if (
+        target &&
+        (target.tagName === 'INPUT' ||
+          target.tagName === 'TEXTAREA' ||
+          target.isContentEditable)
+      ) {
+        return
+      }
+      const node = layout.nodes.find((candidate) => candidate.id === selectedId)
+      const containerStage = selectedContainer
+      const line = node?.line ?? containerStage?.line
+      if (line !== undefined) revealLine(line)
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [selectedId, selectedContainer, layout])
+
   /** One-shot highlight on a rendered card (§11 diagnostic click). */
   function flashNode(stageId: string | null) {
     if (!stageId) return
@@ -677,6 +723,18 @@ export default function App() {
         </div>
       )}
 
+      {/* ---- Oversized-source banner: the parse guard must explain
+           itself - an empty canvas is otherwise indistinguishable from a
+           silent failure. */}
+      {sourceTooLarge && (
+        <div className="share-invalid" role="alert">
+          <span>
+            <strong>This pipeline is too large to visualize.</strong> PipeViz parses sources up to
+            256 KB; trim or split the Jenkinsfile and the graph will return.
+          </span>
+        </div>
+      )}
+
       {/* ---- Region 2: workspace = editor pane + canvas area --------------- */}
       <main className="workspace">
         <EditorPane value={source} onChange={changeSource} apiRef={editorApi} />
@@ -786,6 +844,7 @@ export default function App() {
               container={selectedContainer ?? undefined}
               postHandlers={model.postHandlers}
               onClose={closeDetailsPanel}
+              onJumpToSource={revealLine}
             />
           )}
         </section>
@@ -804,6 +863,7 @@ export default function App() {
         diagnostics={model.diagnostics}
         selectionName={selectedName}
         partialNote={partialNote}
+        parseMs={parseMsRef.current}
         onSelectDiagnostic={handleDiagnosticClick}
       />
     </div>

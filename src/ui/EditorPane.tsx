@@ -26,6 +26,7 @@ import { defaultKeymap, history, historyKeymap, indentWithTab } from '@codemirro
 import {
   HighlightStyle,
   StreamLanguage,
+  bracketMatching,
   indentUnit,
   syntaxHighlighting,
 } from '@codemirror/language'
@@ -140,11 +141,16 @@ export function EditorPane({ value, onChange, apiRef }: EditorPaneProps) {
       keymap.of([indentWithTab, ...defaultKeymap, ...historyKeymap]),
       StreamLanguage.define(groovy),
       syntaxHighlighting(PIPEVIZ_HIGHLIGHT),
+      bracketMatching(),
       PIPEVIZ_THEME,
       EditorView.lineWrapping,
       placeholder(
         '# Paste a declarative or scripted Jenkinsfile here.\n\nExample:\npipeline {\n  agent any\n  stages {\n    stage(\'Build\') {\n      steps {\n        sh \'make build\'\n      }\n    }\n  }\n}',
       ),
+      // Accessible name for the editable surface: the visible <label> can
+      // only point at a labelable control and CodeMirror renders a div
+      // [contenteditable], so name it directly (a11y audit #20).
+      EditorView.contentAttributes.of({ 'aria-label': 'Pipeline source' }),
       EditorView.updateListener.of((update) => {
         if (update.docChanged && !syncingRef.current) onChangeRef.current(update.state.doc.toString())
       }),
