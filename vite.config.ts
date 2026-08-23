@@ -6,7 +6,9 @@
 // ---------------------------------------------------------------------------
 
 // defineConfig gives full IntelliSense for the config object shape.
-import { defineConfig } from 'vite'
+// Imported from vitest/config so the `test` section below type-checks;
+// vitest reads this same file when `npm test` runs.
+import { configDefaults, defineConfig } from 'vitest/config'
 
 // Official React plugin: JSX transform plus fast refresh during development.
 import react from '@vitejs/plugin-react'
@@ -15,6 +17,14 @@ import react from '@vitejs/plugin-react'
 export default defineConfig({
   // React fast refresh + automatic JSX runtime for all .tsx files.
   plugins: [react()],
+
+  // Unit-test collection settings.
+  test: {
+    // Vitest owns *.test.ts under src/; the e2e/ directory holds Playwright
+    // specs whose @playwright/test imports crash vitest's collector, so
+    // they are excluded explicitly (they run via `npm run test:e2e`).
+    exclude: [...configDefaults.exclude, 'e2e/**'],
+  },
 
   // Relative base per plan section 13: the app deploys to a project page
   // (https://<owner>.github.io/PipeViz/) and has no client side routing,

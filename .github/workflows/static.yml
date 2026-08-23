@@ -34,8 +34,20 @@ jobs:
           cache: npm
       - name: Install dependencies
         run: npm ci
+      # Deployment gate: a broken main branch must never reach Pages. Every
+      # step below must pass before the dist/ artifact is uploaded, and the
+      # deploy job needs that artifact - so lint/unit/build/E2E failures all
+      # block the release.
+      - name: Lint
+        run: npm run lint
+      - name: Unit tests
+        run: npm test
       - name: Build (typecheck + vite build)
         run: npm run build
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+      - name: End-to-end tests
+        run: npm run test:e2e
       - name: Setup Pages
         uses: actions/configure-pages@v5
       - name: Upload artifact
