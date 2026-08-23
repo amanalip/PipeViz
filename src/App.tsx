@@ -73,6 +73,10 @@ const COPY_FLASH_MS = 1500
 /** How long the empty-state paste hint stays up before fading out. */
 const PASTE_HINT_MS = 6000
 
+/** How long the share-privacy notice stays up after copying a link (§8):
+ * readable warning beats a 1.5s flash for a full sentence of advice. */
+const SHARE_NOTICE_MS = 5000
+
 /**
  * App renders the three-region layout from the UI spec (plan section 10):
  * header / workspace (editor + canvas) / diagnostics bar.
@@ -94,6 +98,9 @@ export default function App() {
   const [copyState, setCopyState] = useState<'idle' | 'copied' | 'failed'>('idle')
   // Copy link button feedback (M6 URL hash sharing): same flash pattern.
   const [linkState, setLinkState] = useState<'idle' | 'copied' | 'failed'>('idle')
+  // Share-privacy notice: shown alongside the copied flash, outliving it so
+  // the warning is actually read before it fades.
+  const [showShareNotice, setShowShareNotice] = useState(false)
   // Export PNG button feedback: idle -> working/failed -> idle (M6).
   const [pngState, setPngState] = useState<'idle' | 'working' | 'failed'>('idle')
   // Name of the bundled sample the editor currently holds (§5/§8 caption).
@@ -164,6 +171,13 @@ export default function App() {
     const timer = window.setTimeout(() => setLinkState('idle'), COPY_FLASH_MS)
     return () => window.clearTimeout(timer)
   }, [linkState])
+
+  // Share-privacy notice reset: outlives the copied flash on purpose.
+  useEffect(() => {
+    if (!showShareNotice) return
+    const timer = window.setTimeout(() => setShowShareNotice(false), SHARE_NOTICE_MS)
+    return () => window.clearTimeout(timer)
+  }, [showShareNotice])
 
   // Inbound shared links land as hashchange events after mount: opening a
   // second share URL in the same tab, or back/forward across two share
@@ -407,6 +421,7 @@ export default function App() {
       )
       await navigator.clipboard.writeText(url)
       setLinkState('copied')
+      setShowShareNotice(true)
     } catch {
       setLinkState('failed')
     }
@@ -487,15 +502,23 @@ export default function App() {
             >
               {copyState === 'copied' ? 'Copied ✓' : copyState === 'failed' ? 'Copy failed' : 'Copy JSON'}
             </button>
-            <button
-              type="button"
-              className={linkState === 'copied' ? 'btn btn-copied' : 'btn'}
-              disabled={source.length === 0}
-              onClick={copyShareLink}
-              title="Copy a link that reopens this exact pipeline"
-            >
-              {linkState === 'copied' ? 'Copied ✓' : linkState === 'failed' ? 'Copy failed' : 'Copy link'}
-            </button>
+            <span className="share-wrap">
+              <button
+                type="button"
+                className={linkState === 'copied' ? 'btn btn-copied' : 'btn'}
+                disabled={source.length === 0}
+                onClick={copyShareLink}
+                title="Copy a link that reopens this exact pipeline - the link text embeds your Jenkinsfile"
+              >
+                {linkState === 'copied' ? 'Copied ✓' : linkState === 'failed' ? 'Copy failed' : 'Copy link'}
+              </button>
+              {showShareNotice && (
+                <span className="share-warning" role="status">
+                  <strong>Shared links contain your pipeline source.</strong> Review
+                  sensitive information before sharing.
+                </span>
+              )}
+            </span>
             <button
               type="button"
               className={pngState === 'failed' ? 'btn btn-export-failed' : 'btn'}

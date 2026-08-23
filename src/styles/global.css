@@ -341,6 +341,30 @@ img {
   background: var(--success-tint);
 }
 
+/* Anchor so the share-privacy notice can drop from the Copy link button
+   without disturbing the header row's flex layout. */
+.share-wrap {
+  position: relative;
+}
+
+/* Privacy notice shown while a copied share link is fresh: the encoded
+   Jenkinsfile rides in that URL, so say so prominently (M6 sharing). */
+.share-warning {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 40;
+  width: 264px;
+  padding: 10px 12px;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--warning);
+  background: var(--surface-solid);
+  border: 1px solid var(--warning);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-card);
+}
+
 /* Failure flash on the Export PNG button (M6): danger tint for 1.5s. */
 .btn-export-failed,
 .btn-export-failed:hover {
