@@ -34,7 +34,7 @@ import type { FlowApi } from './graph/FlowCanvas'
 import { computeLayout } from './layout/computeLayout'
 import type { PositionedStage } from './layout/computeLayout'
 import { hasExpandableMatrix } from './layout/matrixCombos'
-import type { Diagnostic } from './model/types'
+import type { Diagnostic, StageNode } from './model/types'
 import { parseJenkinsfile } from './parser'
 import { SAMPLES } from './samples'
 import type { Sample } from './samples'
@@ -298,12 +298,28 @@ export default function App() {
   )
 
   // Display name for the selection segment of the status line (§9), plus the
-  // resolved stage that feeds the details panel (containers resolve to null:
-  // they have no card data yet, so no panel opens for them).
+  // resolved stage that feeds the details panel. Container group nodes share
+  // ids with their model stage but have no layout leaf; resolving them gives
+  // their selection a real inspector instead of a dead ring.
   const selectedStage = selectedId
     ? (layout.nodes.find((node) => node.id === selectedId) ?? null)
     : null
   const selectedName = selectedStage?.name ?? null
+  const selectedContainer = useMemo(() => {
+    if (!selectedId || selectedStage) return null
+    const find = (stages: readonly StageNode[]): StageNode | null => {
+      for (const stage of stages) {
+        if (stage.id === selectedId) return stage
+        const nested = find([
+          ...(stage.parallelBranches ?? []),
+          ...(stage.sequentialChildren ?? []),
+        ])
+        if (nested) return nested
+      }
+      return null
+    }
+    return find(model.rootStages)
+  }, [model, selectedId, selectedStage])
 
   /** Close the details panel and drop the canvas selection ring with it. */
   function closeDetailsPanel() {
@@ -631,10 +647,13 @@ export default function App() {
             </div>
           )}
 
-          {/* Details panel floats over the canvas, right-aligned (§9). */}
-          {selectedStage && (
+          {/* Details panel floats over the canvas, right-aligned (§9).
+              Cards get the step inspector; selected parallel/matrix group
+              containers get a shape inspector instead of a dead ring. */}
+          {(selectedStage || selectedContainer) && (
             <DetailsPanel
-              stage={selectedStage}
+              stage={selectedStage ?? undefined}
+              container={selectedContainer ?? undefined}
               postHandlers={model.postHandlers}
               onClose={closeDetailsPanel}
             />

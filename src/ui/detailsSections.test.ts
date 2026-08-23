@@ -5,7 +5,7 @@
 import { describe, expect, it } from 'vitest'
 
 import type { PostHandler, StageNode, Step } from '../model/types'
-import { buildDetailSections, stepLabel } from './detailsSections'
+import { buildContainerSections, buildDetailSections, stepLabel } from './detailsSections'
 
 function step(name: string, args?: string): Step {
   return { name, ...(args ? { args } : {}), kind: 'known', line: 1 }
@@ -99,5 +99,53 @@ describe('buildDetailSections', () => {
       'AGENT',
       'POST · always',
     ])
+  })
+})
+
+describe('buildContainerSections', () => {
+  it('lists parallel branches with step counts plus failFast', () => {
+    const container = stage({
+      failFast: true,
+      parallelBranches: [
+        stage({ id: 's0/p0', name: 'Unit', steps: [step('sh')] }),
+        stage({ id: 's0/p1', name: 'Lint' }),
+      ],
+    })
+    expect(buildContainerSections(container)).toEqual([
+      { title: 'BRANCHES (2)', lines: ['Unit · 1 steps', 'Lint · 0 steps'], bullet: true },
+      { title: 'FAIL FAST', lines: ['true'], bullet: false },
+    ])
+  })
+
+  it('reports matrix axes, excludes, and the surviving cell count', () => {
+    const container = stage({
+      name: 'Matrix',
+      matrixAxes: ['OS', 'BROWSER'],
+      matrixAxisValues: [
+        ['linux', 'windows'],
+        ['chrome', 'firefox'],
+      ],
+      matrixExcludes: [{ OS: ['windows'], BROWSER: ['firefox'] }],
+      matrixCellSteps: [step('sh', "'build'")],
+    })
+    expect(buildContainerSections(container)).toEqual([
+      { title: 'AXES', lines: ['OS: linux, windows', 'BROWSER: chrome, firefox'], bullet: true },
+      { title: 'EXCLUDES (1)', lines: ['OS ∉ {windows} AND BROWSER ∉ {firefox}'], bullet: true },
+      { title: 'CELLS', lines: ['3 combinations × 1 shared steps'], bullet: false },
+    ])
+  })
+
+  it('caps the reported combination count at the expansion ceiling', () => {
+    const range = (n: number) => Array.from({ length: n }, (_, i) => `v${i}`)
+    const container = stage({
+      matrixAxes: ['A', 'B'],
+      matrixAxisValues: [range(40), range(40)], // 1600 raw combos
+    })
+    const cells = buildContainerSections(container).find((s) => s.title === 'CELLS')
+    expect(cells?.lines[0]).toBe('1000+ combinations')
+  })
+
+  it('returns nothing for a bare container - no stub rows', () => {
+    expect(buildContainerSections(stage())).toEqual([])
   })
 })

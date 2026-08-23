@@ -17,6 +17,7 @@
 // ---------------------------------------------------------------------------
 
 import type { PostHandler, StageNode, Step } from '../model/types'
+import { MATRIX_CELL_LIMIT, matrixCombinationCount } from '../layout/matrixCombos'
 
 /** One collapsible-looking block of the details panel. */
 export interface DetailSection {
@@ -69,6 +70,67 @@ export function buildDetailSections(
       title: `POST · ${handler.condition}`,
       lines: handler.steps.map(stepLabel),
       bullet: true,
+    })
+  }
+
+  return sections
+}
+
+/**
+ * Panel sections for a selected parallel/matrix container (mockups §7/§10).
+ * Containers carry no steps of their own; the inspector explains the shape
+ * - branch lanes, axis values, excludes, and the surviving cell count -
+ * instead of leaving selection as a dead ring.
+ */
+export function buildContainerSections(stage: StageNode): DetailSection[] {
+  const sections: DetailSection[] = []
+
+  if (stage.parallelBranches && stage.parallelBranches.length > 0) {
+    sections.push({
+      title: `BRANCHES (${stage.parallelBranches.length})`,
+      lines: stage.parallelBranches.map(
+        (branch) => `${branch.name} · ${branch.steps.length} steps`,
+      ),
+      bullet: true,
+    })
+    if (stage.failFast) {
+      sections.push({ title: 'FAIL FAST', lines: ['true'], bullet: false })
+    }
+  }
+
+  if (stage.matrixAxes && stage.matrixAxes.length > 0) {
+    const values = stage.matrixAxisValues ?? []
+    sections.push({
+      title: 'AXES',
+      lines: stage.matrixAxes.map((name, index) => `${name}: ${(values[index] ?? []).join(', ')}`),
+      bullet: true,
+    })
+
+    if (stage.matrixExcludes && stage.matrixExcludes.length > 0) {
+      sections.push({
+        title: `EXCLUDES (${stage.matrixExcludes.length})`,
+        lines: stage.matrixExcludes.map((rule) =>
+          Object.entries(rule)
+            .map(([axis, forbidden]) => `${axis} ∉ {${forbidden.join(', ')}}`)
+            .join(' AND '),
+        ),
+        bullet: true,
+      })
+    }
+
+    // Counting stops just past the expansion ceiling, so monster products
+    // answer instantly and are reported as "1000+" instead of freezing.
+    const combos = matrixCombinationCount(stage, MATRIX_CELL_LIMIT + 1)
+    const comboLabel = combos > MATRIX_CELL_LIMIT ? `${MATRIX_CELL_LIMIT}+` : `${combos}`
+    const cellSteps = stage.matrixCellSteps?.length ?? 0
+    sections.push({
+      title: 'CELLS',
+      lines: [
+        cellSteps > 0
+          ? `${comboLabel} combinations × ${cellSteps} shared steps`
+          : `${comboLabel} combinations`,
+      ],
+      bullet: false,
     })
   }
 
