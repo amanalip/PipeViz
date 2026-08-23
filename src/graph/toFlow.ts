@@ -23,7 +23,7 @@ import { MarkerType } from '@xyflow/react'
 
 import type { LayoutOptions, LayoutResult, PositionedStage } from '../layout/computeLayout'
 import { NODE_H, NODE_W } from '../layout/computeLayout'
-import { axesLabel, computeMatrixCombos } from '../layout/matrixCombos'
+import { axesLabel, canExpandMatrix, matrixCombinationCount } from '../layout/matrixCombos'
 import type { PipelineModel, StageNode } from '../model/types'
 import { CANVAS_PALETTES } from '../theme'
 import type { Theme } from '../theme'
@@ -246,10 +246,19 @@ export function buildFlowGraph(
   // ---- Container nodes themselves -----------------------------------------
   for (const box of boxes) {
     const parentStage = stagesById.get(box.id)
-    const isMatrix = expandMatrix && parentStage !== undefined && parentStage.matrixAxes !== undefined
+    // Matrix styling mirrors the layout's expansion decision exactly: a
+    // stage past MATRIX_CELL_LIMIT stayed a summary card and must not be
+    // reported as an expanded matrix here.
+    const expandedMatrix =
+      expandMatrix &&
+      parentStage !== undefined &&
+      parentStage.matrixAxes !== undefined &&
+      canExpandMatrix(parentStage)
     const branchCount =
       parentStage?.parallelBranches?.length ??
-      (isMatrix ? computeMatrixCombos(parentStage as StageNode).length : 0)
+      (expandedMatrix && parentStage !== undefined
+        ? matrixCombinationCount(parentStage)
+        : 0)
     const grandparentId = parentOf.get(box.id) ?? null
     nodes.push({
       id: box.id,
@@ -258,10 +267,12 @@ export function buildFlowGraph(
       style: { width: box.width, height: box.height },
       data: {
         label: parentStage?.name ?? box.id,
-        kind: isMatrix ? 'matrix' : 'parallel',
+        kind: expandedMatrix ? 'matrix' : 'parallel',
         branchCount,
-        failFast: !isMatrix && (parentStage?.failFast ?? false),
-        ...(isMatrix ? { matrixAxes: axesLabel(parentStage as StageNode) } : {}),
+        failFast: !expandedMatrix && (parentStage?.failFast ?? false),
+        ...(expandedMatrix && parentStage !== undefined
+          ? { matrixAxes: axesLabel(parentStage) }
+          : {}),
       },
       // Nested groups chain onto their outer subflow exactly like cards do.
       ...(grandparentId ? { parentId: grandparentId } : {}),

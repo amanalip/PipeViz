@@ -83,6 +83,24 @@ export function matrixCombinationCount(stage: StageNode, beyond = Infinity): num
 }
 
 /**
+ * Safety ceiling on matrix expansion: a Jenkinsfile may declare axes whose
+ * Cartesian product explodes into thousands or millions of cells, and
+ * rendering that many nodes freezes the browser tab. Matrices whose
+ * surviving combination count exceeds this stay summary cards.
+ */
+export const MATRIX_CELL_LIMIT = 1000
+
+/**
+ * True when expanding `stage` is both possible (at least one combination
+ * survives exclusion) and safe (the count stays within `limit`). Counts
+ * lazily with an early exit, so even absurd products answer immediately.
+ */
+export function canExpandMatrix(stage: StageNode, limit = MATRIX_CELL_LIMIT): boolean {
+  const count = matrixCombinationCount(stage, limit + 1)
+  return count > 0 && count <= limit
+}
+
+/**
  * True when the combo is disqualified by this rule: every axis the rule
  * names must match one of that axis's forbidden values. Axes the rule does
  * not mention impose no constraint; naming an axis that does not exist

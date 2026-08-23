@@ -12,9 +12,11 @@ import { describe, expect, it } from 'vitest'
 
 import {
   axesLabel,
+  canExpandMatrix,
   comboLabel,
   computeMatrixCombos,
   hasExpandableMatrix,
+  MATRIX_CELL_LIMIT,
   matrixCombinationCount,
 } from './matrixCombos'
 import type { StageNode } from '../model/types'
@@ -159,6 +161,54 @@ describe('matrixCombinationCount', () => {
     expect(
       matrixCombinationCount(matrixStage({ matrixAxes: ['A'], matrixAxisValues: [[]] })),
     ).toBe(0)
+  })
+})
+
+describe('canExpandMatrix / MATRIX_CELL_LIMIT', () => {
+  const range = (n: number) => Array.from({ length: n }, (_, i) => `v${i}`)
+
+  it('allows matrices whose surviving combinations fit the ceiling', () => {
+    expect(
+      canExpandMatrix(matrixStage({ matrixAxes: ['A'], matrixAxisValues: [['x', 'y']] })),
+    ).toBe(true)
+    expect(MATRIX_CELL_LIMIT).toBeGreaterThanOrEqual(500)
+  })
+
+  it('refuses products past the ceiling even though combinations exist', () => {
+    // 40 × 40 = 1600 surviving combos > the default ceiling.
+    const stage = matrixStage({
+      matrixAxes: ['A', 'B'],
+      matrixAxisValues: [range(40), range(40)],
+    })
+    expect(canExpandMatrix(stage)).toBe(false)
+    // An explicit looser ceiling admits it; a tighter one refuses smaller
+    // matrices too.
+    expect(canExpandMatrix(stage, 2000)).toBe(true)
+    expect(canExpandMatrix(matrixStage({ matrixAxes: ['A'], matrixAxisValues: [range(2)] }), 1)).toBe(false)
+  })
+
+  it('counts exclusions before deciding', () => {
+    // Raw product is 33 × 33 = 1089 > 1000, but the exclude rule removes
+    // every A=v0..v31 combo, leaving 33 survivors - safely expandable.
+    const stage = matrixStage({
+      matrixAxes: ['A', 'B'],
+      matrixAxisValues: [range(33), range(33)],
+      matrixExcludes: [{ A: range(32) }],
+    })
+    expect(matrixCombinationCount(stage)).toBe(33)
+    expect(canExpandMatrix(stage)).toBe(true)
+  })
+
+  it('refuses fully excluded matrices', () => {
+    expect(
+      canExpandMatrix(
+        matrixStage({
+          matrixAxes: ['A'],
+          matrixAxisValues: [['x']],
+          matrixExcludes: [{ A: ['x'] }],
+        }),
+      ),
+    ).toBe(false)
   })
 })
 

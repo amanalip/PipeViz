@@ -24,7 +24,7 @@
 // ---------------------------------------------------------------------------
 
 import type { PipelineModel, StageNode } from '../model/types'
-import { comboLabel, computeMatrixCombos } from './matrixCombos'
+import { canExpandMatrix, comboLabel, computeMatrixCombos } from './matrixCombos'
 
 /** Options steering layout variants. */
 export interface LayoutOptions {
@@ -111,6 +111,9 @@ interface WalkContext {
 function branchesOf(stage: StageNode, expandMatrix: boolean): StageNode[] | undefined {
   if (stage.parallelBranches && stage.parallelBranches.length > 0) return stage.parallelBranches
   if (!expandMatrix || !stage.matrixAxes) return undefined
+  // Expansion ceiling: a product beyond MATRIX_CELL_LIMIT stays a summary
+  // card instead of materializing enough nodes to freeze the browser.
+  if (!canExpandMatrix(stage)) return undefined
   const combos = computeMatrixCombos(stage)
   const cellSteps = stage.matrixCellSteps ?? []
   return combos.map((combo, index) => ({

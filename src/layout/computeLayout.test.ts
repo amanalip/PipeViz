@@ -289,6 +289,32 @@ describe('layout - messy-realworld (partial graph)', () => {
   })
 })
 
+describe('layout - matrix expansion ceiling', () => {
+  // 40 × 40 = 1600 combinations: far past MATRIX_CELL_LIMIT. Expanding this
+  // would flood the canvas with enough nodes to freeze the browser, so the
+  // stage must stay a single summary card even with the toggle forced on.
+  const range = (n: number) => Array.from({ length: n }, (_, i) => `v${i}`)
+  const model = chainModel(['Build', 'Matrix', 'Publish'])
+  model.rootStages[1] = leaf('Matrix', {
+    matrixAxes: ['A', 'B'],
+    matrixAxisValues: [range(40), range(40)],
+  })
+  const result = computeLayout(model, { expandMatrix: true })
+
+  it('keeps the over-limit matrix a summary card', () => {
+    expect(result.containers).toEqual([])
+    expect(result.nodes.map((node) => node.id)).toEqual(['Build', 'Matrix', 'Publish'])
+    expect(result.nodes.some((node) => node.id.startsWith('Matrix/m'))).toBe(false)
+  })
+
+  it('still chains it between its neighbors', () => {
+    expect(result.edges.map((edge) => `${edge.id}:${edge.kind}`)).toEqual([
+      'Build->Matrix:chain',
+      'Matrix->Publish:chain',
+    ])
+  })
+})
+
 describe('layout - unparsed-region ghosts (mockups §11)', () => {
   /** Two stages where the first never closes; the second gets demoted. */
   function swallowedModel(): PipelineModel {
