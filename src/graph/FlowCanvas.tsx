@@ -2,17 +2,18 @@
 // graph/FlowCanvas.tsx - React Flow wrapper (plan §9, mockups §3/§8).
 //
 // Owns every canvas behavior M3 promises:
-//   - fitView on load (every fresh graph mounts fitted; see `revision` below)
+//   - fitted view when a graph first appears (empty -> populated)
 //   - Controls bottom-left (zoom in / out / fit view), MiniMap bottom-right
 //     that is pannable and zoomable and tracks the main camera
 //   - dotted Background on a 22px grid behind everything
 //   - click-to-select cards; clicking empty canvas deselects
 //
-// The component is deliberately stateless: App re-parses into a new layout
-// and bumps an integer `revision`; keying <ReactFlow> on it remounts the
-// flow with fresh defaultNodes/defaultEdges. That gives "revision bump
-// clears stale selection" (mockup §17) for free and keeps this file free of
-// change-handler bookkeeping - the graph is read-only by design.
+// The flow instance mounts once and is updated IN PLACE: GraphSync pushes
+// fresh nodes/edges into it whenever the parsed layout changes, so the
+// camera (zoom/pan) survives settled edits and theme flips instead of
+// resetting through a remount. Fresh graph data carries no selection flags,
+// which still gives "new parse clears stale selection" (mockup §17); the
+// graph itself stays read-only by design.
 // ---------------------------------------------------------------------------
 
 import '@xyflow/react/dist/style.css'
@@ -27,7 +28,7 @@ import {
   ReactFlow,
   useReactFlow,
 } from '@xyflow/react'
-import { useImperativeHandle, useMemo, useRef } from 'react'
+import { useEffect, useImperativeHandle, useMemo, useRef } from 'react'
 import type { RefObject } from 'react'
 import type { Node, NodeProps } from '@xyflow/react'
 
@@ -89,11 +90,38 @@ function SelectionBridge({
   return null
 }
 
+/**
+ * Headless child inside <ReactFlow> that pushes graph updates into the live
+ * instance. Remounting the flow on every fresh parse reset the camera, so
+ * nodes/edges now flow through setNodes/setEdges and the viewport stays
+ * where the user left it. The one exception: when the canvas goes from
+ * empty to populated (first pipeline lands), fit once like a mount would.
+ */
+function GraphSync({ nodes, edges }: { nodes: FlowNode[]; edges: FlowEdge[] }) {
+  const { setNodes, setEdges, fitView } = useReactFlow<FlowNode, FlowEdge>()
+  // Starts true: a freshly mounted canvas counts as "was empty", so both
+  // mount-already-populated and empty -> populated transitions fit once.
+  const wasEmpty = useRef(true)
+  useEffect(() => {
+    setNodes(nodes)
+    setEdges(edges)
+    if (nodes.length === 0 && edges.length === 0) {
+      wasEmpty.current = true
+      return
+    }
+    if (!wasEmpty.current) return
+    wasEmpty.current = false
+    // Let React Flow commit and measure the freshly-set nodes before
+    // framing them.
+    const frame = window.requestAnimationFrame(() => fitView({ padding: 0.2, maxZoom: 1 }))
+    return () => window.cancelAnimationFrame(frame)
+  }, [nodes, edges, setNodes, setEdges, fitView])
+  return null
+}
+
 interface FlowCanvasProps {
   model: PipelineModel
   layout: LayoutResult
-  /** Incremented per fresh parse; remounts the flow so state never goes stale. */
-  revision: number
   onSelect: (stageId: string | null) => void
   /** Receives the FlowApi once the flow mounts. */
   apiRef?: RefObject<FlowApi | null>
@@ -150,14 +178,14 @@ function GhostCardView({ data }: NodeProps<GhostCardNode>) {
 }
 
 /**
- * The flow canvas for one parsed pipeline. Purely derived from props;
- * all interaction state (viewport, selection highlight) lives inside the
- * keyed ReactFlow instance and resets exactly when a new graph arrives.
+ * The flow canvas for one parsed pipeline. Graph data is derived from props
+ * and synced into a single long-lived React Flow instance; interaction state
+ * (viewport) persists across updates, while fresh graph objects naturally
+ * clear any stale selection.
  */
 export function FlowCanvas({
   model,
   layout,
-  revision,
   onSelect,
   apiRef,
   onStageDoubleClick,
@@ -177,12 +205,11 @@ export function FlowCanvas({
   return (
     <div className="flow-canvas-host" ref={hostRef}>
       <ReactFlow
-        key={revision}
+        // Initial graph data rides the uncontrolled defaults; every later
+        // change arrives through GraphSync's setNodes/setEdges below.
         defaultNodes={graph.nodes}
         defaultEdges={graph.edges}
         nodeTypes={NODE_TYPES}
-        fitView
-        fitViewOptions={{ padding: 0.2, maxZoom: 1 }}
         minZoom={0.15}
         maxZoom={2}
         // Read-only visualization: no dragging, wiring, box-select, or
@@ -202,6 +229,7 @@ export function FlowCanvas({
         colorMode={theme}
       >
         <SelectionBridge apiRef={apiRef} hostRef={hostRef} />
+        <GraphSync nodes={graph.nodes} edges={graph.edges} />
         <Background
           variant={BackgroundVariant.Dots}
           gap={22}

@@ -16,8 +16,9 @@
 // UX principles applied here:
 //   - Debounced re-parse: the graph refreshes 400ms after typing stops
 //     (mockup §13), so mid-word keystrokes never thrash the canvas.
-//   - Every re-parse bumps a `revision`; FlowCanvas remounts keyed on it,
-//     which also clears stale selections exactly as mockup §17 promises.
+//   - FlowCanvas updates its graph in place (no remount), so the camera
+//     survives re-parses and theme flips, while fresh graph data still
+//     clears stale selections exactly as mockup §17 promises.
 //   - The status bar tells the truth about app state: busy while the
 //     debounce settles, ready with kind/stage/step counts once parsed,
 //     diagnostic counts as soon as the parser reports any (mockup §15).
@@ -89,8 +90,6 @@ export default function App() {
   // The most recent input we actually parsed; trails `source` by the debounce
   // (except on a shared-link boot, which settles immediately).
   const [settledSource, setSettledSource] = useState(boot.source)
-  // Bumped each time a fresh graph lands; keys the flow remount.
-  const [revision, setRevision] = useState(0)
   // Currently selected card id, mirrored up from the canvas. Null means
   // nothing selected, which also means no details panel.
   const [selectedId, setSelectedId] = useState<string | null>(null)
@@ -129,14 +128,13 @@ export default function App() {
   /**
    * Debounce gate between typing and parsing. Each keystroke resets the
    * timer; only when the keyboard rests for 400ms do we commit the new
-   * source, bump the revision (fresh graph + cleared selection), and let
-   * the memoized parse/layout below run.
+   * source (fresh graph + cleared selection), and let the memoized
+   * parse/layout below run.
    */
   useEffect(() => {
     if (source === settledSource) return
     const timer = window.setTimeout(() => {
       setSettledSource(source)
-      setRevision((current) => current + 1)
       setSelectedId(null)
       // Privacy (M6 sharing): the address bar is nobody's storage. A share
       // payload only sits there because a link was opened, so once edits
@@ -194,7 +192,6 @@ export default function App() {
       setSource(shared)
       setSettledSource(shared) // settle immediately, like a shared-link boot
       setSelectedId(null)
-      setRevision((current) => current + 1)
       setSampleName(sample?.name ?? null)
     }
     window.addEventListener('hashchange', onHashChange)
@@ -208,17 +205,17 @@ export default function App() {
     return () => window.clearTimeout(timer)
   }, [pngState])
 
-  // Matrix toggle rides the same revision path as a fresh parse: remount
-  // re-fits the view and drops any selection pointing at pre-toggle ids.
-  // Theme flips join the ride so canvas palettes swap through the same
-  // remount. The ref skips the mount run so revision stays 0 until then.
+  // Matrix toggle and theme flips no longer remount the canvas: the graph
+  // data (and its palette) flows into the live React Flow instance, and the
+  // viewport stays put. Only the selection is dropped, since expanded ids
+  // (`<stage>/m<i>`) appear and vanish with the toggle. The ref skips the
+  // mount run.
   const mounted = useRef(false)
   useEffect(() => {
     if (!mounted.current) {
       mounted.current = true
       return
     }
-    setRevision((current) => current + 1)
     setSelectedId(null)
   }, [expandMatrix, theme])
 
@@ -318,15 +315,14 @@ export default function App() {
 
   /**
    * Sample pick replaces the editor immediately (§12) and settles just as
-   * immediately (§17: "fresh parse, revision bump clears stale selection") -
-   * no reason to make the user wait out the typing debounce for a whole-file
-   * swap. Provenance records which sample the text came from.
+   * immediately (§17: "fresh parse clears stale selection") - no reason to
+   * make the user wait out the typing debounce for a whole-file swap.
+   * Provenance records which sample the text came from.
    */
   function pickSample(sample: Sample) {
     setSampleName(sample.name)
     setSource(sample.source)
     setSettledSource(sample.source)
-    setRevision((current) => current + 1)
     setSelectedId(null)
   }
 
@@ -577,7 +573,6 @@ export default function App() {
             <FlowCanvas
               model={model}
               layout={layout}
-              revision={revision}
               onSelect={setSelectedId}
               apiRef={flowApi}
               onStageDoubleClick={(stage) => revealLine(stage.line)}
