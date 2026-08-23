@@ -464,6 +464,9 @@ describe('declarative - nested sequential stages', () => {
     const warning = model.diagnostics.find((d) => d.message.includes('mixes'))
     expect(warning?.severity).toBe('warning')
     expect(warning?.message).toContain("'both'")
+    // The warning states the hard-coded precedence instead of claiming a
+    // specific structure "wins" (which depends on the matrix toggle).
+    expect(warning?.message).toContain('parallel before matrix before nested')
     expect(warning?.line).toBe(3)
   })
 

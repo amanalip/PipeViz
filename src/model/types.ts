@@ -101,8 +101,14 @@ export interface StageNode {
 export interface PostHandler {
   condition: string
   steps: Step[]
-  /** Set when the handler came from inside that named stage. */
+  /** Stage display name when the handler came from inside that stage. */
   stage?: string
+  /**
+   * Stable StageNode.id for the owning stage, preferred over `stage` when
+   * matching handlers to cards: two stages may share a display name, and
+   * only ids tell them apart.
+   */
+  stageId?: string
 }
 
 export interface EnvironmentEntry {

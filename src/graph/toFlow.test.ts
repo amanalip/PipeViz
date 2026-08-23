@@ -283,6 +283,31 @@ describe('buildFlowGraph with an expanded matrix (matrix-build)', () => {
     })
   })
 
+  it('keeps failFast on an expanded matrix container instead of swallowing it', () => {
+    // Regression: expansion used to force failFast to false, hiding a
+    // directive Jenkins honors on matrices.
+    const ffSource = `pipeline {
+  stages {
+    stage('M') {
+      failFast true
+      matrix {
+        axes { axis { name 'OS'; values 'linux' } }
+        stages { stage('cell') { steps { echo run } } }
+      }
+    }
+  }
+}
+`
+    const ffModel = parseJenkinsfile(ffSource)
+    const ffLayout = computeLayout(ffModel, { expandMatrix: true })
+    const ffGraph = buildFlowGraph(ffModel, ffLayout, { expandMatrix: true })
+    const box = ffGraph.nodes.find((node) => node.type === 'groupContainer')
+    expect(box?.type === 'groupContainer' && box.data).toMatchObject({
+      kind: 'matrix',
+      failFast: true,
+    })
+  })
+
   it('parents combo cards to the matrix container with relative positions', () => {
     expectParentsBeforeChildren(graph)
     const absBox = layout.containers.find((container) => container.id === 's1')

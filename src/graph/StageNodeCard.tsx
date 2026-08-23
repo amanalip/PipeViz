@@ -31,6 +31,9 @@ function badgeRow(data: StageCardData): string {
     badges.push(`PAR ×${stage.parallelBranches.length}`)
   }
   if (stage.matrixAxes && stage.matrixAxes.length > 0) badges.push('MATRIX')
+  // Compact matrix cards carry the group's failFast here; expanded matrices
+  // show it on their container header instead.
+  if (stage.failFast) badges.push('failFast')
   if (stage.sequentialChildren && stage.sequentialChildren.length > 0) badges.push('SEQ')
   if (stage.hasInput) badges.push('IN')
   return badges.join(' · ')

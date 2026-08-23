@@ -365,6 +365,22 @@ img {
   box-shadow: var(--shadow-card);
 }
 
+/* Full-width strip for a corrupt #p=… share payload (M6): danger palette,
+   dismissible, sits between header and workspace so the empty boot state
+   is never mistaken for "the link worked but the pipeline is blank". */
+.share-invalid {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 16px;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--danger);
+  background: var(--danger-tint);
+  border-bottom: 1px solid var(--danger-line);
+}
+
 /* Failure flash on the Export PNG button (M6): danger tint for 1.5s. */
 .btn-export-failed,
 .btn-export-failed:hover {

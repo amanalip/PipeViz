@@ -65,7 +65,11 @@ export function buildDetailSections(
   }
 
   for (const handler of postHandlers) {
-    if (handler.stage !== stage.name || handler.steps.length === 0) continue
+    // Match by stable id when the parser recorded one (two stages may share
+    // a display name); fall back to the name for older exported models.
+    const owned =
+      handler.stageId !== undefined ? handler.stageId === stage.id : handler.stage === stage.name
+    if (!owned || handler.steps.length === 0) continue
     sections.push({
       title: `POST · ${handler.condition}`,
       lines: handler.steps.map(stepLabel),
@@ -93,9 +97,6 @@ export function buildContainerSections(stage: StageNode): DetailSection[] {
       ),
       bullet: true,
     })
-    if (stage.failFast) {
-      sections.push({ title: 'FAIL FAST', lines: ['true'], bullet: false })
-    }
   }
 
   if (stage.matrixAxes && stage.matrixAxes.length > 0) {
@@ -139,6 +140,12 @@ export function buildContainerSections(stage: StageNode): DetailSection[] {
       ],
       bullet: false,
     })
+  }
+
+  // failFast is a property of the group stage itself, parallel or matrix
+  // alike, so it reports outside the shape-specific blocks above.
+  if (stage.failFast) {
+    sections.push({ title: 'FAIL FAST', lines: ['true'], bullet: false })
   }
 
   return sections

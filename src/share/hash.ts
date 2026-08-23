@@ -73,3 +73,13 @@ export function readHashSource(hash: string): string | null {
   if (!hash.startsWith(`#${HASH_PREFIX}`)) return null
   return decodeSource(hash.slice(1 + HASH_PREFIX.length))
 }
+
+/**
+ * True when a location hash carries the share payload key at all - valid
+ * or not. Callers combine this with readHashSource() to tell "no share"
+ * apart from "share arrived but its payload is corrupt", so a broken link
+ * can be reported instead of silently booting empty.
+ */
+export function isShareHash(hash: string): boolean {
+  return hash.startsWith(`#${HASH_PREFIX}`)
+}

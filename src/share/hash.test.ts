@@ -12,6 +12,7 @@ import {
   HASH_PREFIX,
   decodeSource,
   encodeSource,
+  isShareHash,
   pageUrlWithHash,
   readHashSource,
   sourceToHash,
@@ -64,6 +65,19 @@ describe('sourceToHash / readHashSource', () => {
     expect(readHashSource('#p=!!!not-base64!!!')).toBe(null)
     expect(readHashSource('#p=8J')).toBe(null) // truncated utf-8 sequence
     expect(readHashSource('#p=////')).toBe(null)
+  })
+})
+
+describe('isShareHash', () => {
+  it('sees the share key even when its payload is corrupt', () => {
+    // This is how a broken link is told apart from "no link at all".
+    expect(isShareHash('#p=!!!not-base64!!!')).toBe(true)
+    expect(isShareHash(`#${HASH_PREFIX}`)).toBe(true)
+  })
+
+  it('rejects foreign keys and empty hashes', () => {
+    expect(isShareHash('')).toBe(false)
+    expect(isShareHash('#section=2')).toBe(false)
   })
 })
 

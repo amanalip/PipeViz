@@ -66,12 +66,12 @@ describe('buildDetailSections', () => {
 
   it('shows only handlers scoped to the selected stage', () => {
     const handlers: PostHandler[] = [
-      { condition: 'failure', steps: [step('mail', "to:'ops@example.com'")], stage: 'Deploy' },
+      { condition: 'failure', steps: [step('mail', "to:'ops@example.com'")], stage: 'Deploy', stageId: 's2' },
       { condition: 'success', steps: [step('echo', "'all good'")] },
-      { condition: 'unstable', steps: [step('slackSend', "channel:'#ci'")], stage: 'Deploy' },
-      { condition: 'always', steps: [], stage: 'Deploy' },
+      { condition: 'unstable', steps: [step('slackSend', "channel:'#ci'")], stage: 'Deploy', stageId: 's2' },
+      { condition: 'always', steps: [], stage: 'Deploy', stageId: 's2' },
     ]
-    const sections = buildDetailSections(stage({ name: 'Deploy' }), handlers)
+    const sections = buildDetailSections(stage({ name: 'Deploy', id: 's2' }), handlers)
     expect(sections.map((section) => section.title)).toEqual([
       'POST · failure',
       'POST · unstable',
@@ -81,6 +81,29 @@ describe('buildDetailSections', () => {
       lines: ["mail to:'ops@example.com'"],
       bullet: true,
     })
+  })
+
+  it('matches handlers by stable id when two stages share a name', () => {
+    const handlers: PostHandler[] = [
+      { condition: 'always', steps: [step('echo', "'first'")], stage: 'Verify', stageId: 's1' },
+      { condition: 'failure', steps: [step('mail')], stage: 'Verify', stageId: 's3' },
+    ]
+    // Both stages are named Verify; only the s3 handler may reach the s3 card.
+    expect(
+      buildDetailSections(stage({ id: 's3', name: 'Verify' }), handlers).map((s) => s.title),
+    ).toEqual(['POST · failure'])
+    expect(
+      buildDetailSections(stage({ id: 's1', name: 'Verify' }), handlers).map((s) => s.title),
+    ).toEqual(['POST · always'])
+  })
+
+  it('still matches legacy name-only handlers (older exported models)', () => {
+    const handlers: PostHandler[] = [
+      { condition: 'always', steps: [step('echo')], stage: 'Ship' },
+    ]
+    expect(
+      buildDetailSections(stage({ id: 's9', name: 'Ship' }), handlers).map((s) => s.title),
+    ).toEqual(['POST · always'])
   })
 
   it('orders sections STEPS, WHEN, AGENT, POST regardless of model shape', () => {
@@ -133,6 +156,34 @@ describe('buildContainerSections', () => {
       { title: 'EXCLUDES (1)', lines: ['OS ∉ {windows} AND BROWSER ∉ {firefox}'], bullet: true },
       { title: 'CELLS', lines: ['3 combinations × 1 shared steps'], bullet: false },
     ])
+  })
+
+  it('shows failFast on a matrix container too, not just parallel groups', () => {
+    const container = stage({
+      name: 'Matrix',
+      failFast: true,
+      matrixAxes: ['OS'],
+      matrixAxisValues: [['linux']],
+    })
+    expect(buildContainerSections(container)).toEqual([
+      { title: 'AXES', lines: ['OS: linux'], bullet: true },
+      { title: 'CELLS', lines: ['1 combinations'], bullet: false },
+      { title: 'FAIL FAST', lines: ['true'], bullet: false },
+    ])
+  })
+
+  it('surfaces per-axis notValues in the AXES section', () => {
+    const container = stage({
+      name: 'Matrix',
+      matrixAxes: ['OS', 'BROWSER'],
+      matrixAxisValues: [
+        ['linux', 'windows'],
+        ['chrome', 'edge'],
+      ],
+      matrixAxisNotValues: [[], ['edge']],
+    })
+    const axes = buildContainerSections(container).find((s) => s.title === 'AXES')
+    expect(axes?.lines).toEqual(['OS: linux, windows', 'BROWSER: chrome, edge (not: edge)'])
   })
 
   it('caps the reported combination count at the expansion ceiling', () => {

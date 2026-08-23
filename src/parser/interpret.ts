@@ -220,7 +220,7 @@ export function summarizeAgent(item: ScopeItem, ctx: InterpretContext): string {
 export function readPostHandlers(
   postBlock: BlockNode,
   ctx: InterpretContext,
-  stageName?: string,
+  owner?: { id: string; name: string },
 ): void {
   for (const item of flattenScope(postBlock.children)) {
     const conditionToken = item.tokens[0]
@@ -231,7 +231,12 @@ export function readPostHandlers(
           : rawSlice(item.tokens, ctx) || 'condition',
       steps: item.block ? collectSteps(flattenScope(item.block.children), ctx) : [],
     }
-    if (stageName !== undefined) handler.stage = stageName
+    if (owner !== undefined) {
+      // Both go on the record: the id is the reliable key (names collide),
+      // the display name keeps exported JSON human-readable.
+      handler.stage = owner.name
+      handler.stageId = owner.id
+    }
     ctx.postHandlers.push(handler)
   }
 }
@@ -613,7 +618,7 @@ export function interpretStage(
         break
       }
       case 'post': {
-        if (item.block) readPostHandlers(item.block, ctx, stage.name)
+        if (item.block) readPostHandlers(item.block, ctx, { id: stage.id, name: stage.name })
         break
       }
       case 'environment':
@@ -631,7 +636,10 @@ export function interpretStage(
   // Structural honesty: parallel/matrix containers and nested 'stages'
   // chains are mutually exclusive shapes downstream - the layout renders
   // the container and would silently drop the chain, so mixing them in one
-  // stage body must surface as an explicit diagnostic.
+  // stage body must surface as an explicit diagnostic. Precedence is
+  // hard-coded in layout (parallel first, then matrix, then nested stages),
+  // so the warning states that order instead of guessing which structure
+  // "wins" for a given view state.
   const structures = [
     ...(stage.parallelBranches ? ['parallel'] : []),
     ...(stage.matrixAxes ? ['matrix'] : []),
@@ -640,7 +648,7 @@ export function interpretStage(
   if (structures.length > 1) {
     warn(
       ctx,
-      `Stage '${stage.name}' mixes ${structures.join(' and ')}; only the first structure is rendered`,
+      `Stage '${stage.name}' mixes ${structures.join(' and ')}; one structure is visualized - parallel before matrix before nested 'stages'`,
       stage.line,
     )
   }

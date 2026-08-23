@@ -37,7 +37,7 @@ import type { Diagnostic, StageNode } from './model/types'
 import { parseJenkinsfile } from './parser'
 import { SAMPLES } from './samples'
 import type { Sample } from './samples'
-import { readHashSource, sourceToHash, pageUrlWithHash } from './share/hash'
+import { readHashSource, isShareHash, sourceToHash, pageUrlWithHash } from './share/hash'
 import { loadStoredTheme, storeTheme } from './theme'
 import type { Theme } from './theme'
 import { DiagnosticsBar } from './ui/DiagnosticsBar'
@@ -55,13 +55,18 @@ const REPO_URL = 'https://github.com/amanalip/PipeViz'
  * Boot state honors a shared link (M6): a `#p=…` hash seeds the editor with
  * its decoded source, settled immediately so the first paint shows the
  * graph, and sample provenance is restored when the payload is exactly a
- * bundled sample. Anything else boots empty.
+ * bundled sample. A hash that carries the share key but fails to decode is
+ * reported as invalid instead of silently booting empty. Anything else
+ * boots clean.
  */
-function bootFromHash(): { source: string; sampleName: string | null } {
-  const shared = typeof window === 'undefined' ? null : readHashSource(window.location.hash)
-  if (shared === null) return { source: '', sampleName: null }
+function bootFromHash(): { source: string; sampleName: string | null; shareInvalid: boolean } {
+  const hash = typeof window === 'undefined' ? '' : window.location.hash
+  const shared = readHashSource(hash)
+  if (shared === null) {
+    return { source: '', sampleName: null, shareInvalid: isShareHash(hash) }
+  }
   const sample = SAMPLES.find((entry) => entry.source === shared)
-  return { source: shared, sampleName: sample?.name ?? null }
+  return { source: shared, sampleName: sample?.name ?? null, shareInvalid: false }
 }
 
 // Mockup §13: re-parse fires 400ms after typing stops.
@@ -125,6 +130,10 @@ export default function App() {
   // Upload failure notice: names why a picked file was refused (too big,
   // unreadable) instead of failing silently. Auto-clears like pasteHint.
   const [uploadError, setUploadError] = useState<string | null>(null)
+  // A shared link arrived carrying the #p= payload key but its payload is
+  // corrupt (bad base64, broken UTF-8). The editor still boots empty, but
+  // an explicit banner says so instead of leaving a silent mystery.
+  const [shareInvalid, setShareInvalid] = useState(boot.shareInvalid)
   // M6 color scheme (mockups §2 shipped dark-only v1): persisted choice,
   // dark unless the visitor explicitly picked light.
   const [theme, setTheme] = useState<Theme>(() =>
@@ -205,8 +214,15 @@ export default function App() {
   // only ever reacts to real navigations.
   useEffect(() => {
     const onHashChange = () => {
-      const shared = readHashSource(window.location.hash)
-      if (shared === null || shared === settledSource) return
+      const hash = window.location.hash
+      const shared = readHashSource(hash)
+      if (shared === null) {
+        // A corrupt share payload navigating in mid-session gets the same
+        // explicit notice a cold boot would; foreign hashes stay ignored.
+        if (isShareHash(hash)) setShareInvalid(true)
+        return
+      }
+      setShareInvalid(false)
       const sample = SAMPLES.find((entry) => entry.source === shared)
       setSource(shared)
       setSettledSource(shared) // settle immediately, like a shared-link boot
@@ -622,6 +638,20 @@ export default function App() {
           </a>
         </nav>
       </header>
+
+      {/* ---- Invalid share link banner (M6): a #p=… payload that fails
+           to decode is called out explicitly - never a silent empty boot. */}
+      {shareInvalid && (
+        <div className="share-invalid" role="alert">
+          <span>
+            <strong>This PipeViz link is invalid or corrupted.</strong> The embedded pipeline could
+            not be decoded, so the editor starts empty.
+          </span>
+          <button type="button" className="btn" onClick={() => setShareInvalid(false)}>
+            Dismiss
+          </button>
+        </div>
+      )}
 
       {/* ---- Region 2: workspace = editor pane + canvas area --------------- */}
       <main className="workspace">

@@ -147,6 +147,7 @@ function GroupContainerNodeView({ data }: NodeProps<GroupContainerNode>) {
           <>
             {data.matrixAxes && <span className="parallel-container-chip">{data.matrixAxes}</span>}
             <span className="parallel-container-chip">×{data.branchCount}</span>
+            {data.failFast && <span className="parallel-container-chip">failFast</span>}
           </>
         ) : (
           <>

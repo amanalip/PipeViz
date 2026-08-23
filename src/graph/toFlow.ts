@@ -221,7 +221,9 @@ export function buildFlowGraph(
         label: parentStage?.name ?? box.id,
         kind: expandedMatrix ? 'matrix' : 'parallel',
         branchCount,
-        failFast: !expandedMatrix && (parentStage?.failFast ?? false),
+        // failFast belongs to the stage whatever shape it renders as -
+        // expanded matrices used to swallow it here.
+        failFast: parentStage?.failFast ?? false,
         ...(expandedMatrix && parentStage !== undefined
           ? { matrixAxes: axesLabel(parentStage) }
           : {}),

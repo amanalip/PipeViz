@@ -35,6 +35,7 @@ exports[`corpus - invariants across every sample > conditional-deploy: matches i
     {
       "condition": "failure",
       "stage": "Deploy Production",
+      "stageId": "s2",
       "steps": [
         {
           "args": "subject: 'Deploy failed', to: 'ops@example.com'",
@@ -47,6 +48,7 @@ exports[`corpus - invariants across every sample > conditional-deploy: matches i
     {
       "condition": "unstable",
       "stage": "Deploy Production",
+      "stageId": "s2",
       "steps": [
         {
           "args": "channel: '#deploys', message: 'Unstable deploy'",
