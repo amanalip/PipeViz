@@ -128,15 +128,26 @@ export function DiagnosticsBar({
         <span className={partialNote ? 'status-note status-partial' : 'status-note'}>
           {partialNote ?? 'No backend: your code stays in this tab'}
         </span>
-        <span
-          className="status-version"
-          title={
-            parseMs !== undefined
-              ? `${APP_VERSION} · last parse settled in ${parseMs} ms`
-              : APP_VERSION
-          }
-        >
-          {APP_VERSION}
+        <span className="status-meta">
+          <span
+            className="status-version"
+            title={
+              parseMs !== undefined
+                ? `${APP_VERSION} · last parse settled in ${parseMs} ms`
+                : APP_VERSION
+            }
+          >
+            {APP_VERSION}
+          </span>
+          <span aria-hidden="true">·</span>
+          <a
+            className="status-copyright"
+            href="https://github.com/amanalip"
+            target="_blank"
+            rel="noreferrer"
+          >
+            © 2026 Aman Ali Pogaku
+          </a>
         </span>
       </div>
       {expanded && !parsing && diagnostics.length > 0 && (

@@ -1289,9 +1289,23 @@ button.chip:active {
   color: var(--warning);
 }
 
-.status-version {
+.status-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   color: var(--ink-muted);
   white-space: nowrap;
+}
+
+.status-copyright {
+  color: inherit;
+  text-decoration: none;
+}
+
+.status-copyright:hover,
+.status-copyright:focus-visible {
+  color: var(--ink);
+  text-decoration: underline;
 }
 
 /* Expanded diagnostic rows (§11): icon, line number, severity word, message.
