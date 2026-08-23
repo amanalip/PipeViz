@@ -16,6 +16,7 @@ import {
   comboLabel,
   computeMatrixCombos,
   hasExpandableMatrix,
+  hasMatrixStage,
   MATRIX_CELL_LIMIT,
   matrixCombinationCount,
 } from './matrixCombos'
@@ -212,7 +213,73 @@ describe('canExpandMatrix / MATRIX_CELL_LIMIT', () => {
   })
 })
 
+describe('hasMatrixStage', () => {
+  const range = (n: number) => Array.from({ length: n }, (_, i) => `v${i}`)
+
+  it('finds matrices at the top level and through structural children', () => {
+    expect(hasMatrixStage([])).toBe(false)
+    expect(hasMatrixStage([{ id: 's0', name: 'Build', line: 1, steps: [] }])).toBe(false)
+    expect(
+      hasMatrixStage([
+        matrixStage({
+          id: 'm',
+          name: 'Matrix',
+          line: 1,
+          steps: [],
+          matrixAxes: ['A'],
+          matrixAxisValues: [['x']],
+        }),
+      ]),
+    ).toBe(true)
+    expect(
+      hasMatrixStage([
+        {
+          id: 'p',
+          name: 'Group',
+          line: 1,
+          steps: [],
+          parallelBranches: [
+            matrixStage({
+              id: 'p/m',
+              name: 'Nested Matrix',
+              line: 2,
+              steps: [],
+              matrixAxes: ['A'],
+              matrixAxisValues: [['x']],
+            }),
+          ],
+        },
+      ]),
+    ).toBe(true)
+  })
+
+  it('still reports matrices the safety ceiling refuses to expand', () => {
+    // 40 × 40 = 1600 surviving combos > the default ceiling: not expandable,
+    // but very much a matrix, so the UI keeps its (disabled) control.
+    const stage = matrixStage({
+      id: 'big',
+      name: 'Big Matrix',
+      line: 1,
+      steps: [],
+      matrixAxes: ['A', 'B'],
+      matrixAxisValues: [range(40), range(40)],
+    })
+    expect(canExpandMatrix(stage)).toBe(false)
+    expect(hasMatrixStage([stage])).toBe(true)
+  })
+
+  it('ignores matrices whose values cannot expand', () => {
+    expect(
+      hasMatrixStage([
+        matrixStage({ id: 'm', name: 'Matrix', line: 1, steps: [], matrixAxes: ['A'] }),
+      ]),
+    ).toBe(false)
+  })
+})
+
 describe('hasExpandableMatrix', () => {
+  const range = (n: number) => Array.from({ length: n }, (_, i) => `v${i}`)
+
   it('finds matrices at the top level and through structural children', () => {
     expect(hasExpandableMatrix([])).toBe(false)
     expect(hasExpandableMatrix([{ id: 's0', name: 'Build', line: 1, steps: [] }])).toBe(false)
@@ -254,6 +321,36 @@ describe('hasExpandableMatrix', () => {
     expect(
       hasExpandableMatrix([
         matrixStage({ id: 'm', name: 'Matrix', line: 1, steps: [], matrixAxes: ['A'] }),
+      ]),
+    ).toBe(false)
+  })
+
+  it('refuses matrices whose surviving combinations exceed the ceiling', () => {
+    // 40 × 40 = 1600 surviving combos > the default ceiling: combinations
+    // exist, but expanding them would freeze the tab, so this must not
+    // advertise expandability (bug: the toggle used to say Expand while
+    // expansion itself refused).
+    const stage = matrixStage({
+      id: 'big',
+      name: 'Big Matrix',
+      line: 1,
+      steps: [],
+      matrixAxes: ['A', 'B'],
+      matrixAxisValues: [range(40), range(40)],
+    })
+    expect(matrixCombinationCount(stage, 1)).toBeGreaterThan(0)
+    expect(canExpandMatrix(stage)).toBe(false)
+    expect(hasExpandableMatrix([stage])).toBe(false)
+    // A nested oversized matrix is equally invisible to the gate.
+    expect(
+      hasExpandableMatrix([
+        {
+          id: 'p',
+          name: 'Group',
+          line: 1,
+          steps: [],
+          parallelBranches: [stage],
+        },
       ]),
     ).toBe(false)
   })

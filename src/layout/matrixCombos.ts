@@ -131,11 +131,33 @@ export function axesLabel(stage: StageNode): string {
   return (stage.matrixAxes ?? []).join(' × ')
 }
 
-/** Whether any stage in the model carries an expandable matrix. Counts
- * lazily (existence only) instead of materializing every combination. */
-export function hasExpandableMatrix(stages: readonly StageNode[]): boolean {
+/**
+ * Whether any stage in the model carries a matrix that survives exclusion
+ * with at least one combination, regardless of the MATRIX_CELL_LIMIT safety
+ * ceiling. This decides whether the Expand-matrix control belongs in the UI
+ * at all: a matrix too big to expand still deserves the control, disabled,
+ * rather than vanishing silently. Counts lazily (existence only).
+ */
+export function hasMatrixStage(stages: readonly StageNode[]): boolean {
   return stages.some((stage) => {
     if (matrixCombinationCount(stage, 1) > 0) return true
+    const nested = [
+      ...(stage.parallelBranches ?? []),
+      ...(stage.sequentialChildren ?? []),
+    ]
+    return nested.length > 0 && hasMatrixStage(nested)
+  })
+}
+
+/**
+ * Whether any stage in the model carries an expandable matrix. Uses the same
+ * canExpandMatrix() gate the layout itself applies, so the toggle only ever
+ * claims expandability when expanding would actually work - a matrix past
+ * the safety ceiling must not advertise an expansion that refuses to run.
+ */
+export function hasExpandableMatrix(stages: readonly StageNode[]): boolean {
+  return stages.some((stage) => {
+    if (canExpandMatrix(stage)) return true
     const nested = [
       ...(stage.parallelBranches ?? []),
       ...(stage.sequentialChildren ?? []),

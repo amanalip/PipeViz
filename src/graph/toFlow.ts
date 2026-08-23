@@ -190,10 +190,50 @@ export function buildFlowGraph(
     })
   }
 
+  // ---- Container nodes first ----------------------------------------------
+  // React Flow subflows require every parent node to appear in the array
+  // BEFORE any node carrying its id as `parentId`, so containers are emitted
+  // ahead of the cards they host. The area-sorted order keeps nested
+  // containers ahead of the boxes nested inside them, too.
+  const nodes: FlowNode[] = []
+  for (const box of boxes) {
+    const parentStage = stagesById.get(box.id)
+    // Matrix styling mirrors the layout's expansion decision exactly: a
+    // stage past MATRIX_CELL_LIMIT stayed a summary card and must not be
+    // reported as an expanded matrix here.
+    const expandedMatrix =
+      expandMatrix &&
+      parentStage !== undefined &&
+      parentStage.matrixAxes !== undefined &&
+      canExpandMatrix(parentStage)
+    const branchCount =
+      parentStage?.parallelBranches?.length ??
+      (expandedMatrix && parentStage !== undefined
+        ? matrixCombinationCount(parentStage)
+        : 0)
+    const grandparentId = parentOf.get(box.id) ?? null
+    nodes.push({
+      id: box.id,
+      type: 'groupContainer',
+      position: relPos.get(box.id) as { x: number; y: number },
+      style: { width: box.width, height: box.height },
+      data: {
+        label: parentStage?.name ?? box.id,
+        kind: expandedMatrix ? 'matrix' : 'parallel',
+        branchCount,
+        failFast: !expandedMatrix && (parentStage?.failFast ?? false),
+        ...(expandedMatrix && parentStage !== undefined
+          ? { matrixAxes: axesLabel(parentStage) }
+          : {}),
+      },
+      // Nested groups chain onto their outer subflow exactly like cards do.
+      ...(grandparentId ? { parentId: grandparentId } : {}),
+    })
+  }
+
   // ---- Cards: attach to the innermost containing container, if any --------
   // Iterating the area-sorted list makes the *last* hit the smallest (nearest)
   // enclosing box, which is the immediate subflow parent React Flow expects.
-  const nodes: FlowNode[] = []
   const ghostIds = new Set<string>()
   for (const stage of layout.nodes) {
     let hostId: string | null = null
@@ -240,42 +280,6 @@ export function buildFlowGraph(
       style: { width: NODE_W, height: NODE_H },
       data: { stage, category: categorize(stage.name) },
       ...(hostId ? { parentId: hostId } : {}),
-    })
-  }
-
-  // ---- Container nodes themselves -----------------------------------------
-  for (const box of boxes) {
-    const parentStage = stagesById.get(box.id)
-    // Matrix styling mirrors the layout's expansion decision exactly: a
-    // stage past MATRIX_CELL_LIMIT stayed a summary card and must not be
-    // reported as an expanded matrix here.
-    const expandedMatrix =
-      expandMatrix &&
-      parentStage !== undefined &&
-      parentStage.matrixAxes !== undefined &&
-      canExpandMatrix(parentStage)
-    const branchCount =
-      parentStage?.parallelBranches?.length ??
-      (expandedMatrix && parentStage !== undefined
-        ? matrixCombinationCount(parentStage)
-        : 0)
-    const grandparentId = parentOf.get(box.id) ?? null
-    nodes.push({
-      id: box.id,
-      type: 'groupContainer',
-      position: relPos.get(box.id) as { x: number; y: number },
-      style: { width: box.width, height: box.height },
-      data: {
-        label: parentStage?.name ?? box.id,
-        kind: expandedMatrix ? 'matrix' : 'parallel',
-        branchCount,
-        failFast: !expandedMatrix && (parentStage?.failFast ?? false),
-        ...(expandedMatrix && parentStage !== undefined
-          ? { matrixAxes: axesLabel(parentStage) }
-          : {}),
-      },
-      // Nested groups chain onto their outer subflow exactly like cards do.
-      ...(grandparentId ? { parentId: grandparentId } : {}),
     })
   }
 

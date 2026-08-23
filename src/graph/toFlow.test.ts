@@ -22,6 +22,21 @@ function flow(source: string) {
   return { model, layout: computeLayout(model), graph: buildFlowGraph(model, computeLayout(model)) }
 }
 
+/**
+ * React Flow subflows demand parents earlier in the node array than the
+ * nodes referencing them; this walks any built graph and fails on the first
+ * child that arrives before its parent container.
+ */
+function expectParentsBeforeChildren(graph: ReturnType<typeof buildFlowGraph>) {
+  const emitted = new Set<string>()
+  for (const node of graph.nodes) {
+    if (node.parentId !== undefined) {
+      expect(emitted.has(node.parentId), `parent ${node.parentId} of ${node.id}`).toBe(true)
+    }
+    emitted.add(node.id)
+  }
+}
+
 describe('categorize', () => {
   it('maps build-family names to the cyan stripe', () => {
     expect(categorize('Build')).toBe('build')
@@ -132,6 +147,7 @@ describe('buildFlowGraph on the parallel sample (parallel-tests)', () => {
   })
 
   it('nests lane cards via parentId with positions relative to the box', () => {
+    expectParentsBeforeChildren(graph)
     const absBox = layout.containers.find((container) => container.id === 's1')
     if (!absBox) throw new Error('layout lost its container')
 
@@ -201,7 +217,12 @@ describe('buildFlowGraph with nested parallel containers', () => {
 `
   const { layout, graph } = flow(NESTED)
 
+  it('emits every parent container before the nodes parented to it', () => {
+    expectParentsBeforeChildren(graph)
+  })
+
   it('recovers both container levels from geometry alone', () => {
+    expectParentsBeforeChildren(graph)
     expect(layout.containers).toHaveLength(2)
     const outer = layout.containers.find((box) => box.id === 's1')
     const inner = layout.containers.find((box) => box.id !== 's1')
@@ -263,6 +284,7 @@ describe('buildFlowGraph with an expanded matrix (matrix-build)', () => {
   })
 
   it('parents combo cards to the matrix container with relative positions', () => {
+    expectParentsBeforeChildren(graph)
     const absBox = layout.containers.find((container) => container.id === 's1')
     if (!absBox) throw new Error('layout lost its matrix container')
     for (const id of ['s1/m0', 's1/m1', 's1/m2']) {

@@ -389,6 +389,30 @@ img {
   display: none;
 }
 
+/* Anchor so the upload-error notice can drop from the Upload button
+   without disturbing the header row's flex layout. */
+.upload-wrap {
+  position: relative;
+}
+
+/* Refusal notice for a rejected upload: same drop pattern as the share
+   warning, danger palette so a refusal reads as an error, not advice. */
+.upload-error {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  z-index: 40;
+  width: 264px;
+  padding: 10px 12px;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--danger);
+  background: var(--surface-solid);
+  border: 1px solid var(--danger-line);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-card);
+}
+
 /* ---- Sample picker menu ------------------------------------------------------
    Native-feeling dropdown under the Samples button (mockup §12): keyboard
    navigable with focus managed via aria-activedescendant on the trigger. */

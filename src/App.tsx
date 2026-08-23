@@ -33,7 +33,7 @@ import { FlowCanvas } from './graph/FlowCanvas'
 import type { FlowApi } from './graph/FlowCanvas'
 import { computeLayout } from './layout/computeLayout'
 import type { PositionedStage } from './layout/computeLayout'
-import { hasExpandableMatrix } from './layout/matrixCombos'
+import { hasExpandableMatrix, hasMatrixStage } from './layout/matrixCombos'
 import type { Diagnostic, StageNode } from './model/types'
 import { parseJenkinsfile } from './parser'
 import { SAMPLES } from './samples'
@@ -78,6 +78,16 @@ const PASTE_HINT_MS = 6000
  * readable warning beats a 1.5s flash for a full sentence of advice. */
 const SHARE_NOTICE_MS = 5000
 
+/** How long the upload-error notice stays up before fading out. */
+const UPLOAD_ERROR_MS = 5000
+
+/**
+ * Ceiling on accepted uploads. Jenkinsfiles are tiny; anything bigger is
+ * almost certainly not one, and feeding megabytes into the synchronous
+ * parser would freeze the tab - refuse up front with a readable message.
+ */
+export const MAX_UPLOAD_BYTES = 1024 * 1024
+
 /**
  * App renders the three-region layout from the UI spec (plan section 10):
  * header / workspace (editor + canvas) / diagnostics bar.
@@ -113,6 +123,9 @@ export default function App() {
   // Empty-state Paste chip guidance (§4): shown when the clipboard could
   // not be read, pointing at the manual Ctrl+V path. Auto-clears.
   const [pasteHint, setPasteHint] = useState(false)
+  // Upload failure notice: names why a picked file was refused (too big,
+  // unreadable) instead of failing silently. Auto-clears like pasteHint.
+  const [uploadError, setUploadError] = useState<string | null>(null)
   // M6 color scheme (mockups §2 shipped dark-only v1): persisted choice,
   // dark unless the visitor explicitly picked light.
   const [theme, setTheme] = useState<Theme>(() =>
@@ -162,6 +175,13 @@ export default function App() {
     const timer = window.setTimeout(() => setPasteHint(false), PASTE_HINT_MS)
     return () => window.clearTimeout(timer)
   }, [pasteHint])
+
+  // Upload error reset: same readable-lifetime pattern as the share notice.
+  useEffect(() => {
+    if (uploadError === null) return
+    const timer = window.setTimeout(() => setUploadError(null), UPLOAD_ERROR_MS)
+    return () => window.clearTimeout(timer)
+  }, [uploadError])
 
   // Copy link flash reset; identical pattern to the JSON button.
   useEffect(() => {
@@ -291,11 +311,17 @@ export default function App() {
     return null
   }, [hasCanvasContent, problems.errors, sampleName])
 
-  // The §10 expansion toggle only exists when there is a matrix to expand.
+  // The §10 expansion toggle exists whenever the model carries a matrix
+  // that survives exclusion - even one too big to expand, which then shows
+  // up disabled with an explanation instead of vanishing (or worse, lying).
   const showMatrixToggle = useMemo(
-    () => canvasStats.stages > 0 && hasExpandableMatrix(model.rootStages),
+    () => canvasStats.stages > 0 && hasMatrixStage(model.rootStages),
     [canvasStats.stages, model],
   )
+  // Expandable means canExpandMatrix() holds somewhere in the model: at
+  // least one combination AND within the MATRIX_CELL_LIMIT safety ceiling,
+  // matching exactly what computeLayout will do when the toggle turns on.
+  const matrixExpandable = useMemo(() => hasExpandableMatrix(model.rootStages), [model])
 
   // Display name for the selection segment of the status line (§9), plus the
   // resolved stage that feeds the details panel. Container group nodes share
@@ -376,19 +402,50 @@ export default function App() {
     editorApi.current?.focus()
   }
 
-  /** Same path as paste (§17): read the file as text, swap the editor. */
+  /**
+   * Same path as paste (§17): read the file as text, swap the editor. Never
+   * silent on failure - oversized files are refused before reading (the
+   * synchronous parser would choke), read errors surface with the file's
+   * name, and both leave a role="alert" notice under the Upload button.
+   */
   async function handleUploadFile(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0]
     event.target.value = ''
     if (!file) return
-    setSampleName(null)
-    setSource(await file.text())
+    if (file.size > MAX_UPLOAD_BYTES) {
+      setUploadError(`"${file.name}" is over 1 MB — that is not a Jenkinsfile`)
+      flashEditorPane()
+      return
+    }
+    try {
+      const text = await file.text()
+      setSampleName(null)
+      setSource(text)
+      setUploadError(null)
+    } catch {
+      setUploadError(`"${file.name}" could not be read`)
+      flashEditorPane()
+    }
   }
 
-  /** Serialize the settled model to the clipboard (§12). */
+  /**
+   * Serialize the settled model to the clipboard (§12). A fast click right
+   * after typing must never export the previous parse: the pending debounce
+   * settles first (same contract as the timer - fresh graph, stale
+   * selection dropped), then the model for the text currently in the editor
+   * is what gets copied.
+   */
   async function copyModelJson() {
+    const pending = source !== settledSource
+    if (pending) {
+      setSettledSource(source)
+      setSelectedId(null)
+    }
+    // After a flush the memoized `model` still trails one render behind, so
+    // the settled text is parsed directly; otherwise reuse the settled memo.
+    const snapshot = pending ? parseJenkinsfile(source) : model
     try {
-      await navigator.clipboard.writeText(JSON.stringify(model, null, 2))
+      await navigator.clipboard.writeText(JSON.stringify(snapshot, null, 2))
       setCopyState('copied')
     } catch {
       setCopyState('failed')
@@ -504,9 +561,16 @@ export default function App() {
               aria-hidden="true"
               tabIndex={-1}
             />
-            <button type="button" className="btn" onClick={() => fileInputRef.current?.click()}>
-              Upload
-            </button>
+            <span className="upload-wrap">
+              <button type="button" className="btn" onClick={() => fileInputRef.current?.click()}>
+                Upload
+              </button>
+              {uploadError && (
+                <span className="upload-error" role="alert">
+                  {uploadError}
+                </span>
+              )}
+            </span>
             <button
               type="button"
               className={copyState === 'copied' ? 'btn btn-copied' : 'btn'}
@@ -534,9 +598,13 @@ export default function App() {
             <button
               type="button"
               className={pngState === 'failed' ? 'btn btn-export-failed' : 'btn'}
-              disabled={pngState === 'working' || canvasStats.stages === 0}
+              disabled={parsing || pngState === 'working' || canvasStats.stages === 0}
               onClick={exportGraphPng}
-              title="Download the current graph as a PNG image"
+              title={
+                parsing
+                  ? 'Unavailable while edits settle - the canvas renders the last settled parse'
+                  : 'Download the current graph as a PNG image'
+              }
             >
               {pngState === 'working' ? 'Rendering…' : pngState === 'failed' ? 'Export failed' : 'Export PNG'}
             </button>
@@ -576,11 +644,20 @@ export default function App() {
                 <button
                   type="button"
                   className={expandMatrix ? 'btn canvas-toggle active' : 'btn canvas-toggle'}
+                  disabled={!matrixExpandable}
                   onClick={() => setExpandMatrix((value) => !value)}
                   aria-pressed={expandMatrix}
-                  title="Toggle between the compact matrix card and one card per axis combination"
+                  title={
+                    matrixExpandable
+                      ? 'Toggle between the compact matrix card and one card per axis combination'
+                      : 'This matrix has 1000+ surviving cells - expansion unavailable'
+                  }
                 >
-                  {expandMatrix ? 'Collapse matrix' : 'Expand matrix'}
+                  {!matrixExpandable
+                    ? '1000+ cells · expansion unavailable'
+                    : expandMatrix
+                      ? 'Collapse matrix'
+                      : 'Expand matrix'}
                 </button>
               )}
             </div>
