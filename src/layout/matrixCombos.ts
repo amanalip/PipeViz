@@ -15,6 +15,22 @@
 import type { StageNode } from '../model/types'
 
 /**
+ * Every exclude rule in force for `stage`: the explicit `excludes { … }`
+ * entries plus one synthetic single-axis rule per axis `notValues` list -
+ * Jenkins treats an axis notValues exactly like a matching exclude entry.
+ */
+function effectiveExcludes(stage: StageNode): { [axisName: string]: string[] }[] {
+  const rules = stage.matrixExcludes ? [...stage.matrixExcludes] : []
+  const names = stage.matrixAxes ?? []
+  const notValueColumns = stage.matrixAxisNotValues ?? []
+  for (let axis = 0; axis < names.length; axis += 1) {
+    const forbidden = notValueColumns[axis] ?? []
+    if (forbidden.length > 0) rules.push({ [names[axis] as string]: forbidden })
+  }
+  return rules
+}
+
+/**
  * Cartesian product of the declared axis values, minus excluded
  * combinations. Pure and deterministic; returns [] for anything that cannot
  * expand (no values, single empty axis, fully excluded).
@@ -34,7 +50,7 @@ export function computeMatrixCombos(stage: StageNode): string[][] {
     combos = next
   }
 
-  const rules = stage.matrixExcludes ?? []
+  const rules = effectiveExcludes(stage)
   if (rules.length === 0) return combos
 
   return combos.filter((combo) => rules.every((rule) => !excludedByRule(combo, names, rule)))
@@ -53,7 +69,7 @@ export function matrixCombinationCount(stage: StageNode, beyond = Infinity): num
   if (names.length === 0 || valueColumns.length !== names.length) return 0
   if (valueColumns.some((values) => values.length === 0)) return 0
 
-  const rules = stage.matrixExcludes ?? []
+  const rules = effectiveExcludes(stage)
   const sizes = valueColumns.map((values) => values.length)
   const total = sizes.reduce((product, size) => product * size, 1)
 

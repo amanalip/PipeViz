@@ -102,6 +102,50 @@ describe('computeMatrixCombos', () => {
     ).toEqual([])
   })
 
+  it('drops combinations carrying an axis notValue (Jenkins notValues)', () => {
+    const stage = matrixStage({
+      matrixAxes: ['OS', 'BROWSER'],
+      matrixAxisValues: [
+        ['linux', 'windows'],
+        ['chrome', 'firefox', 'edge'],
+      ],
+      matrixAxisNotValues: [[], ['edge']],
+    })
+    expect(computeMatrixCombos(stage).map(comboLabel)).toEqual([
+      'linux / chrome',
+      'linux / firefox',
+      'windows / chrome',
+      'windows / firefox',
+    ])
+  })
+
+  it('applies notValues identically in the lazy count', () => {
+    const stage = matrixStage({
+      matrixAxes: ['OS', 'BROWSER'],
+      matrixAxisValues: [
+        ['linux', 'windows'],
+        ['chrome', 'firefox', 'edge'],
+      ],
+      matrixAxisNotValues: [['windows'], ['firefox', 'edge']],
+    })
+    // Only linux / chrome survives both the OS and BROWSER refusals.
+    expect(computeMatrixCombos(stage).map(comboLabel)).toEqual(['linux / chrome'])
+    expect(matrixCombinationCount(stage)).toBe(1)
+  })
+
+  it('composes axis notValues with explicit excludes rules', () => {
+    const stage = matrixStage({
+      matrixAxes: ['OS', 'BROWSER'],
+      matrixAxisValues: [
+        ['linux', 'windows'],
+        ['chrome', 'firefox'],
+      ],
+      matrixAxisNotValues: [[], ['firefox']],
+      matrixExcludes: [{ OS: ['windows'] }],
+    })
+    expect(computeMatrixCombos(stage).map(comboLabel)).toEqual(['linux / chrome'])
+  })
+
   it('is deterministic across repeated calls', () => {
     const stage = matrixStage({
       matrixAxes: ['A'],

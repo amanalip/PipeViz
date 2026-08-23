@@ -346,6 +346,71 @@ describe('declarative - matrix', () => {
     )
     expect(collectMatrixAxes(req(matrix))).toEqual([])
   })
+
+  it('captures per-axis notValues next to values (Jenkins excludes shorthand)', () => {
+    // Jenkins officially supports notValues inside an axis; combinations
+    // carrying a refused value are excluded from expansion.
+    const model = parse(
+      [
+        'pipeline {',
+        '  stages {',
+        '    stage("m") {',
+        '      matrix {',
+        '        axes {',
+        '          axis {',
+        "            name 'OS'",
+        "            values 'linux', 'windows'",
+        '          }',
+        '          axis {',
+        "            name 'BROWSER'",
+        "            values 'chrome', 'edge'",
+        "            notValues 'edge'",
+        '          }',
+        '        }',
+        '        stages {',
+        '          stage("cell") { steps { echo run } }',
+        '        }',
+        '      }',
+        '    }',
+        '  }',
+        '}',
+      ].join('\n'),
+    )
+    const matrix = stageNamed(model, 'm')
+    expect(matrix.matrixAxisValues).toEqual([
+      ['linux', 'windows'],
+      ['chrome', 'edge'],
+    ])
+    expect(matrix.matrixAxisNotValues).toEqual([[], ['edge']])
+  })
+
+  it('keeps matrix cell stages as a real chain under relative ids', () => {
+    const model = parse(
+      [
+        'pipeline {',
+        '  stages {',
+        '    stage("m") {',
+        '      matrix {',
+        '        axes { axis { name \'OS\'; values \'linux\' } }',
+        '        stages {',
+        '          stage("Build Cell") { steps { sh \'make\' } }',
+        '          stage("Test Cell") { steps { sh \'make test\' } }',
+        '        }',
+        '      }',
+        '    }',
+        '  }',
+        '}',
+      ].join('\n'),
+    )
+    const cells = stageNamed(model, 'm').matrixCellStages ?? []
+    expect(cells.map((cell) => [cell.id, cell.name])).toEqual([
+      ['c0', 'Build Cell'],
+      ['c1', 'Test Cell'],
+    ])
+    expect((cells[0]?.steps ?? []).map((step) => step.name)).toEqual(['sh'])
+    // Flat capture stays in sync for the compact card's CELLS summary.
+    expect(stageNamed(model, 'm').matrixCellSteps?.length).toBe(2)
+  })
 })
 
 describe('declarative - nested sequential stages', () => {

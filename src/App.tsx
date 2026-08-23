@@ -32,7 +32,6 @@ import type { ChangeEvent } from 'react'
 import { FlowCanvas } from './graph/FlowCanvas'
 import type { FlowApi } from './graph/FlowCanvas'
 import { computeLayout } from './layout/computeLayout'
-import type { PositionedStage } from './layout/computeLayout'
 import { hasExpandableMatrix, hasMatrixStage } from './layout/matrixCombos'
 import type { Diagnostic, StageNode } from './model/types'
 import { parseJenkinsfile } from './parser'
@@ -47,7 +46,7 @@ import { EditorPane } from './ui/EditorPane'
 import type { EditorApi } from './ui/EditorPane'
 import { SamplePicker } from './ui/SamplePicker'
 import type { SamplePickerApi } from './ui/SamplePicker'
-import { candidateStageCount, partialGraphNote } from './ui/diagnosticsSupport'
+import { candidateStageCount, partialGraphNote, stageForDiagnostic } from './ui/diagnosticsSupport'
 
 // Repository URL for the header link; same repo this code lives in.
 const REPO_URL = 'https://github.com/amanalip/PipeViz'
@@ -530,13 +529,13 @@ export default function App() {
     window.setTimeout(() => el.classList.remove('editor-flash'), 1000)
   }
 
-  /** Diagnostic row click: jump the caret, flash the related card if any. */
+  /** Diagnostic row click: jump the caret, flash the related card if any.
+      Matching goes beyond exact source-line equality: a diagnostic landing
+      mid-stage maps to its containing (innermost) stage card, so errors on
+      body lines still point somewhere useful. */
   function handleDiagnosticClick(diagnostic: Diagnostic) {
     revealLine(diagnostic.line)
-    const hit: PositionedStage | undefined = layout.nodes.find(
-      (node) => node.line === diagnostic.line,
-    )
-    flashNode(hit?.id ?? null)
+    flashNode(stageForDiagnostic(layout.nodes, diagnostic.line)?.id ?? null)
   }
 
   // ---- Render -------------------------------------------------------------

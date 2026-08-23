@@ -43,6 +43,12 @@ export interface StageNode {
   id: string
   name: string
   line: number
+  /**
+   * Last source line of the stage's block, when the parser saw it close.
+   * Lets a diagnostic landing mid-stage map to its containing card even
+   * when it does not sit exactly on the `stage(…)` line.
+   */
+  endLine?: number
   steps: Step[]
   /** Raw condition summaries from `when`, one per top-level condition. */
   when?: string[]
@@ -59,12 +65,24 @@ export interface StageNode {
    */
   matrixAxisValues?: string[][]
   /**
+   * Axis not-values aligned index-wise with `matrixAxes`: Jenkins excludes
+   * every combination whose value for that axis appears in this list.
+   */
+  matrixAxisNotValues?: string[][]
+  /**
    * Rules from the matrix `excludes { … }` block: each entry maps an axis
    * name to the values that disqualify a combination mentioning them.
    */
   matrixExcludes?: { [axisName: string]: string[] }[]
   /** Steps captured from the nested stages a matrix runs in every cell. */
   matrixCellSteps?: Step[]
+  /**
+   * Nested stages declared inside a matrix's own `stages { … }`, with ids
+   * relative to the matrix (`c0`, `c1/p1`, …). Expansion re-roots a clone
+   * of this chain under every combination so each cell lane keeps its real
+   * sequential structure instead of one flat step dump.
+   */
+  matrixCellStages?: StageNode[]
   /** Captured `failFast` flag belonging to a parallel group. */
   failFast?: boolean
   /** Sequential sub-chain inside this stage (nested `stages` block). */

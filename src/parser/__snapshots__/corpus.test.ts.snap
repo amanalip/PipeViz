@@ -70,6 +70,7 @@ exports[`corpus - invariants across every sample > conditional-deploy: matches i
   ],
   "rootStages": [
     {
+      "endLine": 31,
       "id": "s0",
       "line": 21,
       "name": "Verify",
@@ -86,6 +87,7 @@ exports[`corpus - invariants across every sample > conditional-deploy: matches i
       ],
     },
     {
+      "endLine": 40,
       "hasInput": true,
       "id": "s1",
       "line": 32,
@@ -100,6 +102,7 @@ exports[`corpus - invariants across every sample > conditional-deploy: matches i
       ],
     },
     {
+      "endLine": 59,
       "id": "s2",
       "line": 41,
       "name": "Deploy Production",
@@ -135,6 +138,7 @@ exports[`corpus - invariants across every sample > matrix-build: matches its mod
   "postHandlers": [],
   "rootStages": [
     {
+      "endLine": 9,
       "id": "s0",
       "line": 5,
       "name": "Deps",
@@ -148,6 +152,7 @@ exports[`corpus - invariants across every sample > matrix-build: matches its mod
       ],
     },
     {
+      "endLine": 42,
       "id": "s1",
       "line": 10,
       "matrixAxes": [
@@ -163,6 +168,22 @@ exports[`corpus - invariants across every sample > matrix-build: matches its mod
           "chrome",
           "firefox",
         ],
+      ],
+      "matrixCellStages": [
+        {
+          "endLine": 39,
+          "id": "c0",
+          "line": 35,
+          "name": "Cell",
+          "steps": [
+            {
+              "args": "'make ci OS=\${OS} BROWSER=\${BROWSER}'",
+              "kind": "known",
+              "line": 37,
+              "name": "sh",
+            },
+          ],
+        },
       ],
       "matrixCellSteps": [
         {
@@ -186,6 +207,7 @@ exports[`corpus - invariants across every sample > matrix-build: matches its mod
       "steps": [],
     },
     {
+      "endLine": 47,
       "id": "s2",
       "line": 43,
       "name": "Bundle",
@@ -242,6 +264,7 @@ exports[`corpus - invariants across every sample > messy-realworld: matches its 
   "postHandlers": [],
   "rootStages": [
     {
+      "endLine": 16,
       "id": "s0",
       "line": 14,
       "name": "Checkout",
@@ -261,6 +284,7 @@ exports[`corpus - invariants across every sample > messy-realworld: matches its 
       ],
     },
     {
+      "endLine": 27,
       "id": "s1",
       "line": 18,
       "name": "Smoke Test",
@@ -279,6 +303,7 @@ curl -fsS "https://\${REGISTRY}/health" | grep -q ok || { echo unhealthy; exit 1
       ],
     },
     {
+      "endLine": 42,
       "id": "s2",
       "line": 31,
       "name": "Broken Tail",
@@ -337,6 +362,7 @@ exports[`corpus - invariants across every sample > parallel-tests: matches its m
   "postHandlers": [],
   "rootStages": [
     {
+      "endLine": 9,
       "id": "s0",
       "line": 5,
       "name": "Build",
@@ -350,12 +376,14 @@ exports[`corpus - invariants across every sample > parallel-tests: matches its m
       ],
     },
     {
+      "endLine": 29,
       "failFast": true,
       "id": "s1",
       "line": 10,
       "name": "Test",
       "parallelBranches": [
         {
+          "endLine": 17,
           "id": "s1/p0",
           "line": 13,
           "name": "Unit",
@@ -369,6 +397,7 @@ exports[`corpus - invariants across every sample > parallel-tests: matches its m
           ],
         },
         {
+          "endLine": 22,
           "id": "s1/p1",
           "line": 18,
           "name": "Integration",
@@ -382,6 +411,7 @@ exports[`corpus - invariants across every sample > parallel-tests: matches its m
           ],
         },
         {
+          "endLine": 27,
           "id": "s1/p2",
           "line": 23,
           "name": "Lint",
@@ -398,6 +428,7 @@ exports[`corpus - invariants across every sample > parallel-tests: matches its m
       "steps": [],
     },
     {
+      "endLine": 35,
       "id": "s2",
       "line": 30,
       "name": "Report",
@@ -545,6 +576,7 @@ exports[`corpus - invariants across every sample > sequential-groups: matches it
   "postHandlers": [],
   "rootStages": [
     {
+      "endLine": 9,
       "id": "s0",
       "line": 5,
       "name": "Preparation",
@@ -558,11 +590,13 @@ exports[`corpus - invariants across every sample > sequential-groups: matches it
       ],
     },
     {
+      "endLine": 33,
       "id": "s1",
       "line": 10,
       "name": "Quality Suite",
       "sequentialChildren": [
         {
+          "endLine": 17,
           "id": "s1/sq0",
           "line": 13,
           "name": "Static Analysis",
@@ -576,11 +610,13 @@ exports[`corpus - invariants across every sample > sequential-groups: matches it
           ],
         },
         {
+          "endLine": 31,
           "id": "s1/sq1",
           "line": 18,
           "name": "Deep Checks",
           "sequentialChildren": [
             {
+              "endLine": 24,
               "id": "s1/sq1/sq0",
               "line": 20,
               "name": "Types",
@@ -594,6 +630,7 @@ exports[`corpus - invariants across every sample > sequential-groups: matches it
               ],
             },
             {
+              "endLine": 29,
               "id": "s1/sq1/sq1",
               "line": 25,
               "name": "Dead Code",
@@ -616,6 +653,7 @@ exports[`corpus - invariants across every sample > sequential-groups: matches it
       ],
     },
     {
+      "endLine": 40,
       "id": "s2",
       "line": 34,
       "name": "Package",
@@ -674,6 +712,7 @@ exports[`corpus - invariants across every sample > simple-ci: matches its model 
   ],
   "rootStages": [
     {
+      "endLine": 14,
       "id": "s0",
       "line": 10,
       "name": "Checkout",
@@ -687,6 +726,7 @@ exports[`corpus - invariants across every sample > simple-ci: matches its model 
       ],
     },
     {
+      "endLine": 19,
       "id": "s1",
       "line": 15,
       "name": "Build",
@@ -700,6 +740,7 @@ exports[`corpus - invariants across every sample > simple-ci: matches its model 
       ],
     },
     {
+      "endLine": 25,
       "id": "s2",
       "line": 20,
       "name": "Test",
@@ -719,6 +760,7 @@ exports[`corpus - invariants across every sample > simple-ci: matches its model 
       ],
     },
     {
+      "endLine": 30,
       "id": "s3",
       "line": 26,
       "name": "Deploy",

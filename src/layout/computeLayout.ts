@@ -102,11 +102,35 @@ interface WalkContext {
 }
 
 /**
+ * Deep-copy of a matrix's relative-id cell chain under one expanded lane.
+ * Cell ids are already unique paths relative to the matrix (`c0`, `c1/p1`,
+ * …), so prefixing with the lane head id keeps every descendant stable and
+ * collision-free across combinations.
+ */
+function cloneCellStages(stages: readonly StageNode[], lanePrefix: string): StageNode[] {
+  return stages.map((stage) => ({
+    ...stage,
+    id: `${lanePrefix}/${stage.id}`,
+    ...(stage.parallelBranches
+      ? { parallelBranches: cloneCellStages(stage.parallelBranches, lanePrefix) }
+      : {}),
+    ...(stage.sequentialChildren
+      ? { sequentialChildren: cloneCellStages(stage.sequentialChildren, lanePrefix) }
+      : {}),
+  }))
+}
+
+/**
  * The lanes a stage fans out into: its own parallel branches, or (when
- * matrix expansion is on) one synthesized card per axis combination.
- * Synthesized branches keep the matrix's line/when/agent so combo cards
- * still badge and jump to source honestly; ids derive from the parent
+ * matrix expansion is on) one synthesized lane per axis combination.
+ * Synthesized lanes keep the matrix's line/when/agent so combo cards still
+ * badge and jump to source honestly; ids derive from the parent
  * (`<id>/m<i>`), deterministic across re-parses like every other id.
+ *
+ * When the matrix declares real nested stages they ride along as the lane's
+ * sequential children (mockups §10 fidelity: Build → Test → Deploy stays a
+ * chain per cell); only step-less matrices fall back to one flat card
+ * carrying the collected cell steps.
  */
 function branchesOf(stage: StageNode, expandMatrix: boolean): StageNode[] | undefined {
   if (stage.parallelBranches && stage.parallelBranches.length > 0) return stage.parallelBranches
@@ -115,16 +139,32 @@ function branchesOf(stage: StageNode, expandMatrix: boolean): StageNode[] | unde
   // card instead of materializing enough nodes to freeze the browser.
   if (!canExpandMatrix(stage)) return undefined
   const combos = computeMatrixCombos(stage)
-  const cellSteps = stage.matrixCellSteps ?? []
-  return combos.map((combo, index) => ({
-    id: `${stage.id}/m${index}`,
-    name: comboLabel(combo),
+  const inherited = {
     line: stage.line,
-    steps: cellSteps,
     ...(stage.when ? { when: stage.when } : {}),
     ...(stage.agent ? { agent: stage.agent } : {}),
     ...(stage.hasInput ? { hasInput: true } : {}),
-  }))
+  }
+  const cellStages = stage.matrixCellStages ?? []
+  if (cellStages.length === 0) {
+    const cellSteps = stage.matrixCellSteps ?? []
+    return combos.map((combo, index) => ({
+      id: `${stage.id}/m${index}`,
+      name: comboLabel(combo),
+      steps: cellSteps,
+      ...inherited,
+    }))
+  }
+  return combos.map((combo, index) => {
+    const laneId = `${stage.id}/m${index}`
+    return {
+      id: laneId,
+      name: comboLabel(combo),
+      steps: [],
+      sequentialChildren: cloneCellStages(cellStages, laneId),
+      ...inherited,
+    }
+  })
 }
 
 /**

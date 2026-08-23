@@ -164,29 +164,42 @@ describe('layout - matrix-build, expanded (M6 toggle)', () => {
     expect(result.nodes.map((node) => node.id)).toEqual([
       's0',
       's1/m0',
+      's1/m0/c0',
       's1/m1',
+      's1/m1/c0',
       's1/m2',
+      's1/m2/c0',
       's2',
     ])
     expect(result.nodes.find((node) => node.id === 's1')).toBeUndefined()
   })
 
-  it('names combos from axis values and carries the cell steps', () => {
+  it('keeps each cell\'s real stage chain inside its combo lane', () => {
     const byIdMap = byId(result)
     const first = req(byIdMap.get('s1/m0'))
+    // The lane head carries the combo label and no steps of its own; the
+    // matrix's actual nested stage follows as a sequential child whose
+    // steps are exactly the parser's captured cell steps.
     expect(first.name).toBe('linux / chrome')
-    expect(first.steps).toEqual(req(model.rootStages[1]).matrixCellSteps)
-    expect(first.steps.length).toBeGreaterThan(0)
+    expect(first.steps).toEqual([])
+    const cell = first.sequentialChildren?.[0]
+    expect(cell?.id).toBe('s1/m0/c0')
+    expect(cell?.name).toBe('Cell')
+    expect(cell?.steps).toEqual(req(model.rootStages[1]).matrixCellSteps)
+    expect(cell?.steps.length).toBeGreaterThan(0)
   })
 
-  it('fans out of Deps into every combo and back into Bundle', () => {
+  it('fans out of Deps into every lane head and back from each cell tail', () => {
     expect(result.edges.map((edge) => `${edge.id}:${edge.kind}`)).toEqual([
       's0->s1/m0:fan-out',
       's0->s1/m1:fan-out',
       's0->s1/m2:fan-out',
-      's1/m0->s2:fan-in',
-      's1/m1->s2:fan-in',
-      's1/m2->s2:fan-in',
+      's1/m0->s1/m0/c0:chain',
+      's1/m1->s1/m1/c0:chain',
+      's1/m2->s1/m2/c0:chain',
+      's1/m0/c0->s2:fan-in',
+      's1/m1/c0->s2:fan-in',
+      's1/m2/c0->s2:fan-in',
     ])
   })
 

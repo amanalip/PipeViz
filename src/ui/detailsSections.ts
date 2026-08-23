@@ -100,9 +100,16 @@ export function buildContainerSections(stage: StageNode): DetailSection[] {
 
   if (stage.matrixAxes && stage.matrixAxes.length > 0) {
     const values = stage.matrixAxisValues ?? []
+    const notValues = stage.matrixAxisNotValues ?? []
     sections.push({
       title: 'AXES',
-      lines: stage.matrixAxes.map((name, index) => `${name}: ${(values[index] ?? []).join(', ')}`),
+      lines: stage.matrixAxes.map((name, index) => {
+        const allowed = (values[index] ?? []).join(', ')
+        const forbidden = notValues[index] ?? []
+        return forbidden.length > 0
+          ? `${name}: ${allowed} (not: ${forbidden.join(', ')})`
+          : `${name}: ${allowed}`
+      }),
       bullet: true,
     })
 

@@ -317,18 +317,20 @@ export function collectMatrixAxes(matrixBlock: BlockNode): string[] {
   return collectMatrixAxisSpecs(matrixBlock).map((axis) => axis.name)
 }
 
-/** One captured `axis { name … values … }` entry of a matrix block. */
+/** One captured `axis { name … values … notValues … }` entry of a matrix. */
 export interface MatrixAxisSpec {
   name: string
   values: string[]
+  /** Values this axis refuses; Jenkins excludes any combo carrying one. */
+  notValues: string[]
 }
 
 /**
- * String literals following a `values` keyword in one statement, tolerating
+ * String literals following the given keyword in one statement, tolerating
  * both `values 'a', 'b'` and list forms; stops at the first non-separator.
  */
-function collectValueStrings(tokens: readonly Token[]): string[] {
-  const valuesIdx = tokens.findIndex((t) => t.type === 'ident' && t.value === 'values')
+function collectKeywordStrings(tokens: readonly Token[], keyword: string): string[] {
+  const valuesIdx = tokens.findIndex((t) => t.type === 'ident' && t.value === keyword)
   if (valuesIdx < 0) return []
   const out: string[] = []
   for (let k = valuesIdx + 1; k < tokens.length; k += 1) {
@@ -339,6 +341,21 @@ function collectValueStrings(tokens: readonly Token[]): string[] {
     else break
   }
   return out
+}
+
+/**
+ * String literals following a `values` keyword in one axis statement.
+ */
+function collectValueStrings(tokens: readonly Token[]): string[] {
+  return collectKeywordStrings(tokens, 'values')
+}
+
+/**
+ * String literals following a `notValues` keyword in one axis statement -
+ * Jenkins' per-axis exclusion list, honored by the combination math.
+ */
+function collectNotValueStrings(tokens: readonly Token[]): string[] {
+  return collectKeywordStrings(tokens, 'notValues')
 }
 
 /** First direct child block led by the given keyword, if any. */
@@ -362,15 +379,20 @@ export function collectMatrixAxisSpecs(matrixBlock: BlockNode): MatrixAxisSpec[]
     if (!item.block || !startsWithKeyword(item.tokens, 'axis')) continue
     let name: string | undefined
     const values: string[] = []
+    const notValues: string[] = []
     for (const inner of flattenScope(item.block.children)) {
       const tokens = inner.tokens
       const nameIdx = tokens.findIndex((t) => t.type === 'ident' && t.value === 'name')
       const nameValue = nameIdx >= 0 ? tokens[nameIdx + 1] : undefined
       if (name === undefined && nameValue?.type === 'string') name = nameValue.value
       values.push(...collectValueStrings(tokens))
-      if (inner.block) values.push(...collectValueStrings(inner.block.header))
+      notValues.push(...collectNotValueStrings(tokens))
+      if (inner.block) {
+        values.push(...collectValueStrings(inner.block.header))
+        notValues.push(...collectNotValueStrings(inner.block.header))
+      }
     }
-    if (name !== undefined) specs.push({ name, values })
+    if (name !== undefined) specs.push({ name, values, notValues })
   }
   return specs
 }
@@ -430,6 +452,28 @@ export function collectMatrixCellSteps(matrixBlock: BlockNode, ctx: InterpretCon
   return steps
 }
 
+/**
+ * The real nested stages a matrix runs in every cell, interpreted as proper
+ * StageNodes under ids RELATIVE to the matrix (`c0`, `c1/p0`, …). Expansion
+ * re-roots clones of this chain under each combination so lanes keep their
+ * actual sequential shape; ids are prefixed per lane at layout time, which
+ * keeps them unique and deterministic across re-parses.
+ */
+export function collectMatrixCellStages(
+  matrixBlock: BlockNode,
+  ctx: InterpretContext,
+): StageNode[] {
+  const stagesBlock = childBlock(matrixBlock, 'stages')
+  if (!stagesBlock) return []
+  const stages: StageNode[] = []
+  for (const item of flattenScope(stagesBlock.children)) {
+    if (item.block && startsWithKeyword(item.tokens, 'stage')) {
+      stages.push(interpretStage(item.block, `c${stages.length}`, ctx))
+    }
+  }
+  return stages
+}
+
 function warn(ctx: InterpretContext, message: string, line: number): void {
   ctx.diagnostics.push({ severity: 'warning', message, line })
 }
@@ -464,6 +508,10 @@ export function interpretStage(
     id,
     name: headerName.length > 0 ? headerName : '(unnamed stage)',
     line: block.header[0]?.line ?? block.openLine,
+    // Source span end: diagnostics landing mid-body map back to this card.
+    ...(block.endLine >= (block.header[0]?.line ?? block.openLine)
+      ? { endLine: block.endLine }
+      : {}),
     steps: [],
   }
 
@@ -512,10 +560,15 @@ export function interpretStage(
           if (specs.some((axis) => axis.values.length > 0)) {
             stage.matrixAxisValues = specs.map((axis) => axis.values)
           }
+          if (specs.some((axis) => axis.notValues.length > 0)) {
+            stage.matrixAxisNotValues = specs.map((axis) => axis.notValues)
+          }
           const excludes = collectMatrixExcludes(item.block)
           if (excludes.length > 0) stage.matrixExcludes = excludes
           const cellSteps = collectMatrixCellSteps(item.block, ctx)
           if (cellSteps.length > 0) stage.matrixCellSteps = cellSteps
+          const cellStages = collectMatrixCellStages(item.block, ctx)
+          if (cellStages.length > 0) stage.matrixCellStages = cellStages
         }
         break
       }
