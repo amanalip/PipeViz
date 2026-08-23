@@ -94,28 +94,39 @@ function SelectionBridge({
  * Headless child inside <ReactFlow> that pushes graph updates into the live
  * instance. Remounting the flow on every fresh parse reset the camera, so
  * nodes/edges now flow through setNodes/setEdges and the viewport stays
- * where the user left it. The one exception: when the canvas goes from
- * empty to populated (first pipeline lands), fit once like a mount would.
+ * where the user left it. First population and explicit whole-graph changes
+ * request a fresh fit through fitKey.
  */
-function GraphSync({ nodes, edges }: { nodes: FlowNode[]; edges: FlowEdge[] }) {
+function GraphSync({
+  nodes,
+  edges,
+  fitKey,
+}: {
+  nodes: FlowNode[]
+  edges: FlowEdge[]
+  fitKey: number
+}) {
   const { setNodes, setEdges, fitView } = useReactFlow<FlowNode, FlowEdge>()
   // Starts true: a freshly mounted canvas counts as "was empty", so both
   // mount-already-populated and empty -> populated transitions fit once.
   const wasEmpty = useRef(true)
+  const previousFitKey = useRef(fitKey)
   useEffect(() => {
+    const fitRequested = previousFitKey.current !== fitKey
+    previousFitKey.current = fitKey
     setNodes(nodes)
     setEdges(edges)
     if (nodes.length === 0 && edges.length === 0) {
       wasEmpty.current = true
       return
     }
-    if (!wasEmpty.current) return
+    if (!wasEmpty.current && !fitRequested) return
     wasEmpty.current = false
     // Let React Flow commit and measure the freshly-set nodes before
     // framing them.
     const frame = window.requestAnimationFrame(() => fitView({ padding: 0.2, maxZoom: 1 }))
     return () => window.cancelAnimationFrame(frame)
-  }, [nodes, edges, setNodes, setEdges, fitView])
+  }, [nodes, edges, fitKey, setNodes, setEdges, fitView])
   return null
 }
 
@@ -131,6 +142,8 @@ interface FlowCanvasProps {
   expandMatrix?: boolean
   /** Active color scheme; picks edge/dot/minimap palettes + RF chrome. */
   theme?: Theme
+  /** Incremented when a whole-source or shape replacement should refit. */
+  fitKey?: number
 }
 
 /**
@@ -192,6 +205,7 @@ export function FlowCanvas({
   onStageDoubleClick,
   expandMatrix = false,
   theme = 'dark',
+  fitKey = 0,
 }: FlowCanvasProps) {
   const hostRef = useRef<HTMLDivElement>(null)
   // Fresh RF objects per (model, layout); memo keeps StrictMode double
@@ -230,7 +244,7 @@ export function FlowCanvas({
         colorMode={theme}
       >
         <SelectionBridge apiRef={apiRef} hostRef={hostRef} />
-        <GraphSync nodes={graph.nodes} edges={graph.edges} />
+        <GraphSync nodes={graph.nodes} edges={graph.edges} fitKey={fitKey} />
         <Background
           variant={BackgroundVariant.Dots}
           gap={22}

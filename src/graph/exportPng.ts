@@ -85,6 +85,9 @@ export async function exportCanvasPng({
     backgroundColor,
     width,
     height,
+    // frameFor already applies the requested density to width and height.
+    // Pin the rasterizer to one so devicePixelRatio cannot multiply it again.
+    pixelRatio: 1,
     style: {
       width: `${width}px`,
       height: `${height}px`,

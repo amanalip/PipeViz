@@ -7,11 +7,16 @@
 // and guarded against degenerate bounds.
 // ---------------------------------------------------------------------------
 
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
+import type { Node } from '@xyflow/react'
+
+const { toPngMock } = vi.hoisted(() => ({ toPngMock: vi.fn() }))
+vi.mock('html-to-image', () => ({ toPng: toPngMock }))
 
 import {
   PNG_MAX_EDGE,
   PNG_MIN_EDGE,
+  exportCanvasPng,
   frameFor,
 } from './exportPng'
 
@@ -49,5 +54,39 @@ describe('frameFor', () => {
     const half = frameFor(800, 600, 0.5)
     expect(half.width).toBeLessThan(full.width)
     expect(half.height).toBeLessThan(full.height)
+  })
+})
+
+describe('exportCanvasPng', () => {
+  it('prevents devicePixelRatio from scaling the prepared frame again', async () => {
+    const click = vi.fn()
+    vi.stubGlobal('document', {
+      createElement: () => ({ href: '', download: '', click }),
+    })
+    toPngMock.mockResolvedValue('data:image/png;base64,ok')
+    const nodes: Node[] = [
+      {
+        id: 'n',
+        position: { x: 0, y: 0 },
+        data: {},
+        width: 220,
+        height: 72,
+        measured: { width: 220, height: 72 },
+      },
+    ]
+
+    await exportCanvasPng({
+      nodes,
+      viewport: {} as HTMLElement,
+      backgroundColor: '#000',
+      pixelRatio: 2,
+    })
+
+    expect(toPngMock).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ pixelRatio: 1 }),
+    )
+    expect(click).toHaveBeenCalledOnce()
+    vi.unstubAllGlobals()
   })
 })

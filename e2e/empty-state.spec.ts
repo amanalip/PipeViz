@@ -97,6 +97,35 @@ test.describe('empty-state input paths', () => {
     await expect(page.locator('.empty-state')).toBeHidden()
   })
 
+  test('Upload refuses decoded text beyond the visualization limit', async ({ page }) => {
+    const chooserPromise = page.waitForEvent('filechooser')
+    await page.locator('.empty-state').getByRole('button', { name: 'Upload' }).click()
+    const chooser = await chooserPromise
+    await chooser.setFiles({
+      name: 'Jenkinsfile',
+      mimeType: 'text/plain',
+      buffer: Buffer.from('x'.repeat(262_145), 'utf8'),
+    })
+
+    await expect(page.getByRole('alert')).toContainText('256 KB visualization limit')
+    await expect(page.locator('.empty-state')).toBeVisible()
+    await expect(page.locator('.cm-content .cm-placeholder')).toBeVisible()
+  })
+
+  test('Upload reports unsupported filenames after an unrestricted pick', async ({ page }) => {
+    const chooserPromise = page.waitForEvent('filechooser')
+    await page.locator('.empty-state').getByRole('button', { name: 'Upload' }).click()
+    const chooser = await chooserPromise
+    await chooser.setFiles({
+      name: 'pipeline.json',
+      mimeType: 'application/json',
+      buffer: Buffer.from('{}', 'utf8'),
+    })
+
+    await expect(page.getByRole('alert')).toContainText('not a supported Jenkinsfile')
+    await expect(page.locator('.empty-state')).toBeVisible()
+  })
+
   test('Samples chip drops the menu down and a pick loads the graph', async ({ page }) => {
     await page.locator('.empty-state').getByRole('button', { name: 'Samples' }).click()
 

@@ -44,6 +44,45 @@ test.describe('sample picker dropdown', () => {
 
     await expect(page.locator('.react-flow__node .stage-card').first()).toBeVisible()
   })
+
+  test('sample replacement clears a divergent inbound share hash', async ({ page }) => {
+    const shared = "pipeline { stages { stage('Shared') { steps { echo 'old' } } } }"
+    const payload = Buffer.from(shared, 'utf8').toString('base64url')
+    await page.goto(`/#pv1=${payload}`)
+    await expect(page.locator('.cm-content')).toContainText("stage('Shared')")
+
+    await page.getByRole('button', { name: 'Samples ▾' }).click()
+    await page.getByRole('listbox').getByRole('option', { name: 'Simple CI' }).click()
+
+    await expect(page.locator('.cm-content')).toContainText("stage('Build')")
+    await expect.poll(() => page.evaluate(() => window.location.hash)).toBe('')
+  })
+
+  test('whole graph replacements refit after the user pans away', async ({ page }) => {
+    await page.goto('/')
+    await page.getByRole('button', { name: 'Samples ▾' }).click()
+    await page.getByRole('listbox').getByRole('option', { name: 'Simple CI' }).click()
+
+    const pane = page.locator('.react-flow__pane')
+    const box = await pane.boundingBox()
+    if (!box) throw new Error('React Flow pane not visible')
+    for (let attempt = 0; attempt < 4; attempt += 1) {
+      await page.mouse.move(box.x + 100, box.y + box.height / 2)
+      await page.mouse.down()
+      await page.mouse.move(box.x + box.width - 100, box.y + box.height / 2, { steps: 5 })
+      await page.mouse.up()
+    }
+    await expect(
+      page.locator('.react-flow__node .stage-card', { hasText: 'Build' }).first(),
+    ).not.toBeInViewport()
+
+    await page.getByRole('button', { name: 'Samples ▾' }).click()
+    await page.getByRole('listbox').getByRole('option', { name: 'Parallel Tests' }).click()
+
+    await expect(
+      page.locator('.react-flow__node .stage-card', { hasText: 'Unit' }).first(),
+    ).toBeInViewport()
+  })
 })
 
 test.describe('stage card selection', () => {

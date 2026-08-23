@@ -113,6 +113,45 @@ describe('tokenize - strings', () => {
     expect(tokens[0]?.value).toBe('x ${NAME} y')
   })
 
+  it('protects braces inside slashy and dollar-slashy strings', () => {
+    const slashy = tokenize('echo /}/\nstage after')
+    expect(slashy.diagnostics).toEqual([])
+    expect(slashy.tokens.map((token) => [token.type, token.value])).toEqual([
+      ['ident', 'echo'],
+      ['string', '}'],
+      ['ident', 'stage'],
+      ['ident', 'after'],
+    ])
+
+    const dollarSlashy = tokenize('echo $/{ "key": "}" }/$\nstage after')
+    expect(dollarSlashy.diagnostics).toEqual([])
+    expect(dollarSlashy.tokens[1]).toMatchObject({
+      type: 'string',
+      value: '{ "key": "}" }',
+    })
+    expect(dollarSlashy.tokens.filter((token) => token.type === 'punct')).toEqual([])
+  })
+
+  it('keeps division operators outside slashy contexts', () => {
+    expect(tokenize('ratio = total/parts').tokens.map((token) => token.value)).toEqual([
+      'ratio',
+      '=',
+      'total',
+      '/',
+      'parts',
+    ])
+  })
+
+  it('keeps division inside slashy interpolation inside the string', () => {
+    const { tokens, diagnostics } = tokenize('echo /ratio ${total / parts} and }/')
+    expect(diagnostics).toEqual([])
+    expect(tokens).toHaveLength(2)
+    expect(tokens[1]).toMatchObject({
+      type: 'string',
+      value: 'ratio ${total / parts} and }',
+    })
+  })
+
   it('flags unterminated single-line strings as errors and recovers at newline', () => {
     const { tokens, diagnostics } = tokenize("sh 'abc\necho ok")
     expect(diagnostics).toEqual([
@@ -182,6 +221,12 @@ describe('tokenize - positions', () => {
       ['b', 2],
       ['c', 5],
     ])
+  })
+
+  it('counts escaped newlines inside triple-quoted strings', () => {
+    const src = "sh '''first\\\nsecond'''\nstage('After') {}"
+    const { tokens } = tokenize(src)
+    expect(tokens.find((token) => token.value === 'stage')?.line).toBe(3)
   })
 
   it('sets nlBefore only across newlines, not spaces or tabs', () => {

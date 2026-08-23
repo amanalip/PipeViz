@@ -108,6 +108,28 @@ const UPLOAD_ERROR_MS = 5000
  */
 export const MAX_UPLOAD_BYTES = 1024 * 1024
 
+/** Filenames accepted after the unrestricted native picker returns. */
+function isAcceptedUploadName(name: string): boolean {
+  const normalized = name.toLowerCase()
+  return (
+    normalized === 'jenkinsfile' ||
+    normalized.endsWith('.jenkinsfile') ||
+    normalized.endsWith('.groovy') ||
+    normalized.endsWith('.txt')
+  )
+}
+
+/** Remove an inbound share payload once local content diverges from it. */
+function clearDivergentShareHash(nextSource: string): void {
+  const hash = window.location.hash
+  if (!isShareHash(hash) || readHashSource(hash) === nextSource) return
+  window.history.replaceState(
+    null,
+    '',
+    `${window.location.pathname}${window.location.search}`,
+  )
+}
+
 /**
  * App renders the three-region layout from the UI spec (plan section 10):
  * header / workspace (editor + canvas) / diagnostics bar.
@@ -140,6 +162,9 @@ export default function App() {
   // M6 view preference: expand matrix stages into one card per axis combo
   // (mockups §10). Session-only; flipping it re-fits and clears selection.
   const [expandMatrix, setExpandMatrix] = useState(false)
+  // Whole-source replacements and matrix shape changes request a fresh fit.
+  // Ordinary debounced edits preserve the user's current camera.
+  const [fitGraphVersion, setFitGraphVersion] = useState(0)
   // Empty-state Paste chip guidance (§4): shown when the clipboard could
   // not be read, pointing at the manual Ctrl+V path. Auto-clears.
   const [pasteHint, setPasteHint] = useState(false)
@@ -177,10 +202,7 @@ export default function App() {
       // payload only sits there because a link was opened, so once edits
       // diverge from it, strip it back to the bare page URL. Encoded links
       // exist solely in the clipboard, built fresh by Copy Link.
-      const nextHash = sourceToHash(source)
-      if (window.location.hash !== '' && window.location.hash !== nextHash) {
-        window.history.replaceState(null, '', `${window.location.pathname}${window.location.search}`)
-      }
+      clearDivergentShareHash(source)
     }, REPARSE_DEBOUNCE_MS)
     return () => window.clearTimeout(timer)
   }, [source, settledSource])
@@ -244,6 +266,7 @@ export default function App() {
       setSettledSource(shared) // settle immediately, like a shared-link boot
       setSelectedId(null)
       setSampleName(sample?.name ?? null)
+      setFitGraphVersion((version) => version + 1)
     }
     window.addEventListener('hashchange', onHashChange)
     return () => window.removeEventListener('hashchange', onHashChange)
@@ -406,10 +429,12 @@ export default function App() {
    * Provenance records which sample the text came from.
    */
   function pickSample(sample: Sample) {
+    clearDivergentShareHash(sample.source)
     setSampleName(sample.name)
     setSource(sample.source)
     setSettledSource(sample.source)
     setSelectedId(null)
+    setFitGraphVersion((version) => version + 1)
   }
 
   /**
@@ -417,6 +442,7 @@ export default function App() {
    * from any named sample, so provenance drops and the caption goes quiet.
    */
   function changeSource(next: string) {
+    clearDivergentShareHash(next)
     setSampleName(null)
     setSource(next)
   }
@@ -456,15 +482,29 @@ export default function App() {
     const file = event.target.files?.[0]
     event.target.value = ''
     if (!file) return
+    if (!isAcceptedUploadName(file.name)) {
+      setUploadError(`"${file.name}" is not a supported Jenkinsfile or text file`)
+      flashEditorPane()
+      return
+    }
     if (file.size > MAX_UPLOAD_BYTES) {
-      setUploadError(`"${file.name}" is over 1 MB — that is not a Jenkinsfile`)
+      setUploadError(`"${file.name}" is over 1 MB; that is not a Jenkinsfile`)
       flashEditorPane()
       return
     }
     try {
       const text = await file.text()
+      if (text.length > SOURCE_LENGTH_LIMIT) {
+        setUploadError(`"${file.name}" exceeds the 256 KB visualization limit`)
+        flashEditorPane()
+        return
+      }
+      clearDivergentShareHash(text)
       setSampleName(null)
       setSource(text)
+      setSettledSource(text)
+      setSelectedId(null)
+      setFitGraphVersion((version) => version + 1)
       setUploadError(null)
     } catch {
       setUploadError(`"${file.name}" could not be read`)
@@ -486,6 +526,7 @@ export default function App() {
     }
     const pending = source !== settledSource
     if (pending) {
+      clearDivergentShareHash(source)
       setSettledSource(source)
       setSelectedId(null)
     }
@@ -617,6 +658,12 @@ export default function App() {
     flashNode(stageForDiagnostic(layout.nodes, diagnostic.line)?.id ?? null)
   }
 
+  /** Matrix expansion changes graph geometry enough to warrant a fresh fit. */
+  function toggleMatrixExpansion() {
+    setExpandMatrix((value) => !value)
+    setFitGraphVersion((version) => version + 1)
+  }
+
   // ---- Render -------------------------------------------------------------
   return (
     <div className="app">
@@ -634,7 +681,6 @@ export default function App() {
               ref={fileInputRef}
               type="file"
               className="upload-input"
-              accept=".jenkinsfile,Jenkinsfile,.groovy,.txt"
               onChange={handleUploadFile}
               aria-hidden="true"
               tabIndex={-1}
@@ -766,7 +812,7 @@ export default function App() {
                   type="button"
                   className={expandMatrix ? 'btn canvas-toggle active' : 'btn canvas-toggle'}
                   disabled={!matrixExpandable}
-                  onClick={() => setExpandMatrix((value) => !value)}
+                  onClick={toggleMatrixExpansion}
                   aria-pressed={expandMatrix}
                   title={
                     matrixExpandable
@@ -792,6 +838,7 @@ export default function App() {
               onStageDoubleClick={(stage) => revealLine(stage.line)}
               expandMatrix={expandMatrix}
               theme={theme}
+              fitKey={fitGraphVersion}
             />
           ) : (
             <div className="empty-state">

@@ -87,8 +87,10 @@ function scanString(
         // Nested literal inside the expression: skip its contents wholesale.
         k += 1
         while (k < src.length && src.charAt(k) !== c) {
-          if (src.charAt(k) === '\\') k += 1
-          else if (src.charAt(k) === '\n') line += 1
+          if (src.charAt(k) === '\\') {
+            if (src.charAt(k + 1) === '\n') line += 1
+            k += 1
+          } else if (src.charAt(k) === '\n') line += 1
           k += 1
         }
       }
@@ -102,6 +104,7 @@ function scanString(
 
     // Backslash escape: swallow the escaped character verbatim.
     if (c === '\\') {
+      if (src.charAt(j + 1) === '\n') line += 1
       j += 2
       continue
     }
@@ -131,6 +134,97 @@ function scanString(
   }
 
   return { end: src.length, lineEnd: line, closed: false }
+}
+
+/**
+ * Consume a Groovy slashy `/.../` or dollar-slashy `$/.../$` literal.
+ * Both forms may span lines. Slashy strings use backslash escapes, while
+ * dollar-slashy strings use `$` as their escape character.
+ */
+function scanSlashyString(
+  src: string,
+  start: number,
+  lineAtStart: number,
+  dollarSlashy: boolean,
+): { end: number; lineEnd: number; closed: boolean } {
+  let line = lineAtStart
+  let j = start + (dollarSlashy ? 2 : 1)
+
+  while (j < src.length) {
+    const c = src.charAt(j)
+    const next = src.charAt(j + 1)
+
+    if (c === '\n') {
+      line += 1
+      j += 1
+      continue
+    }
+
+    // Slashy forms are GStrings. Consume interpolation as one unit so a
+    // division slash or delimiter-like text inside the expression cannot
+    // terminate the surrounding literal.
+    if (c === '$' && next === '{') {
+      let depth = 1
+      j += 2
+      while (j < src.length && depth > 0) {
+        const inner = src.charAt(j)
+        if (inner === '\n') line += 1
+        else if (inner === '{') depth += 1
+        else if (inner === '}') depth -= 1
+        else if (inner === "'" || inner === '"') {
+          const quote = inner
+          j += 1
+          while (j < src.length && src.charAt(j) !== quote) {
+            if (src.charAt(j) === '\\') {
+              if (src.charAt(j + 1) === '\n') line += 1
+              j += 1
+            } else if (src.charAt(j) === '\n') {
+              line += 1
+            }
+            j += 1
+          }
+        }
+        j += 1
+      }
+      continue
+    }
+
+    if (dollarSlashy) {
+      if (c === '/' && next === '$') {
+        return { end: j + 2, lineEnd: line, closed: true }
+      }
+      if (c === '$' && next !== '') {
+        if (next === '\n') line += 1
+        j += 2
+        continue
+      }
+    } else {
+      if (c === '/') return { end: j + 1, lineEnd: line, closed: true }
+      if (c === '\\' && next !== '') {
+        if (next === '\n') line += 1
+        j += 2
+        continue
+      }
+    }
+
+    j += 1
+  }
+
+  return { end: src.length, lineEnd: line, closed: false }
+}
+
+/** Resolve the common expression contexts where `/` opens a slashy string. */
+function canStartSlashy(source: string, offset: number, tokens: readonly Token[]): boolean {
+  const previous = tokens[tokens.length - 1]
+  if (!previous) return true
+
+  const gap = source.slice(previous.end, offset)
+  if (previous.type === 'ident' && /\s/.test(gap)) return true
+  if (previous.type !== 'punct') return false
+  return new Set([
+    '{', '(', '[', ',', ':', '=', ';', '+', '-', '*', '/', '%', '<', '>',
+    '&', '|', '!', '?', '^', '~', '==', '!=', '<=', '>=', '&&', '||', '?:',
+  ]).has(previous.value)
 }
 
 /**
@@ -193,6 +287,54 @@ export function tokenize(source: string): TokenizeResult {
           line: openLine,
         })
       }
+      continue
+    }
+
+    // ---- Slashy strings ---------------------------------------------------
+    // Dollar-slashy must win before identifier scanning because `$` is also
+    // legal at the start of a Groovy identifier.
+    if (ch === '$' && source.charAt(i + 1) === '/') {
+      const start = i
+      const startLine = line
+      const scanned = scanSlashyString(source, start, startLine, true)
+      line = scanned.lineEnd
+      const raw = source.slice(start, scanned.end)
+      const value = scanned.closed ? raw.slice(2, -2) : raw.slice(2)
+      tokens.push({ type: 'string', value, raw, start, end: scanned.end, line: startLine, nlBefore })
+      nlBefore = false
+      if (!scanned.closed) {
+        diagnostics.push({
+          severity: 'error',
+          message: 'Dollar-slashy string opened here is never closed',
+          line: startLine,
+        })
+      }
+      i = scanned.end
+      continue
+    }
+
+    if (
+      ch === '/' &&
+      canStartSlashy(source, i, tokens) &&
+      source.indexOf('/', i + 1) >= 0
+    ) {
+      const start = i
+      const startLine = line
+      const scanned = scanSlashyString(source, start, startLine, false)
+      line = scanned.lineEnd
+      const raw = source.slice(start, scanned.end)
+      const inner = scanned.closed ? raw.slice(1, -1) : raw.slice(1)
+      const value = inner.replace(/\\\//g, '/')
+      tokens.push({ type: 'string', value, raw, start, end: scanned.end, line: startLine, nlBefore })
+      nlBefore = false
+      if (!scanned.closed) {
+        diagnostics.push({
+          severity: 'error',
+          message: 'Slashy string opened here is never closed',
+          line: startLine,
+        })
+      }
+      i = scanned.end
       continue
     }
 

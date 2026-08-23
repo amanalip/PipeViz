@@ -583,6 +583,22 @@ describe('declarative - stage directives', () => {
 })
 
 describe('step classification', () => {
+  it('keeps slashy-string braces out of the block tree', () => {
+    const model = parse(
+      [
+        'pipeline {',
+        '  stages {',
+        "    stage('A') { steps { echo /}/ } }",
+        "    stage('B') { steps { echo 'ok' } }",
+        '  }',
+        '}',
+      ].join('\n'),
+    )
+    expect(model.rootStages.map((stage) => stage.name)).toEqual(['A', 'B'])
+    expect(stageNamed(model, 'A').steps[0]).toMatchObject({ name: 'echo', args: '/}/' })
+    expect(model.diagnostics).toEqual([])
+  })
+
   it('classifies known, unknown, and script-shaped statements', () => {
     const model = parse(
       [
