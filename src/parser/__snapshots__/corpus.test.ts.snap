@@ -490,7 +490,7 @@ exports[`corpus - invariants across every sample > scripted-classic: matches its
           "name": "Image",
           "steps": [
             {
-              "args": "build("app:\${version}")",
+              "args": ".build("app:\${version}")",
               "kind": "known",
               "line": 21,
               "name": "docker",

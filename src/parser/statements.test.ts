@@ -49,6 +49,23 @@ describe('splitStatements', () => {
     expect(split('X =\n  42')).toEqual(['X = 42'])
   })
 
+  it('continues statements ending in math and logical operators', () => {
+    expect(split('def total = a +\n  b * c\nnext')).toEqual([
+      'def total = a + b * c',
+      'next',
+    ])
+    expect(split('ok = ready &&\n  verified\necho done')).toEqual([
+      'ok = ready && verified',
+      'echo done',
+    ])
+  })
+
+  it('keeps fluent method chains glued to the previous line', () => {
+    // Leading-dot continuations: the chain belongs to the expression above.
+    const src = "docker.image('nginx')\n  .run()\necho after"
+    expect(split(src)).toEqual(["docker . image ( nginx ) . run ( )", 'echo after'])
+  })
+
   it('resumes splitting after depth returns to zero', () => {
     const src = "sh (\n  script: 'a',\n)\necho next"
     expect(split(src)).toEqual(['sh ( script : a , )', 'echo next'])

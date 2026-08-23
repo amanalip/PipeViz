@@ -30,9 +30,22 @@ describe('tokenize - basic stream', () => {
     expect(tokens.map((t) => t.value)).toEqual(['$var', '_under', 'dollar$'])
   })
 
-  it('skips characters outside the grammar (@, dots, ampersands) but keeps =', () => {
+  it('skips annotation markers but tokenizes operators and dots', () => {
+    // Operators and the method-chain dot are emitted as punct tokens so
+    // statement splitting can honor line continuations (statements.ts);
+    // '@' stays outside the grammar.
     const { tokens } = tokenize('@Library a.b == c && d')
-    expect(tokens.map((t) => t.value)).toEqual(['Library', 'a', 'b', '=', '=', 'c', 'd'])
+    expect(tokens.map((t) => t.value)).toEqual(['Library', 'a', '.', 'b', '==', 'c', '&&', 'd'])
+  })
+
+  it('prefers two-character operators over two single-character ones', () => {
+    const { tokens } = tokenize('a == b != c <= d >= e')
+    expect(tokens.filter((t) => t.type === 'punct').map((t) => t.value)).toEqual([
+      '==',
+      '!=',
+      '<=',
+      '>=',
+    ])
   })
 })
 

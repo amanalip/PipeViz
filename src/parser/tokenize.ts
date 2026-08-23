@@ -47,6 +47,14 @@ const IDENT_PART = /[A-Za-z0-9_$]/
 const PUNCT = new Set(['{', '}', '(', ')', '[', ']', ',', ':', '=', ';'])
 
 /**
+ * Operators emitted as punct tokens so statement splitting can honor line
+ * continuations (statements.ts). Two-character forms must be tested before
+ * the single-character PUNCT set, or `==` would split into two `=`.
+ */
+const OPERATORS2 = ['==', '!=', '<=', '>=', '&&', '||', '?.', '?:', '<<', '>>', '**']
+const OPERATORS1 = new Set(['+', '-', '*', '/', '%', '<', '>', '&', '|', '!', '?', '^', '~', '.'])
+
+/**
  * Consume one quoted literal starting at offset `start` (src[start] === quote).
  * Returns the offset just past the closing delimiter, the line number at
  * that point, and whether a real closing delimiter was found. Handles
@@ -240,15 +248,31 @@ export function tokenize(source: string): TokenizeResult {
     }
 
     // ---- Punctuation --------------------------------------------------------
+    // Two-character operators first, so '==' wins over two '=' tokens.
+    const pair = source.slice(i, i + 2)
+    if (OPERATORS2.includes(pair)) {
+      tokens.push({ type: 'punct', value: pair, raw: pair, start: i, end: i + 2, line, nlBefore })
+      nlBefore = false
+      i += 2
+      continue
+    }
     if (PUNCT.has(ch)) {
       tokens.push({ type: 'punct', value: ch, raw: ch, start: i, end: i + 1, line, nlBefore })
       nlBefore = false
       i += 1
       continue
     }
+    // Continuation-relevant single-character operators (statements.ts reads
+    // these); anything else stays untokenized.
+    if (OPERATORS1.has(ch)) {
+      tokens.push({ type: 'punct', value: ch, raw: ch, start: i, end: i + 1, line, nlBefore })
+      nlBefore = false
+      i += 1
+      continue
+    }
 
-    // Anything else (operators, dots, annotations' @, etc.) is not needed by
-    // the interpreter - raw text access goes through token offsets instead.
+    // Anything else (annotations' @, etc.) is not needed by the interpreter -
+    // raw text access goes through token offsets instead.
     i += 1
   }
 
