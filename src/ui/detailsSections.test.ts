@@ -97,6 +97,26 @@ describe('buildDetailSections', () => {
     ).toEqual(['POST · always'])
   })
 
+  it('matches matrix clone handlers through the parser-owned origin id', () => {
+    const handlers: PostHandler[] = [
+      {
+        condition: 'always',
+        steps: [step('echo', "'cleanup'")],
+        stage: 'Cell',
+        stageId: 'c0',
+      },
+    ]
+    const sections = buildDetailSections(
+      stage({ id: 's0/m0/c0', originId: 'c0', name: 'Cell' }),
+      handlers,
+    )
+    expect(sections).toContainEqual({
+      title: 'POST · always',
+      lines: ["echo 'cleanup'"],
+      bullet: true,
+    })
+  })
+
   it('still matches legacy name-only handlers (older exported models)', () => {
     const handlers: PostHandler[] = [
       { condition: 'always', steps: [step('echo')], stage: 'Ship' },

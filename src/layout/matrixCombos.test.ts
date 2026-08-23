@@ -207,6 +207,31 @@ describe('matrixCombinationCount', () => {
       matrixCombinationCount(matrixStage({ matrixAxes: ['A'], matrixAxisValues: [[]] })),
     ).toBe(0)
   })
+
+  it('counts huge fully excluded products symbolically', () => {
+    const values = Array.from({ length: 100 }, (_, index) => `v${index}`)
+    const stage = matrixStage({
+      matrixAxes: ['A', 'B', 'C', 'D'],
+      matrixAxisValues: [values, values, values, values],
+      matrixExcludes: [{ A: values }],
+    })
+    expect(matrixCombinationCount(stage)).toBe(0)
+    expect(matrixCombinationCount(stage, 1)).toBe(0)
+    expect(canExpandMatrix(stage)).toBe(false)
+  })
+
+  it('caps a small surviving slice without visiting the raw product', () => {
+    const values = Array.from({ length: 100 }, (_, index) => `v${index}`)
+    const stage = matrixStage({
+      matrixAxes: ['A', 'B', 'C', 'D'],
+      matrixAxisValues: [values, values, values, values],
+      matrixExcludes: [{ A: values.slice(0, 99) }],
+    })
+    expect(matrixCombinationCount(stage, MATRIX_CELL_LIMIT + 1)).toBe(
+      MATRIX_CELL_LIMIT + 1,
+    )
+    expect(canExpandMatrix(stage)).toBe(false)
+  })
 })
 
 describe('canExpandMatrix / MATRIX_CELL_LIMIT', () => {

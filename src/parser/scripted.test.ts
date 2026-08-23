@@ -91,6 +91,28 @@ describe('scripted interpretation', () => {
     expect(outer?.sequentialChildren?.map((c) => c.name)).toEqual(['inner'])
   })
 
+  it('does not duplicate a nested stage hidden behind wrapper blocks', () => {
+    const model = parse(
+      [
+        "stage('outer') {",
+        "  echo 'own'",
+        '  wrapper {',
+        '    retry(2) {',
+        "      stage('inner') { echo 'inside' }",
+        '    }',
+        '  }',
+        '}',
+      ].join('\n'),
+    )
+    const outer = model.rootStages[0]
+    expect(outer?.steps.map((step) => `${step.name}:${step.args ?? ''}`)).toEqual([
+      "echo:'own'",
+    ])
+    expect(outer?.sequentialChildren?.[0]?.steps.map((step) => step.args)).toEqual([
+      "'inside'",
+    ])
+  })
+
   it('assigns deterministic sequential ids in document order across nesting', () => {
     const src = [
       "node('n') {",

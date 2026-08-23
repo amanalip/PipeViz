@@ -41,6 +41,12 @@ export interface Step {
 export interface StageNode {
   /** Stable path-derived id, e.g. 's2/p1' - deterministic across re-parses. */
   id: string
+  /**
+   * Layout-only source id for a cloned matrix cell stage. The rendered id
+   * gains a combination prefix, while this id still matches parser-owned
+   * metadata such as stage-level post handlers.
+   */
+  originId?: string
   name: string
   line: number
   /**

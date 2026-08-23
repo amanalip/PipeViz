@@ -184,6 +184,7 @@ describe('layout - matrix-build, expanded (M6 toggle)', () => {
     expect(first.steps).toEqual([])
     const cell = first.sequentialChildren?.[0]
     expect(cell?.id).toBe('s1/m0/c0')
+    expect(cell?.originId).toBe('c0')
     expect(cell?.name).toBe('Cell')
     expect(cell?.steps).toEqual(req(model.rootStages[1]).matrixCellSteps)
     expect(cell?.steps.length).toBeGreaterThan(0)

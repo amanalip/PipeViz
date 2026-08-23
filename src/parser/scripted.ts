@@ -81,12 +81,14 @@ function findStages(root: BlockNode): FoundStage[] {
           block,
           parentStage,
           labelToken ? labelToken.value : nodeLabel,
-          ancestors.includes(block) ? ancestors : [...ancestors],
+          [...ancestors, block],
         )
         continue
       }
 
-      visit(block, parentStage, nodeLabel, ancestors)
+      // Keep every wrapper on the path. Step collection must skip a direct
+      // child wrapper when any nested stage owns that wrapper's contents.
+      visit(block, parentStage, nodeLabel, [...ancestors, block])
     }
   }
 

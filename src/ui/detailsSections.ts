@@ -66,9 +66,11 @@ export function buildDetailSections(
 
   for (const handler of postHandlers) {
     // Match by stable id when the parser recorded one (two stages may share
-    // a display name); fall back to the name for older exported models.
+    // a display name). Matrix clones retain their parser id as originId.
+    // Fall back to the name for older exported models.
+    const ownerId = stage.originId ?? stage.id
     const owned =
-      handler.stageId !== undefined ? handler.stageId === stage.id : handler.stage === stage.name
+      handler.stageId !== undefined ? handler.stageId === ownerId : handler.stage === stage.name
     if (!owned || handler.steps.length === 0) continue
     sections.push({
       title: `POST · ${handler.condition}`,

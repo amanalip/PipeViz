@@ -71,6 +71,17 @@ describe('splitStatements', () => {
     expect(split(src)).toEqual(['sh ( script : a , )', 'echo next'])
   })
 
+  it('keeps closing delimiters on their own lines with the open statement', () => {
+    expect(split("sh(\n  'build'\n)\necho done")).toEqual([
+      'sh ( build )',
+      'echo done',
+    ])
+    expect(split("def targets = [\n  'one'\n]\necho done")).toEqual([
+      'def targets = [ one ]',
+      'echo done',
+    ])
+  })
+
   it('never produces empty statements', () => {
     for (const src of ['', '\n\n', '; ;', 'a;\n;b', '( )']) {
       for (const stmt of splitStatements(tokenize(src).tokens)) {

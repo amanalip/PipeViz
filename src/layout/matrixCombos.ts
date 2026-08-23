@@ -56,12 +56,64 @@ export function computeMatrixCombos(stage: StageNode): string[][] {
   return combos.filter((combo) => rules.every((rule) => !excludedByRule(combo, names, rule)))
 }
 
+/** Maximum symbolic states explored before counting returns a conservative
+ * over-limit result. This keeps hostile rule sets from replacing cartesian
+ * explosion with exponential rule-state explosion. */
+export const MATRIX_COUNT_STATE_LIMIT = 10_000
+
+interface CountRule {
+  constraints: Map<number, ReadonlySet<string>>
+  lastAxis: number
+}
+
+/** Normalize excludes against the matrix's real axes and values. */
+function countRules(
+  stage: StageNode,
+  names: readonly string[],
+  values: readonly string[][],
+): CountRule[] {
+  const rules: CountRule[] = []
+  for (const rule of effectiveExcludes(stage)) {
+    const constraints = new Map<number, ReadonlySet<string>>()
+    let valid = Object.keys(rule).length > 0
+    for (const [axisName, forbidden] of Object.entries(rule)) {
+      const axis = names.indexOf(axisName)
+      if (axis < 0) {
+        valid = false
+        break
+      }
+      const available = new Set(forbidden.filter((value) => values[axis]?.includes(value)))
+      if (available.size === 0) {
+        valid = false
+        break
+      }
+      constraints.set(axis, available)
+    }
+    if (!valid || constraints.size === 0) continue
+    rules.push({ constraints, lastAxis: Math.max(...constraints.keys()) })
+  }
+  return rules
+}
+
+/** Product capped at a finite caller budget. */
+function cappedProduct(values: readonly number[], cap: number): number {
+  let product = 1
+  for (const value of values) {
+    product *= value
+    if (product >= cap) return cap
+  }
+  return product
+}
+
 /**
- * Number of surviving combinations, enumerated lazily WITHOUT materializing
- * them (the odometer holds one combination at a time). Stops as soon as
- * `beyond` survivors have been counted, so callers can bound the work:
- * existence checks pass 1, ceiling checks pass the limit, full counts pass
- * nothing. Same ordering and exclusion semantics as computeMatrixCombos.
+ * Number of surviving combinations without materializing or visiting every
+ * cartesian cell. Values are grouped by the exclude rules they still match,
+ * and equivalent suffix states are memoized. Fully excluded products resolve
+ * from a handful of states even when the raw product has billions of cells.
+ *
+ * Counting stops at `beyond`. If overlapping rules exceed the symbolic state
+ * budget, the result conservatively reaches that budget, keeping expansion
+ * disabled without blocking the UI thread.
  */
 export function matrixCombinationCount(stage: StageNode, beyond = Infinity): number {
   const names = stage.matrixAxes ?? []
@@ -69,33 +121,66 @@ export function matrixCombinationCount(stage: StageNode, beyond = Infinity): num
   if (names.length === 0 || valueColumns.length !== names.length) return 0
   if (valueColumns.some((values) => values.length === 0)) return 0
 
-  const rules = effectiveExcludes(stage)
+  const cap = Number.isFinite(beyond) ? Math.max(0, beyond) : Infinity
+  if (cap === 0) return 0
   const sizes = valueColumns.map((values) => values.length)
-  const total = sizes.reduce((product, size) => product * size, 1)
+  const rules = countRules(stage, names, valueColumns)
+  if (rules.length === 0) return cappedProduct(sizes, cap)
 
-  // Odometer over axis indexes, last axis fastest - identical order to the
-  // materialized list - so counts match computeMatrixCombos().length exactly.
-  let counted = 0
-  const combo = names.map((_, axis) => valueColumns[axis]?.[0] ?? '')
-  const index = names.map(() => 0)
-  for (let visited = 0; visited < total && counted < beyond; visited += 1) {
-    if (!rules.some((rule) => excludedByRule(combo, names, rule))) {
-      counted += 1
-      if (counted >= beyond) break
+  const suffixProducts = Array<number>(sizes.length + 1).fill(1)
+  for (let axis = sizes.length - 1; axis >= 0; axis -= 1) {
+    suffixProducts[axis] = Math.min(
+      cap,
+      (suffixProducts[axis + 1] ?? 1) * (sizes[axis] ?? 0),
+    )
+  }
+
+  const memo = new Map<string, number>()
+  let states = 0
+  let exhausted = false
+
+  const countFrom = (axis: number, active: readonly number[]): number => {
+    if (exhausted) return cap
+    if (active.length === 0) return suffixProducts[axis] ?? 1
+    if (active.some((ruleIndex) => (rules[ruleIndex]?.lastAxis ?? Infinity) < axis)) return 0
+    if (axis >= names.length) return 0
+
+    const key = `${axis}:${active.join(',')}`
+    const cached = memo.get(key)
+    if (cached !== undefined) return cached
+    states += 1
+    if (states > MATRIX_COUNT_STATE_LIMIT) {
+      exhausted = true
+      return cap
     }
-    for (let axis = names.length - 1; axis >= 0; axis -= 1) {
-      const size = sizes[axis] ?? 0
-      const nextIndex = (index[axis] ?? 0) + 1
-      if (nextIndex < size) {
-        index[axis] = nextIndex
-        combo[axis] = valueColumns[axis]?.[nextIndex] ?? ''
+
+    const groups = new Map<string, { active: number[]; multiplicity: number }>()
+    for (const value of valueColumns[axis] ?? []) {
+      const next = active.filter((ruleIndex) => {
+        const accepted = rules[ruleIndex]?.constraints.get(axis)
+        return accepted === undefined || accepted.has(value)
+      })
+      const signature = next.join(',')
+      const group = groups.get(signature)
+      if (group) group.multiplicity += 1
+      else groups.set(signature, { active: next, multiplicity: 1 })
+    }
+
+    let counted = 0
+    for (const group of groups.values()) {
+      counted += group.multiplicity * countFrom(axis + 1, group.active)
+      if (counted >= cap) {
+        counted = cap
         break
       }
-      index[axis] = 0
-      combo[axis] = valueColumns[axis]?.[0] ?? ''
     }
+
+    memo.set(key, counted)
+    return counted
   }
-  return counted
+
+  const counted = countFrom(0, rules.map((_, index) => index))
+  return exhausted ? cap : counted
 }
 
 /**

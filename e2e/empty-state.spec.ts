@@ -122,4 +122,14 @@ test.describe('empty-state input paths', () => {
 
     await expect(page.locator('.canvas-caption')).toHaveText('sample · Parallel Tests')
   })
+
+  test('oversized pasted source cannot bypass the Copy JSON parse guard', async ({ page }) => {
+    await page.context().grantPermissions(['clipboard-read', 'clipboard-write'])
+    await page.evaluate(() => navigator.clipboard.writeText('x'.repeat(262_145)))
+
+    await page.locator('.empty-state').getByRole('button', { name: 'Paste' }).click()
+
+    await expect(page.getByRole('alert')).toContainText('too large to visualize')
+    await expect(page.getByRole('button', { name: 'Copy JSON' })).toBeDisabled()
+  })
 })

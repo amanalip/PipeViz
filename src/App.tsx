@@ -480,6 +480,10 @@ export default function App() {
    * is what gets copied.
    */
   async function copyModelJson() {
+    if (source.length > SOURCE_LENGTH_LIMIT) {
+      setCopyState('failed')
+      return
+    }
     const pending = source !== settledSource
     if (pending) {
       setSettledSource(source)
@@ -648,7 +652,13 @@ export default function App() {
             <button
               type="button"
               className={copyState === 'copied' ? 'btn btn-copied' : 'btn'}
+              disabled={sourceTooLarge}
               onClick={copyModelJson}
+              title={
+                sourceTooLarge
+                  ? 'Unavailable because this source exceeds the visualization limit'
+                  : 'Copy the parsed pipeline model as JSON'
+              }
             >
               {copyState === 'copied' ? 'Copied ✓' : copyState === 'failed' ? 'Copy failed' : 'Copy JSON'}
             </button>

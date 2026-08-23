@@ -111,6 +111,7 @@ function cloneCellStages(stages: readonly StageNode[], lanePrefix: string): Stag
   return stages.map((stage) => ({
     ...stage,
     id: `${lanePrefix}/${stage.id}`,
+    originId: stage.originId ?? stage.id,
     ...(stage.parallelBranches
       ? { parallelBranches: cloneCellStages(stage.parallelBranches, lanePrefix) }
       : {}),

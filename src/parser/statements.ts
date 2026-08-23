@@ -78,16 +78,18 @@ export function splitStatements(tokens: readonly Token[]): Statement[] {
   }
 
   for (const token of tokens) {
-    if (token.type === 'punct') {
-      // Semicolons terminate immediately; other delimiters adjust depth.
-      if (token.value === ';' && parenDepth === 0 && bracketDepth === 0) {
-        flush()
-        continue
-      }
-      if (token.value === '(') parenDepth += 1
-      else if (token.value === ')') parenDepth = Math.max(0, parenDepth - 1)
-      else if (token.value === '[') bracketDepth += 1
-      else if (token.value === ']') bracketDepth = Math.max(0, bracketDepth - 1)
+    // Semicolons terminate immediately at top level. Delimiter depth is
+    // intentionally updated after the newline decision below. A closing
+    // paren or bracket on its own line still belongs to the statement that
+    // opened it, so its pre-token depth must suppress the boundary.
+    if (
+      token.type === 'punct' &&
+      token.value === ';' &&
+      parenDepth === 0 &&
+      bracketDepth === 0
+    ) {
+      flush()
+      continue
     }
 
     const prev = current[current.length - 1]
@@ -105,6 +107,13 @@ export function splitStatements(tokens: readonly Token[]): Statement[] {
 
     if (boundary) flush()
     current.push(token)
+
+    if (token.type === 'punct') {
+      if (token.value === '(') parenDepth += 1
+      else if (token.value === ')') parenDepth = Math.max(0, parenDepth - 1)
+      else if (token.value === '[') bracketDepth += 1
+      else if (token.value === ']') bracketDepth = Math.max(0, bracketDepth - 1)
+    }
   }
   flush()
 
