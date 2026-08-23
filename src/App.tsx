@@ -49,6 +49,7 @@ import type { Theme } from './theme'
 import { DiagnosticsBar } from './ui/DiagnosticsBar'
 import { DetailsPanel } from './ui/DetailsPanel'
 import { EditorPane } from './ui/EditorPane'
+import { PipelineDetailsPanel } from './ui/PipelineDetailsPanel'
 import type { EditorApi } from './ui/EditorPane'
 import { SamplePicker } from './ui/SamplePicker'
 import type { SamplePickerApi } from './ui/SamplePicker'
@@ -63,6 +64,7 @@ import {
   storeEditorWidth,
 } from './ui/editorResize'
 import { pipelineStats } from './ui/pipelineStats'
+import { pipelineMetadataBadges } from './ui/pipelineMetadata'
 
 // Repository URL for the header link; same repo this code lives in.
 const REPO_URL = 'https://github.com/amanalip/PipeViz'
@@ -191,6 +193,7 @@ export default function App() {
   // Currently selected card id, mirrored up from the canvas. Null means
   // nothing selected, which also means no details panel.
   const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [pipelineDetailsOpen, setPipelineDetailsOpen] = useState(false)
   // Copy JSON button feedback: idle -> copied/failed -> idle after a flash.
   const [copyState, setCopyState] = useState<'idle' | 'copied' | 'failed'>('idle')
   // Copy link button feedback (M6 URL hash sharing): same flash pattern.
@@ -371,6 +374,7 @@ export default function App() {
       setSource(shared)
       setSettledSource(shared) // settle immediately, like a shared-link boot
       setSelectedId(null)
+      setPipelineDetailsOpen(false)
       setSampleName(sample?.name ?? null)
       setFitGraphVersion((version) => version + 1)
     }
@@ -385,11 +389,9 @@ export default function App() {
     return () => window.clearTimeout(timer)
   }, [pngState])
 
-  // Matrix toggle and theme flips no longer remount the canvas: the graph
-  // data (and its palette) flows into the live React Flow instance, and the
-  // viewport stays put. Only the selection is dropped, since expanded ids
-  // (`<stage>/m<i>`) appear and vanish with the toggle. The ref skips the
-  // mount run.
+  // Matrix expansion changes node identities, so its selection must clear.
+  // Theme changes keep the same identities and preserve the selected node
+  // and its open toast card.
   const mounted = useRef(false)
   useEffect(() => {
     if (!mounted.current) {
@@ -397,7 +399,7 @@ export default function App() {
       return
     }
     setSelectedId(null)
-  }, [expandMatrix, theme])
+  }, [expandMatrix])
 
   // Reflect the theme on <html>, persist it, and keep browser chrome in
   // step (widget colors + mobile status bar).
@@ -440,6 +442,7 @@ export default function App() {
   // stable when a matrix is expanded. Matrix cells and their shared step
   // declarations are named separately instead of appearing as zero steps.
   const canvasStats = useMemo(() => pipelineStats(model.rootStages), [model])
+  const metadataBadges = useMemo(() => pipelineMetadataBadges(model), [model])
 
   // Diagnostic tallies drive the error state of the diagnostics bar.
   const problems = useMemo(() => {
@@ -516,6 +519,11 @@ export default function App() {
     setSelectedId(null)
   }
 
+  function selectCanvasNode(id: string | null) {
+    if (id !== null) setPipelineDetailsOpen(false)
+    setSelectedId(id)
+  }
+
   // ---- Header actions ------------------------------------------------------
 
   /**
@@ -532,6 +540,7 @@ export default function App() {
     setSource(sample.source)
     setSettledSource(sample.source)
     setSelectedId(null)
+    setPipelineDetailsOpen(false)
     setFitGraphVersion((version) => version + 1)
   }
 
@@ -543,6 +552,7 @@ export default function App() {
     clearDivergentShareHash(next)
     setSampleName(null)
     setDraftRecovered(false)
+    setPipelineDetailsOpen(false)
     setSource(next)
   }
 
@@ -605,6 +615,7 @@ export default function App() {
       setSource(text)
       setSettledSource(text)
       setSelectedId(null)
+      setPipelineDetailsOpen(false)
       setFitGraphVersion((version) => version + 1)
       setUploadError(null)
     } catch {
@@ -997,7 +1008,7 @@ export default function App() {
             how-to card. FlowCanvas fills the pane absolutely; React Flow
             provides its own dotted background and floating controls. */}
         <section
-          className={caption !== null || showMatrixToggle ? 'canvas-area has-toolbar' : 'canvas-area'}
+          className={caption !== null || showMatrixToggle || metadataBadges.length > 0 ? 'canvas-area has-toolbar' : 'canvas-area'}
           aria-label="Pipeline graph canvas"
         >
           {/* Canvas caption (§5/§8/§11) plus the M6 matrix toggle share one
@@ -1005,9 +1016,26 @@ export default function App() {
               text still is that sample and swaps to the honest parse-failed
               line whenever errors exist; the toggle only appears when the
               model actually carries an expandable matrix (§10). */}
-          {(caption !== null || showMatrixToggle) && (
+          {(caption !== null || showMatrixToggle || metadataBadges.length > 0) && (
             <div className="canvas-toolbar">
               {caption !== null && <div className="canvas-caption">{caption}</div>}
+              {metadataBadges.length > 0 && (
+                <button
+                  type="button"
+                  className={pipelineDetailsOpen ? 'btn pipeline-meta-trigger active' : 'btn pipeline-meta-trigger'}
+                  aria-expanded={pipelineDetailsOpen}
+                  onClick={() => {
+                    flowApi.current?.clearSelection()
+                    setSelectedId(null)
+                    setPipelineDetailsOpen((open) => !open)
+                  }}
+                  title="Open pipeline-level metadata inherited by stages"
+                >
+                  {metadataBadges.map((badge) => (
+                    <span key={badge.label} className="pipeline-meta-chip" title={badge.title}>{badge.label}</span>
+                  ))}
+                </button>
+              )}
               {showMatrixToggle && (
                 <button
                   type="button"
@@ -1034,7 +1062,7 @@ export default function App() {
             <FlowCanvas
               model={model}
               layout={layout}
-              onSelect={setSelectedId}
+              onSelect={selectCanvasNode}
               apiRef={flowApi}
               onStageDoubleClick={(stage) => revealLine(stage.line)}
               expandMatrix={expandMatrix}
@@ -1101,9 +1129,13 @@ export default function App() {
               stage={selectedStage ?? undefined}
               container={selectedContainer ?? undefined}
               postHandlers={model.postHandlers}
+              pipeline={model}
               onClose={closeDetailsPanel}
               onJumpToSource={revealLine}
             />
+          )}
+          {pipelineDetailsOpen && (
+            <PipelineDetailsPanel model={model} onClose={() => setPipelineDetailsOpen(false)} />
           )}
         </section>
       </main>

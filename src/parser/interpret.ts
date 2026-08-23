@@ -25,6 +25,7 @@ import type {
   PostHandler,
   StageNode,
   Step,
+  ToolEntry,
 } from '../model/types'
 
 /** Shared mutable context threaded through interpretation passes. */
@@ -278,8 +279,39 @@ export function readOptions(block: BlockNode, ctx: InterpretContext): OptionsEnt
   return options
 }
 
+/** Read `tools { jdk 'temurin-21' ... }` declarations. */
+export function readTools(block: BlockNode, ctx: InterpretContext): ToolEntry[] {
+  const tools: ToolEntry[] = []
+  for (const item of flattenScope(block.children)) {
+    const typeToken = item.tokens[0]
+    if (!typeToken || typeToken.type !== 'ident') continue
+    const configuredName = rawSlice(item.tokens.slice(1), ctx)
+    tools.push({
+      type: typeToken.value,
+      name: configuredName.length > 0 ? configuredName : '(unspecified)',
+      line: typeToken.line,
+    })
+  }
+  return tools
+}
+
+/** Preserve the meaningful configuration inside a stage `input` gate. */
+export function summarizeInput(item: ScopeItem, ctx: InterpretContext): string[] {
+  if (!item.block) {
+    const summary = rawSlice(item.tokens.slice(1), ctx)
+    return summary.length > 0 ? [summary] : ['configured']
+  }
+  const summaries: string[] = []
+  for (const directive of flattenScope(item.block.children)) {
+    let summary = rawSlice(directive.tokens, ctx)
+    if (directive.block) summary += ' { ... }'
+    if (summary.length > 0) summaries.push(summary)
+  }
+  return summaries.length > 0 ? summaries : ['configured']
+}
+
 /** Read `parameters { string(name: 'X', ...) }` declarations. */
-export function readParameters(block: BlockNode, _ctx: InterpretContext): ParameterEntry[] {
+export function readParameters(block: BlockNode, ctx: InterpretContext): ParameterEntry[] {
   const parameters: ParameterEntry[] = []
   for (const item of flattenScope(block.children)) {
     const typeToken = item.tokens[0]
@@ -301,7 +333,20 @@ export function readParameters(block: BlockNode, _ctx: InterpretContext): Parame
         break
       }
     }
-    parameters.push({ name: name ?? '(unnamed)', type: typeToken.value })
+    let args: string | undefined
+    if (item.tokens[1]?.type === 'punct' && item.tokens[1].value === '(') {
+      const close = matchParen(item.tokens, 1)
+      if (close > 1) {
+        const rawArgs = rawSlice(item.tokens.slice(2, close), ctx)
+        if (rawArgs.length > 0) args = rawArgs
+      }
+    }
+    parameters.push({
+      name: name ?? '(unnamed)',
+      type: typeToken.value,
+      ...(args ? { args } : {}),
+      line: typeToken.line,
+    })
   }
   return parameters
 }
@@ -610,6 +655,7 @@ export function interpretStage(
       }
       case 'input': {
         stage.hasInput = true
+        stage.input = summarizeInput(item, ctx)
         break
       }
       case 'agent': {
@@ -621,11 +667,18 @@ export function interpretStage(
         if (item.block) readPostHandlers(item.block, ctx, { id: stage.id, name: stage.name })
         break
       }
-      case 'environment':
-      case 'tools':
-      case 'options':
-        // Recognized but not modeled on stage cards in v1; silently kept out.
+      case 'environment': {
+        if (item.block) stage.environmentEntries = readEnvironment(item.block, ctx)
         break
+      }
+      case 'tools': {
+        if (item.block) stage.tools = readTools(item.block, ctx)
+        break
+      }
+      case 'options': {
+        if (item.block) stage.options = readOptions(item.block, ctx)
+        break
+      }
       default: {
         // Unknown directive: generic capture keeps plugins visible (plan §6.3).
         stage.steps.push(...collectSteps([item], ctx))
@@ -670,6 +723,7 @@ export function interpretDeclarative(
     parameters: [],
     triggers: [],
     options: [],
+    tools: [],
     postHandlers: [],
     rootStages: [],
     unparsedRegions: [],
@@ -677,7 +731,7 @@ export function interpretDeclarative(
   }
 
   // Sections modeled but intentionally left out of v1 UI.
-  const silentSections = new Set(['library', 'tools'])
+  const silentSections = new Set(['library'])
 
   for (const item of flattenScope(pipelineBlock.children)) {
     switch (leadToken(item)?.value) {
@@ -692,6 +746,10 @@ export function interpretDeclarative(
       }
       case 'options': {
         if (item.block) model.options = readOptions(item.block, ctx)
+        break
+      }
+      case 'tools': {
+        if (item.block) model.tools = readTools(item.block, ctx)
         break
       }
       case 'parameters': {

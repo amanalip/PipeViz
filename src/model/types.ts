@@ -60,7 +60,15 @@ export interface StageNode {
   when?: string[]
   /** Agent summary for this stage, e.g. "docker: 'node:18'". */
   agent?: string
+  /** Environment entries declared at this stage, overriding pipeline scope. */
+  environmentEntries?: EnvironmentEntry[]
+  /** Tool installations requested specifically by this stage. */
+  tools?: ToolEntry[]
+  /** Stage-scoped Jenkins options such as timeout or retry. */
+  options?: OptionsEntry[]
   hasInput?: boolean
+  /** Display-ready directives declared inside the stage input gate. */
+  input?: string[]
   /** Lanes fanning out of this stage (from a `parallel` block). */
   parallelBranches?: StageNode[]
   /** Axis names when this stage is a `matrix`. */
@@ -126,6 +134,9 @@ export interface EnvironmentEntry {
 export interface ParameterEntry {
   name: string
   type: string
+  /** Complete raw argument list, including defaults, choices, and descriptions. */
+  args?: string
+  line: number
 }
 
 export interface Diagnostic {
@@ -137,6 +148,14 @@ export interface Diagnostic {
 export interface OptionsEntry {
   name: string
   args?: string
+  line: number
+}
+
+export interface ToolEntry {
+  /** Jenkins tool type, e.g. `jdk`, `maven`, or `gradle`. */
+  type: string
+  /** Raw configured tool name, quotes retained for an honest source summary. */
+  name: string
   line: number
 }
 
@@ -161,6 +180,7 @@ export interface PipelineModel {
   parameters: ParameterEntry[]
   triggers: string[]
   options: OptionsEntry[]
+  tools: ToolEntry[]
   postHandlers: PostHandler[]
   rootStages: StageNode[]
   /** Stage calls the structural pass could not render, in document order. */

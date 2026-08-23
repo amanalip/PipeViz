@@ -28,7 +28,7 @@ import type { PipelineModel, StageNode } from '../model/types'
 import { CANVAS_PALETTES } from '../theme'
 import type { Theme } from '../theme'
 import { categorize } from './categories'
-import { stagePrimaryLabel } from './stageBadges'
+import { stageBadgeRow, stageMetadataBadges } from './stageBadges'
 
 /** Data payload of a `stage` card node; StageNodeCard renders only this. */
 export interface StageCardData extends Record<string, unknown> {
@@ -50,6 +50,8 @@ export interface GroupContainerData extends Record<string, unknown> {
   failFast: boolean
   /** Axis names joined for the MATRIX header chip, e.g. `OS × BROWSER`. */
   matrixAxes?: string
+  /** Metadata declared on the structural parent stage. */
+  metadataBadges: string[]
 }
 
 /**
@@ -213,16 +215,18 @@ export function buildFlowGraph(
         ? matrixCombinationCount(parentStage)
         : 0)
     const grandparentId = parentOf.get(box.id) ?? null
+    const metadataBadges = parentStage ? stageMetadataBadges(parentStage) : []
+    const metadataAria = metadataBadges.length > 0 ? `, ${metadataBadges.join(', ')}` : ''
     // Screen-reader copy per the a11y audit (#21): name the group shape,
     // its owner, size, and failFast instead of letting React Flow fall
     // back to opaque node ids.
     const ariaLabel = expandedMatrix
       ? `Matrix group ${parentStage?.name ?? box.id}, axes ${axesLabel(parentStage)}, ${branchCount} ${branchCount === 1 ? 'combination' : 'combinations'}${
           parentStage?.failFast ? ', fail fast' : ''
-        }`
+        }${metadataAria}`
       : `Parallel group ${parentStage?.name ?? box.id}, ${branchCount} ${branchCount === 1 ? 'branch' : 'branches'}${
           parentStage?.failFast ? ', fail fast' : ''
-        }`
+        }${metadataAria}`
     nodes.push({
       id: box.id,
       type: 'groupContainer',
@@ -236,6 +240,7 @@ export function buildFlowGraph(
         // failFast belongs to the stage whatever shape it renders as -
         // expanded matrices used to swallow it here.
         failFast: parentStage?.failFast ?? false,
+        metadataBadges,
         ...(expandedMatrix && parentStage !== undefined
           ? { matrixAxes: axesLabel(parentStage) }
           : {}),
@@ -295,7 +300,7 @@ export function buildFlowGraph(
       type: 'stage',
       position: { x, y },
       style: { width: NODE_W, height: NODE_H },
-      ariaLabel: `${stage.name} stage, ${stagePrimaryLabel(stage)}, line ${stage.line}`,
+      ariaLabel: `${stage.name} stage, ${stageBadgeRow(stage)}, line ${stage.line}`,
       data: { stage, category: categorize(stage.name) },
       ...(hostId ? { parentId: hostId } : {}),
     })

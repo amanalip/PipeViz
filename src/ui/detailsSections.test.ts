@@ -5,7 +5,7 @@
 import { describe, expect, it } from 'vitest'
 
 import type { PostHandler, StageNode, Step } from '../model/types'
-import { buildContainerSections, buildDetailSections, stepLabel } from './detailsSections'
+import { buildContainerSections, buildDetailSections, stepDetailLabel, stepLabel } from './detailsSections'
 
 function step(name: string, args?: string): Step {
   return { name, ...(args ? { args } : {}), kind: 'known', line: 1 }
@@ -35,6 +35,12 @@ describe('stepLabel', () => {
   })
 })
 
+describe('stepDetailLabel', () => {
+  it('adds source line and parser classification', () => {
+    expect(stepDetailLabel(step('junit', "'out/*.xml'"))).toBe("line 1 · known · junit 'out/*.xml'")
+  })
+})
+
 describe('buildDetailSections', () => {
   it('returns nothing for a bare stage - no stub rows (§9)', () => {
     expect(buildDetailSections(stage(), [])).toEqual([])
@@ -46,7 +52,7 @@ describe('buildDetailSections', () => {
       [],
     )
     expect(sections).toEqual([
-      { title: 'STEPS (2)', lines: ["sh 'make build'", 'checkout'], bullet: true },
+      { title: 'STEPS (2)', lines: ["line 1 · known · sh 'make build'", 'line 1 · known · checkout'], bullet: true },
     ])
   })
 
@@ -61,7 +67,50 @@ describe('buildDetailSections', () => {
 
   it('exposes the agent override as its own section', () => {
     const sections = buildDetailSections(stage({ agent: "docker: 'node:20-bookworm'" }), [])
-    expect(sections).toContainEqual({ title: 'AGENT', lines: ["docker: 'node:20-bookworm'"], bullet: false })
+    expect(sections).toContainEqual({ title: 'AGENT · STAGE OVERRIDE', lines: ["docker: 'node:20-bookworm'"], bullet: false })
+  })
+
+  it('shows stage environment, tools, options, and input configuration', () => {
+    const sections = buildDetailSections(
+      stage({
+        environmentEntries: [{ key: 'REGION', value: "'ca-central-1'", line: 4 }],
+        tools: [{ type: 'jdk', name: "'temurin-21'", line: 5 }],
+        options: [{ name: 'retry', args: '2', line: 6 }],
+        hasInput: true,
+        input: ["message 'Release?'", "submitter 'ops'"],
+      }),
+      [],
+    )
+    expect(sections).toEqual([
+      { title: 'ENVIRONMENT · STAGE (1)', lines: ["REGION = 'ca-central-1'"], bullet: true },
+      { title: 'TOOLS · STAGE (1)', lines: ["jdk 'temurin-21'"], bullet: true },
+      { title: 'OPTIONS · STAGE (1)', lines: ['retry(2)'], bullet: true },
+      { title: 'INPUT GATE', lines: ["message 'Release?'", "submitter 'ops'"], bullet: false },
+    ])
+  })
+
+  it('explains inherited agent and pipeline context on an ordinary stage', () => {
+    const pipeline = {
+      kind: 'declarative' as const,
+      agent: "label 'linux'",
+      environmentEntries: [{ key: 'REGION', value: "'ca'", line: 2 }],
+      tools: [{ type: 'jdk', name: "'temurin-21'", line: 3 }],
+      options: [{ name: 'timestamps', line: 4 }],
+      parameters: [],
+      triggers: [],
+      postHandlers: [],
+      rootStages: [],
+      unparsedRegions: [],
+      diagnostics: [],
+    }
+    expect(buildDetailSections(stage(), [], pipeline)).toEqual([
+      { title: 'AGENT · INHERITED', lines: ["label 'linux'"], bullet: false },
+      {
+        title: 'PIPELINE CONTEXT',
+        lines: ['1 pipeline environment entry', '1 pipeline tool', '1 pipeline option'],
+        bullet: true,
+      },
+    ])
   })
 
   it('shows only handlers scoped to the selected stage', () => {
@@ -78,7 +127,7 @@ describe('buildDetailSections', () => {
     ])
     expect(sections[0]).toEqual({
       title: 'POST · failure',
-      lines: ["mail to:'ops@example.com'"],
+      lines: ["line 1 · known · mail to:'ops@example.com'"],
       bullet: true,
     })
   })
@@ -112,7 +161,7 @@ describe('buildDetailSections', () => {
     )
     expect(sections).toContainEqual({
       title: 'POST · always',
-      lines: ["echo 'cleanup'"],
+      lines: ["line 1 · known · echo 'cleanup'"],
       bullet: true,
     })
   })
@@ -139,7 +188,7 @@ describe('buildDetailSections', () => {
     expect(sections.map((section) => section.title)).toEqual([
       'STEPS (1)',
       'WHEN',
-      'AGENT',
+      'AGENT · STAGE OVERRIDE',
       'POST · always',
     ])
   })

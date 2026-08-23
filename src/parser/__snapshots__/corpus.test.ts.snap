@@ -23,10 +23,14 @@ exports[`corpus - invariants across every sample > conditional-deploy: matches i
   ],
   "parameters": [
     {
+      "args": "name: 'TARGET_ENV', defaultValue: 'staging', description: 'Deployment target'",
+      "line": 11,
       "name": "TARGET_ENV",
       "type": "string",
     },
     {
+      "args": "name: 'MODE', choices: ['fast', 'full'], description: 'Build depth'",
+      "line": 12,
       "name": "MODE",
       "type": "choice",
     },
@@ -92,6 +96,10 @@ exports[`corpus - invariants across every sample > conditional-deploy: matches i
       "endLine": 40,
       "hasInput": true,
       "id": "s1",
+      "input": [
+        "message 'Deploy to production?'",
+        "ok 'Ship it'",
+      ],
       "line": 32,
       "name": "Approval Gate",
       "steps": [
@@ -121,6 +129,7 @@ exports[`corpus - invariants across every sample > conditional-deploy: matches i
       ],
     },
   ],
+  "tools": [],
   "triggers": [
     "cron('H 2 * * *')",
     "upstream(threshold: SUCCESS, upstreamProjects: 'lib/main')",
@@ -223,6 +232,7 @@ exports[`corpus - invariants across every sample > matrix-build: matches its mod
       ],
     },
   ],
+  "tools": [],
   "triggers": [],
   "unparsedRegions": [],
 }
@@ -342,6 +352,7 @@ curl -fsS "https://\${REGISTRY}/health" | grep -q ok || { echo unhealthy; exit 1
       ],
     },
   ],
+  "tools": [],
   "triggers": [],
   "unparsedRegions": [
     {
@@ -450,6 +461,7 @@ exports[`corpus - invariants across every sample > parallel-tests: matches its m
       ],
     },
   ],
+  "tools": [],
   "triggers": [],
   "unparsedRegions": [],
 }
@@ -562,6 +574,7 @@ exports[`corpus - invariants across every sample > scripted-classic: matches its
       ],
     },
   ],
+  "tools": [],
   "triggers": [],
   "unparsedRegions": [],
 }
@@ -675,6 +688,7 @@ exports[`corpus - invariants across every sample > sequential-groups: matches it
       ],
     },
   ],
+  "tools": [],
   "triggers": [],
   "unparsedRegions": [],
 }
@@ -776,6 +790,7 @@ exports[`corpus - invariants across every sample > simple-ci: matches its model 
       ],
     },
   ],
+  "tools": [],
   "triggers": [],
   "unparsedRegions": [],
 }

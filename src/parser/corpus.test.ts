@@ -110,9 +110,17 @@ describe('corpus - conditional-deploy', () => {
   const model = modelOf('conditional-deploy')
 
   it('reads parameters, triggers, and options', () => {
-    expect(model.parameters).toEqual([
-      { name: 'TARGET_ENV', type: 'string' },
-      { name: 'MODE', type: 'choice' },
+    expect(model.parameters.map(({ name, type, args }) => ({ name, type, args }))).toEqual([
+      {
+        name: 'TARGET_ENV',
+        type: 'string',
+        args: "name: 'TARGET_ENV', defaultValue: 'staging', description: 'Deployment target'",
+      },
+      {
+        name: 'MODE',
+        type: 'choice',
+        args: "name: 'MODE', choices: ['fast', 'full'], description: 'Build depth'",
+      },
     ])
     expect(model.triggers).toEqual([
       "cron('H 2 * * *')",

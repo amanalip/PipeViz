@@ -115,12 +115,13 @@ function GraphSync({
   // mount-already-populated and empty -> populated transitions fit once.
   const wasEmpty = useRef(true)
   const previousFitKey = useRef(fitKey)
+  useEffect(() => setNodes(nodes), [nodes, setNodes])
+  useEffect(() => setEdges(edges), [edges, setEdges])
+
   useEffect(() => {
     const fitRequested = previousFitKey.current !== fitKey
     previousFitKey.current = fitKey
-    setNodes(nodes)
-    setEdges(edges)
-    if (nodes.length === 0 && edges.length === 0) {
+    if (nodes.length === 0) {
       wasEmpty.current = true
       return
     }
@@ -130,7 +131,7 @@ function GraphSync({
     // framing them.
     const frame = window.requestAnimationFrame(() => fitView({ padding: 0.2, maxZoom: 1 }))
     return () => window.cancelAnimationFrame(frame)
-  }, [nodes, edges, fitKey, setNodes, setEdges, fitView])
+  }, [nodes, fitKey, fitView])
   return null
 }
 
@@ -165,11 +166,13 @@ function GroupContainerNodeView({ data }: NodeProps<GroupContainerNode>) {
             {data.matrixAxes && <span className="parallel-container-chip">{data.matrixAxes}</span>}
             <span className="parallel-container-chip">×{data.branchCount}</span>
             {data.failFast && <span className="parallel-container-chip">failFast</span>}
+            {data.metadataBadges.map((badge) => <span key={badge} className="parallel-container-chip">{badge}</span>)}
           </>
         ) : (
           <>
             <span className="parallel-container-chip">PAR ×{data.branchCount}</span>
             {data.failFast && <span className="parallel-container-chip">failFast</span>}
+            {data.metadataBadges.map((badge) => <span key={badge} className="parallel-container-chip">{badge}</span>)}
           </>
         )}
       </header>
@@ -214,10 +217,17 @@ export function FlowCanvas({
   const hostRef = useRef<HTMLDivElement>(null)
   // Fresh RF objects per (model, layout); memo keeps StrictMode double
   // renders and unrelated parent updates from rebuilding the graph data.
-  const flowOptions = useMemo(() => ({ expandMatrix, theme }), [expandMatrix, theme])
+  // Node identities and data do not depend on the palette. Keeping this
+  // array stable across theme changes preserves React Flow selection.
   const graph = useMemo(
-    () => buildFlowGraph(model, layout, flowOptions),
-    [model, layout, flowOptions],
+    () => buildFlowGraph(model, layout, { expandMatrix }),
+    [model, layout, expandMatrix],
+  )
+  const themedEdges = useMemo(
+    () => theme === 'dark'
+      ? graph.edges
+      : buildFlowGraph(model, layout, { expandMatrix, theme }).edges,
+    [graph.edges, model, layout, expandMatrix, theme],
   )
   const palette = CANVAS_PALETTES[theme]
 
@@ -227,7 +237,7 @@ export function FlowCanvas({
         // Initial graph data rides the uncontrolled defaults; every later
         // change arrives through GraphSync's setNodes/setEdges below.
         defaultNodes={graph.nodes}
-        defaultEdges={graph.edges}
+        defaultEdges={themedEdges}
         nodeTypes={NODE_TYPES}
         minZoom={0.15}
         maxZoom={2}
@@ -248,7 +258,7 @@ export function FlowCanvas({
         colorMode={theme}
       >
         <SelectionBridge apiRef={apiRef} hostRef={hostRef} />
-        <GraphSync nodes={graph.nodes} edges={graph.edges} fitKey={fitKey} />
+        <GraphSync nodes={graph.nodes} edges={themedEdges} fitKey={fitKey} />
         <Background
           variant={BackgroundVariant.Dots}
           gap={22}

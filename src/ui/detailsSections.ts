@@ -16,7 +16,7 @@
 // They remain visible in exported JSON and in the sample-picker badges.
 // ---------------------------------------------------------------------------
 
-import type { PostHandler, StageNode, Step } from '../model/types'
+import type { PipelineModel, PostHandler, StageNode, Step } from '../model/types'
 import { MATRIX_CELL_LIMIT, matrixCombinationCount } from '../layout/matrixCombos'
 import { stagePrimaryLabel } from '../graph/stageBadges'
 
@@ -38,6 +38,11 @@ export function stepLabel(step: Step): string {
   return step.args ? `${step.name} ${step.args}` : step.name
 }
 
+/** Inspector label with source provenance and parser classification. */
+export function stepDetailLabel(step: Step): string {
+  return `line ${step.line} · ${step.kind} · ${stepLabel(step)}`
+}
+
 /**
  * Build the panel sections for one stage. Sections whose content is empty
  * are dropped entirely - the mockup forbids stub rows. Handler order follows
@@ -46,13 +51,14 @@ export function stepLabel(step: Step): string {
 export function buildDetailSections(
   stage: StageNode,
   postHandlers: readonly PostHandler[],
+  pipeline?: PipelineModel,
 ): DetailSection[] {
   const sections: DetailSection[] = []
 
   if (stage.steps.length > 0) {
     sections.push({
       title: `STEPS (${stage.steps.length})`,
-      lines: stage.steps.map(stepLabel),
+      lines: stage.steps.map(stepDetailLabel),
       bullet: true,
     })
   }
@@ -62,7 +68,57 @@ export function buildDetailSections(
   }
 
   if (stage.agent) {
-    sections.push({ title: 'AGENT', lines: [stage.agent], bullet: false })
+    sections.push({ title: 'AGENT · STAGE OVERRIDE', lines: [stage.agent], bullet: false })
+  } else if (pipeline?.agent) {
+    sections.push({ title: 'AGENT · INHERITED', lines: [pipeline.agent], bullet: false })
+  }
+
+  if (stage.environmentEntries?.length) {
+    sections.push({
+      title: `ENVIRONMENT · STAGE (${stage.environmentEntries.length})`,
+      lines: stage.environmentEntries.map((entry) => `${entry.key} = ${entry.value}`),
+      bullet: true,
+    })
+  }
+
+  if (stage.tools?.length) {
+    sections.push({
+      title: `TOOLS · STAGE (${stage.tools.length})`,
+      lines: stage.tools.map((tool) => `${tool.type} ${tool.name}`),
+      bullet: true,
+    })
+  }
+
+  if (stage.options?.length) {
+    sections.push({
+      title: `OPTIONS · STAGE (${stage.options.length})`,
+      lines: stage.options.map((option) =>
+        option.args ? `${option.name}(${option.args})` : option.name,
+      ),
+      bullet: true,
+    })
+  }
+
+  if (stage.hasInput) {
+    sections.push({
+      title: 'INPUT GATE',
+      lines: stage.input?.length ? [...stage.input] : ['configured'],
+      bullet: false,
+    })
+  }
+
+  if (pipeline) {
+    const context: string[] = []
+    if (pipeline.environmentEntries.length) {
+      context.push(`${pipeline.environmentEntries.length} pipeline environment ${pipeline.environmentEntries.length === 1 ? 'entry' : 'entries'}`)
+    }
+    if (pipeline.tools.length) {
+      context.push(`${pipeline.tools.length} pipeline ${pipeline.tools.length === 1 ? 'tool' : 'tools'}`)
+    }
+    if (pipeline.options.length) {
+      context.push(`${pipeline.options.length} pipeline ${pipeline.options.length === 1 ? 'option' : 'options'}`)
+    }
+    if (context.length) sections.push({ title: 'PIPELINE CONTEXT', lines: context, bullet: true })
   }
 
   for (const handler of postHandlers) {
@@ -75,7 +131,7 @@ export function buildDetailSections(
     if (!owned || handler.steps.length === 0) continue
     sections.push({
       title: `POST · ${handler.condition}`,
-      lines: handler.steps.map(stepLabel),
+      lines: handler.steps.map(stepDetailLabel),
       bullet: true,
     })
   }

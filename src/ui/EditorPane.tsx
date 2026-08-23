@@ -59,48 +59,48 @@ interface EditorPaneProps {
  * class rules, the CSS variables re-resolve when [data-theme] flips.
  */
 const PIPEVIZ_HIGHLIGHT = HighlightStyle.define([
-  { tag: t.keyword, color: 'var(--accent)' },
-  { tag: t.controlKeyword, color: 'var(--accent)' },
-  { tag: t.moduleKeyword, color: 'var(--accent)' },
-  { tag: t.string, color: 'var(--success)' },
-  { tag: t.number, color: 'var(--warning)' },
-  { tag: t.comment, color: 'var(--ink-muted)', fontStyle: 'italic' },
-  { tag: t.definition(t.variableName), color: 'var(--accent-2)' },
-  { tag: t.variableName, color: 'var(--ink)' },
-  { tag: t.function(t.variableName), color: 'var(--accent-2)' },
-  { tag: t.operator, color: 'var(--ink-secondary)' },
-  { tag: t.punctuation, color: 'var(--ink-secondary)' },
+  { tag: t.keyword, color: 'var(--editor-keyword)', fontWeight: '600' },
+  { tag: t.controlKeyword, color: 'var(--editor-keyword)', fontWeight: '600' },
+  { tag: t.moduleKeyword, color: 'var(--editor-keyword)', fontWeight: '600' },
+  { tag: t.string, color: 'var(--editor-string)' },
+  { tag: t.number, color: 'var(--editor-number)' },
+  { tag: t.comment, color: 'var(--editor-muted)' },
+  { tag: t.definition(t.variableName), color: 'var(--editor-function)' },
+  { tag: t.variableName, color: 'var(--editor-ink)' },
+  { tag: t.function(t.variableName), color: 'var(--editor-function)' },
+  { tag: t.operator, color: 'var(--editor-secondary)' },
+  { tag: t.punctuation, color: 'var(--editor-secondary)' },
 ])
 
 /** Layout chrome: transparent surfaces so the pane's own background shows. */
 const PIPEVIZ_THEME = EditorView.theme({
   '&': {
     height: '100%',
-    fontSize: '13px',
+    fontSize: '13.5px',
     backgroundColor: 'transparent',
-    color: 'var(--ink)',
+    color: 'var(--editor-ink)',
   },
   '.cm-scroller': {
     fontFamily: 'var(--font-mono)',
-    lineHeight: '1.6',
+    lineHeight: '1.65',
     padding: '14px 0',
     overflow: 'auto',
   },
   '.cm-content': { caretColor: 'var(--accent)' },
   '.cm-gutters': {
     backgroundColor: 'transparent',
-    color: 'var(--ink-muted)',
-    border: 'none',
+    color: 'var(--editor-muted)',
+    borderRight: '1px solid var(--border)',
     paddingLeft: '12px',
   },
-  '.cm-activeLine': { backgroundColor: 'var(--accent-soft)' },
-  '.cm-activeLineGutter': { backgroundColor: 'transparent', color: 'var(--ink-secondary)' },
+  '.cm-activeLine': { backgroundColor: 'var(--editor-active-line)' },
+  '.cm-activeLineGutter': { backgroundColor: 'var(--editor-active-line)', color: 'var(--editor-ink)' },
   '.cm-selectionBackground, &.cm-focused .cm-selectionBackground': {
-    backgroundColor: 'var(--accent-glow)',
+    backgroundColor: 'var(--editor-selection)',
   },
   '.cm-cursor, .cm-dropCursor': { borderLeftColor: 'var(--accent)' },
   '&.cm-focused': { outline: 'none' },
-  '.cm-placeholder': { color: 'var(--ink-muted)' },
+  '.cm-placeholder': { color: 'var(--editor-muted)' },
 })
 
 export function EditorPane({ value, onChange, apiRef }: EditorPaneProps) {

@@ -20,6 +20,27 @@ export function stagePrimaryLabel(stage: StageNode): string {
   return count === 0 ? 'No steps' : `${count} ${count === 1 ? 'step' : 'steps'}`
 }
 
+/** Compact agent value for cards and summary chips, with full text in titles. */
+export function agentShortLabel(agent: string): string {
+  const label = agent.match(/^label\s+(['"])(.*?)\1/)
+  if (label?.[2]) return label[2]
+  if (/^dockerfile\b/i.test(agent)) return 'Dockerfile'
+  if (/^docker\b/i.test(agent)) return 'Docker'
+  if (/^kubernetes\b/i.test(agent)) return 'Kubernetes'
+  return agent
+}
+
+/** Metadata declared on this exact stage, excluding inherited pipeline scope. */
+export function stageMetadataBadges(stage: StageNode): string[] {
+  const badges: string[] = []
+  if (stage.agent) badges.push(`AGENT: ${agentShortLabel(stage.agent)}`)
+  if (stage.environmentEntries?.length) badges.push(`ENV ×${stage.environmentEntries.length}`)
+  if (stage.tools?.length) badges.push(`TOOLS ×${stage.tools.length}`)
+  if (stage.options?.length) badges.push(`OPT ×${stage.options.length}`)
+  if (stage.hasInput) badges.push('IN')
+  return badges
+}
+
 /** Build the compact summary displayed below a stage card's title. */
 export function stageBadgeRow(stage: StageNode): string {
   const badges = [stagePrimaryLabel(stage)]
@@ -32,6 +53,6 @@ export function stageBadgeRow(stage: StageNode): string {
   // show it on their container header instead.
   if (stage.failFast) badges.push('failFast')
   if (stage.sequentialChildren && stage.sequentialChildren.length > 0) badges.push('SEQ')
-  if (stage.hasInput) badges.push('IN')
+  badges.push(...stageMetadataBadges(stage))
   return badges.join(' · ')
 }

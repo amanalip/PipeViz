@@ -68,4 +68,18 @@ describe('stageBadgeRow', () => {
       ),
     ).toBe('No runnable cells · MATRIX')
   })
+
+  it('labels stage-scoped metadata without implying pipeline inheritance', () => {
+    expect(
+      stageBadgeRow(
+        stage({
+          steps: [{ name: 'sh', kind: 'known', line: 2 }],
+          agent: "label 'windows'",
+          environmentEntries: [{ key: 'MODE', value: "'ci'", line: 3 }],
+          tools: [{ type: 'jdk', name: "'temurin-21'", line: 4 }],
+          options: [{ name: 'timeout', args: "time: 5, unit: 'MINUTES'", line: 5 }],
+        }),
+      ),
+    ).toBe('1 step · AGENT: windows · ENV ×1 · TOOLS ×1 · OPT ×1')
+  })
 })

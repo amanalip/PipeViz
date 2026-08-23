@@ -102,11 +102,11 @@ describe('declarative - pipeline sections', () => {
       ].join('\n'),
     )
     expect(model.parameters).toEqual([
-      { name: 'TARGET', type: 'string' },
-      { name: 'DRY', type: 'booleanParam' },
-      { name: 'MODE', type: 'choice' },
-      { name: 'SECRET', type: 'password' },
-      { name: '(unnamed)', type: 'text' },
+      { name: 'TARGET', type: 'string', args: "name: 'TARGET', defaultValue: 'staging'", line: 3 },
+      { name: 'DRY', type: 'booleanParam', args: "name: 'DRY', defaultValue: false", line: 4 },
+      { name: 'MODE', type: 'choice', args: "name: 'MODE', choices: ['fast', 'full']", line: 5 },
+      { name: 'SECRET', type: 'password', args: "name: 'SECRET'", line: 6 },
+      { name: '(unnamed)', type: 'text', args: "defaultValue: 'unnamed one'", line: 7 },
     ])
   })
 
@@ -669,5 +669,38 @@ describe('declarative - structural integrity', () => {
     )
     const ids = allStages(model.rootStages).map((s) => s.id)
     expect(new Set(ids).size).toBe(ids.length)
+  })
+})
+
+describe('declarative metadata scopes', () => {
+  it('captures pipeline tools and detailed stage overrides', () => {
+    const model = parse(
+      [
+        'pipeline {',
+        "  agent { label 'linux' }",
+        "  tools { jdk 'temurin-21' }",
+        '  stages {',
+        "    stage('Release') {",
+        "      agent { label 'windows' }",
+        "      environment { MODE = 'release' }",
+        "      tools { gradle 'gradle-8' }",
+        "      options { timeout(time: 5, unit: 'MINUTES') }",
+        "      input { message 'Release?'; ok 'Ship' }",
+        "      steps { echo 'go' }",
+        '    }',
+        '  }',
+        '}',
+      ].join('\n'),
+    )
+    expect(model.agent).toBe("label 'linux'")
+    expect(model.tools).toEqual([{ type: 'jdk', name: "'temurin-21'", line: 3 }])
+    expect(stageNamed(model, 'Release')).toMatchObject({
+      agent: "label 'windows'",
+      environmentEntries: [{ key: 'MODE', value: "'release'", line: 7 }],
+      tools: [{ type: 'gradle', name: "'gradle-8'", line: 8 }],
+      options: [{ name: 'timeout', args: "time: 5, unit: 'MINUTES'", line: 9 }],
+      hasInput: true,
+      input: ["message 'Release?'", "ok 'Ship'"],
+    })
   })
 })

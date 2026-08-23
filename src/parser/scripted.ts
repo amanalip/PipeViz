@@ -118,6 +118,7 @@ export function interpretScripted(root: BlockNode, ctx: InterpretContext): Pipel
     parameters: [],
     triggers: [],
     options: [],
+    tools: [],
     postHandlers: [],
     rootStages: [],
     unparsedRegions: [],

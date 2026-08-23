@@ -35,7 +35,7 @@
 
 ## 1. What Is PipeViz
 
-PipeViz is a browser based tool that turns Jenkins pipeline definitions into an interactive visual graph. You paste or upload a Jenkinsfile, the app parses it entirely client side, and renders stages, parallel branches, matrix axes, conditions, and steps as a horizontal stage graph in the style made familiar by Jenkins Blue Ocean.
+PipeViz is a browser based tool that turns Jenkins pipeline definitions into an interactive visual graph. You paste or upload a Jenkinsfile, the app parses it entirely client side, and renders stages, parallel branches, matrix axes, conditions, steps, and scoped metadata as a horizontal stage graph in the style made familiar by Jenkins Blue Ocean.
 
 No backend, no accounts, no pipeline code leaving your machine. The whole thing is a static site hosted on GitHub Pages.
 
@@ -52,11 +52,12 @@ Shipped:
 
 ## 3. Features
 
-- Declarative pipeline support: stages, `parallel` blocks (with failFast), `matrix` blocks with axis values and excludes, sequential nested stages, `when` conditions, `input`, stage/pipeline `post` handlers, agent and environment metadata
+- Declarative pipeline support: stages, `parallel` blocks (with failFast), `matrix` blocks with axis values and excludes, sequential nested stages, `when` conditions, detailed `input` gates, stage/pipeline `post` handlers, agents, environment, tools, options, parameters, and triggers
+- Metadata scope clarity: pipeline metadata appears once above the graph; stage cards badge only local overrides, with complete values available in the pipeline or stage inspector
 - Matrix expansion toggle: one card per axis combination (exclude rules applied), or the compact MATRIX summary card
 - Share links: the pipeline rides in the URL hash, so a pasted Jenkinsfile is one "Copy link" away from being shared; opening such a link restores editor, graph, and even sample provenance
 - Export PNG: download the current graph as an image, framed by React Flow's own camera math (no controls or minimap in the shot)
-- Light and dark color schemes: dark is the default, the toggle persists locally
+- Light and dark color schemes: dark is the default, the toggle persists locally, and the code editor uses a dedicated high-contrast palette in both modes
 - Scripted pipeline fallback: detects `stage('name')` calls anywhere in Groovy and nests them by brace containment
 - Graceful failure: parse errors produce line-numbered diagnostics alongside a partial graph of whatever parsed — never a blank screen
 - Category stripes guessed from stage names: cyan build/test-violet/emerald-deploy/slate neutral
@@ -87,7 +88,8 @@ Versions verified against the npm registry on Saturday, 22 August 2026:
    - **Samples ▾** pick one of the seven bundled examples (including a deliberately broken one that demos diagnostics).
 3. The graph re-renders ~400ms after you stop typing.
 4. Interact:
-   - **Click a card** for its steps, `when` text, agent override, and post handlers,
+   - **Click the metadata summary** above the graph for the inherited pipeline agent, environment, tools, options, parameters, triggers, and pipeline post handlers,
+   - **Click a card** for its steps, `when` text, stage agent override, environment, tools, options, input gate, and post handlers,
    - **Double-click** a card to jump to its source line in the editor,
    - Pan/zoom the canvas; the minimap tracks the viewport,
    - **Expand matrix** swaps a matrix stage between the compact summary card and one card per axis combination,
@@ -129,7 +131,7 @@ The site lives at <https://amanalip.github.io/PipeViz/>.
 PipeViz/
   .github/workflows/   GitHub Pages deploy workflow (build + deploy dist/)
   public/              logo.svg, favicon.svg (static assets)
-   src/
+  src/
      parser/            tokenizer, block tree, interpreter, scripted fallback
      model/             PipelineModel / StageNode / Step / Diagnostic types
      layout/            computeLayout engine + matrix combination math
@@ -147,6 +149,8 @@ PipeViz/
   project_plan.md      architecture, milestones, risks, sources
   commit_tracker.md    commit conventions and running log
   ui_mockups.md        ASCII reference for every screen and state
+  jenkins_pipelines_mock.md  60-input UX corpus imported by regression tests
+  label_geometry_toast_cards_tests.md  label, metadata, toast card, and React Flow geometry test contract
   LICENSE              GNU GPL v3
 ```
 
@@ -157,6 +161,18 @@ PipeViz/
 | [project_plan.md](project_plan.md) | Full plan: goals, architecture, parser and layout design, data model, milestones, risks, verified sources |
 | [commit_tracker.md](commit_tracker.md) | Conventional commit conventions, complete history, planned commit sequence mapped to milestones |
 | [ui_mockups.md](ui_mockups.md) | ASCII reference for every screen, state, and dimension in the app |
+| [jenkins_pipelines_mock.md](jenkins_pipelines_mock.md) | 60 realistic, edge-case, and malformed Jenkinsfiles used for UX regression testing |
+| [label_geometry_toast_cards_tests.md](label_geometry_toast_cards_tests.md) | Complete label, metadata, toast card, geometry, browser-audit, and future pipeline-format test contract |
+
+### Where future agents should look
+
+- Parser behavior and metadata ownership: `src/parser/`, then the plain-data contract in `src/model/types.ts`.
+- Card and container labels: `src/graph/stageBadges.ts` and `src/graph/toFlow.ts`.
+- Pipeline metadata labels and inspector content: `src/ui/pipelineMetadata.ts`.
+- Stage and container inspector content: `src/ui/detailsSections.ts`.
+- React Flow geometry: `src/layout/computeLayout.ts` and `src/layout/mockCorpusLayout.test.ts`.
+- Broad UX fixtures and expected checks: `jenkins_pipelines_mock.md` and `label_geometry_toast_cards_tests.md`.
+- Live browser behavior: `e2e/` and the browser-audit procedure in `label_geometry_toast_cards_tests.md`.
 
 ## 10. Branding
 

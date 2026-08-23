@@ -14,6 +14,7 @@ import { computeLayout } from '../layout/computeLayout'
 import { parseJenkinsfile } from '../parser'
 import { sampleById } from '../samples'
 import { categorize, CATEGORY_COLORS } from './categories'
+import { stageBadgeRow } from './stageBadges'
 import { buildFlowGraph } from './toFlow'
 
 /** Parse + lay out + map in one step; the standard pipeline under test. */
@@ -95,13 +96,13 @@ describe('buildFlowGraph on the sequential sample (simple-ci)', () => {
   it('gives stage cards explicit aria labels naming content and line', () => {
     // Screen readers must not fall back to opaque node ids (a11y #21).
     for (const node of graph.nodes) {
-      expect(node.ariaLabel).toMatch(/^.+ stage, (No steps|\d+ steps?), line \d+$/)
+      expect(node.ariaLabel).toMatch(/^.+ stage, .+, line \d+$/)
     }
     const checkout = graph.nodes.find((node) => node.id === 's0')
     const positioned = layout.nodes.find((node) => node.id === 's0')
     if (!positioned) throw new Error('layout lost s0')
     expect(checkout?.ariaLabel).toBe(
-      `${positioned.name} stage, ${positioned.steps.length === 0 ? 'No steps' : `${positioned.steps.length} ${positioned.steps.length === 1 ? 'step' : 'steps'}`}, line ${positioned.line}`,
+      `${positioned.name} stage, ${stageBadgeRow(positioned)}, line ${positioned.line}`,
     )
   })
 
@@ -203,6 +204,30 @@ describe('buildFlowGraph on the parallel sample (parallel-tests)', () => {
   })
 })
 
+describe('group metadata labels', () => {
+  it('keeps structural-stage overrides visible on the container', () => {
+    const { graph } = flow(`pipeline {
+      agent none
+      stages {
+        stage('Grouped') {
+          agent { label 'linux' }
+          environment { MODE = 'ci' }
+          parallel {
+            stage('A') { steps { echo 'a' } }
+            stage('B') { steps { echo 'b' } }
+          }
+        }
+      }
+    }`)
+    const group = graph.nodes.find((node) => node.type === 'groupContainer')
+    expect(group?.type === 'groupContainer' && group.data.metadataBadges).toEqual([
+      'AGENT: linux',
+      'ENV ×1',
+    ])
+    expect(group?.ariaLabel).toContain('AGENT: linux, ENV ×1')
+  })
+})
+
 describe('buildFlowGraph with nested parallel containers', () => {
   const NESTED = `pipeline {
   stages {
@@ -292,7 +317,7 @@ describe('buildFlowGraph with a compact matrix (matrix-build)', () => {
     const matrix = graph.nodes.find(
       (node) => node.type === 'stage' && node.data.stage.name === 'Matrix Build',
     )
-    expect(matrix?.ariaLabel).toMatch(/^Matrix Build stage, 3 cells, line \d+$/)
+    expect(matrix?.ariaLabel).toMatch(/^Matrix Build stage, 3 cells · MATRIX, line \d+$/)
   })
 })
 

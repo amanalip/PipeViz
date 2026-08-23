@@ -12,8 +12,9 @@
 import { useEffect, useRef } from 'react'
 
 import { categorize } from '../graph/categories'
+import { stagePrimaryLabel } from '../graph/stageBadges'
 import type { PositionedStage } from '../layout/computeLayout'
-import type { PostHandler, StageNode } from '../model/types'
+import type { PipelineModel, PostHandler, StageNode } from '../model/types'
 import { buildContainerSections, buildDetailSections } from './detailsSections'
 
 interface DetailsPanelProps {
@@ -23,6 +24,7 @@ interface DetailsPanelProps {
   container?: StageNode
   /** All post handlers; the panel filters to this stage's own. */
   postHandlers: readonly PostHandler[]
+  pipeline: PipelineModel
   onClose: () => void
   /**
    * Jump the editor caret to this item's source line (§17). The panel
@@ -32,7 +34,7 @@ interface DetailsPanelProps {
   onJumpToSource?: (line: number) => void
 }
 
-export function DetailsPanel({ stage, container, postHandlers, onClose, onJumpToSource }: DetailsPanelProps) {
+export function DetailsPanel({ stage, container, postHandlers, pipeline, onClose, onJumpToSource }: DetailsPanelProps) {
   const panelRef = useRef<HTMLElement>(null)
 
   // Move focus into the dialog when it appears and return it to the stage
@@ -60,12 +62,18 @@ export function DetailsPanel({ stage, container, postHandlers, onClose, onJumpTo
   // Exactly one of the two is provided; containers get a shape inspector
   // instead of the step-oriented card view.
   const heading = stage ? `STAGE · ${stage.name}` : `CONTAINER · ${container?.name ?? ''}`
+  const containerSummary = container?.matrixAxes
+    ? stagePrimaryLabel(container)
+    : `${container?.parallelBranches?.length ?? 0} ${container?.parallelBranches?.length === 1 ? 'branch' : 'branches'}`
   const subline = stage
-    ? `line ${stage.line} · category ${categorize(stage.name)}`
-    : `line ${container?.line ?? 0} · ${container?.matrixAxes ? 'matrix' : 'parallel'} group`
+    ? `lines ${stage.line}-${stage.endLine ?? stage.line} · ${categorize(stage.name)} · ${stagePrimaryLabel(stage)}`
+    : `lines ${container?.line ?? 0}-${container?.endLine ?? container?.line ?? 0} · ${container?.matrixAxes ? 'matrix' : 'parallel'} group · ${containerSummary}`
   const sections = stage
-    ? buildDetailSections(stage, postHandlers)
-    : buildContainerSections(container as StageNode)
+    ? buildDetailSections(stage, postHandlers, pipeline)
+    : [
+        ...buildContainerSections(container as StageNode),
+        ...buildDetailSections(container as StageNode, postHandlers, pipeline),
+      ]
   const sourceLine = stage?.line ?? container?.line
 
   return (

@@ -28,6 +28,7 @@ function emptyModel(diagnostics: Diagnostic[]): PipelineModel {
     parameters: [],
     triggers: [],
     options: [],
+    tools: [],
     postHandlers: [],
     rootStages: [],
     unparsedRegions: [],

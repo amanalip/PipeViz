@@ -49,14 +49,15 @@ pipeline {
 }
 ```
 
-### 06. Agent none with stage agents
+### 06. Pipeline label with stage agent overrides
 
 ```groovy
 pipeline {
-  agent none
+  agent { label 'linux' }
   stages {
-    stage('Linux') { agent { label 'linux' } steps { sh 'uname -a' } }
+    stage('Inherited Linux') { steps { sh 'uname -a' } }
     stage('Windows') { agent { label 'windows' } steps { bat 'ver' } }
+    stage('Container') { agent { dockerfile { filename 'ci.Dockerfile' } } steps { sh 'make test' } }
   }
 }
 ```
@@ -144,7 +145,10 @@ pipeline {
 pipeline {
   agent any
   stages {
-    stage('Approve') { input { message 'Deploy now?'; ok 'Deploy' } steps { echo 'approved' } }
+    stage('Approve') {
+      input { message 'Deploy now?'; ok 'Deploy'; submitter 'release-managers' }
+      steps { echo 'approved' }
+    }
   }
 }
 ```
