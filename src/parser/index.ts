@@ -59,7 +59,7 @@ export function parseJenkinsfile(source: string): PipelineModel {
     const pipelineBlock = findPipelineBlock(root)
     const model = pipelineBlock
       ? interpretDeclarative(pipelineBlock, ctx)
-      : hasScriptedMarkers(source)
+      : hasScriptedMarkers(tokens)
         ? interpretScripted(root, ctx)
         : emptyModelWithWarning(ctx)
 

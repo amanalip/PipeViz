@@ -12,6 +12,7 @@
 // ---------------------------------------------------------------------------
 
 import type { BlockNode } from './blockTree'
+import type { Token } from './tokenize'
 import {
   collectSteps,
   flattenScope,
@@ -33,9 +34,21 @@ interface FoundStage {
   ancestors: BlockNode[]
 }
 
-/** True when source plausibly contains scripted constructs worth scanning. */
-export function hasScriptedMarkers(source: string): boolean {
-  return /\b(stage|node)\s*\(/.test(source)
+/**
+ * True when the token stream carries scripted constructs worth scanning: an
+ * identifier `stage` or `node` directly followed by an opening paren. Reads
+ * tokens, not raw text, so mentions inside comments or string literals -
+ * which the tokenizer already strips or wraps - can never trigger scripted
+ * detection.
+ */
+export function hasScriptedMarkers(tokens: readonly Token[]): boolean {
+  return tokens.some(
+    (token, index) =>
+      token.type === 'ident' &&
+      (token.value === 'stage' || token.value === 'node') &&
+      tokens[index + 1]?.type === 'punct' &&
+      tokens[index + 1]?.value === '(',
+  )
 }
 
 /**

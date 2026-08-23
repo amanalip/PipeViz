@@ -7,27 +7,43 @@
 // ---------------------------------------------------------------------------
 
 import { describe, expect, it } from 'vitest'
-import { parseJenkinsfile } from './index'
+import { parseJenkinsfile, tokenize } from './index'
 import { hasScriptedMarkers } from './scripted'
 import type { PipelineModel } from '../model/types'
 
 const parse = (src: string): PipelineModel => parseJenkinsfile(src)
+const markers = (src: string): boolean => hasScriptedMarkers(tokenize(src).tokens)
 
 describe('hasScriptedMarkers', () => {
   it('detects stage( and node( calls', () => {
-    expect(hasScriptedMarkers("stage('a') {}")).toBe(true)
-    expect(hasScriptedMarkers('node("linux") {}')).toBe(true)
-    expect(hasScriptedMarkers('node  ( )')).toBe(true) // whitespace between
+    expect(markers("stage('a') {}")).toBe(true)
+    expect(markers('node("linux") {}')).toBe(true)
+    expect(markers('node  ( )')).toBe(true) // whitespace between
   })
 
   it('rejects declarative-only or plain text input', () => {
-    expect(hasScriptedMarkers('pipeline { stages {} }')).toBe(false)
-    expect(hasScriptedMarkers('echo hello')).toBe(false)
+    expect(markers('pipeline { stages {} }')).toBe(false)
+    expect(markers('echo hello')).toBe(false)
     // Brace-form node without a call paren is not recognized; documented
     // limitation of the marker heuristic.
-    expect(hasScriptedMarkers('node { echo x }')).toBe(false)
-    // Mentions inside strings do count (heuristic is textual on purpose).
-    expect(hasScriptedMarkers("// note: call stage('x') later")).toBe(true)
+    expect(markers('node { echo x }')).toBe(false)
+  })
+
+  it('ignores mentions inside comments and strings', () => {
+    // Regression: the old raw-text regex treated these as scripted calls.
+    expect(markers("// note: call stage('x') later")).toBe(false)
+    expect(markers("def help = 'use stage(name) blocks'")).toBe(false)
+  })
+})
+
+describe('scripted detection end to end', () => {
+  it('stays out of scripted mode when stage( only appears in comments', () => {
+    const model = parse("// stage('Ghost') { }\nfoo = 1\n")
+    expect(model.kind).toBe('declarative')
+    expect(model.rootStages).toEqual([])
+    expect(model.diagnostics.some((d) => d.message.includes('Scripted pipeline detected'))).toBe(
+      false,
+    )
   })
 })
 
