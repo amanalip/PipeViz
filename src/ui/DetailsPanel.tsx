@@ -9,7 +9,7 @@
 // closes too because selection clearing in App drops this panel's data.
 // ---------------------------------------------------------------------------
 
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 
 import { categorize } from '../graph/categories'
 import type { PositionedStage } from '../layout/computeLayout'
@@ -33,6 +33,21 @@ interface DetailsPanelProps {
 }
 
 export function DetailsPanel({ stage, container, postHandlers, onClose, onJumpToSource }: DetailsPanelProps) {
+  const panelRef = useRef<HTMLElement>(null)
+
+  // Move focus into the dialog when it appears and return it to the stage
+  // card when it closes. Without this, keyboard and screen-reader users can
+  // select a card without ever discovering that an inspector opened.
+  useEffect(() => {
+    const previousFocus = document.activeElement
+    panelRef.current?.focus({ preventScroll: true })
+    return () => {
+      if (previousFocus instanceof HTMLElement && previousFocus.isConnected) {
+        previousFocus.focus({ preventScroll: true })
+      }
+    }
+  }, [])
+
   // Escape closes (mockup §9); listener lives only while the panel does.
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
@@ -54,11 +69,18 @@ export function DetailsPanel({ stage, container, postHandlers, onClose, onJumpTo
   const sourceLine = stage?.line ?? container?.line
 
   return (
-    <aside className="details-panel" role="dialog" aria-label={`Stage details: ${heading}`}>
+    <aside
+      ref={panelRef}
+      className="details-panel"
+      role="dialog"
+      aria-labelledby="stage-details-title"
+      aria-describedby="stage-details-summary"
+      tabIndex={-1}
+    >
       <header className="details-head">
         <div className="details-heading">
-          <h2 className="details-title">{heading}</h2>
-          <p className="details-subline">{subline}</p>
+          <h2 id="stage-details-title" className="details-title">{heading}</h2>
+          <p id="stage-details-summary" className="details-subline">{subline}</p>
         </div>
         <div className="details-head-actions">
           {onJumpToSource && sourceLine !== undefined && (

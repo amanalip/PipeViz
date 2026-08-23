@@ -219,7 +219,22 @@ function canStartSlashy(source: string, offset: number, tokens: readonly Token[]
   if (!previous) return true
 
   const gap = source.slice(previous.end, offset)
-  if (previous.type === 'ident' && /\s/.test(gap)) return true
+  if (previous.type === 'ident' && /\s/.test(gap)) {
+    // A bare command at the start of a statement may take a slashy argument:
+    // `echo /pattern/` and `return /pattern/`. An arbitrary identifier may
+    // instead be the left operand of division. Requiring statement-start
+    // context prevents `total / parts + other / value` from being swallowed
+    // as one string while preserving normal Jenkins step syntax.
+    const beforePrevious = tokens[tokens.length - 2]
+    return (
+      beforePrevious === undefined ||
+      previous.nlBefore ||
+      (beforePrevious.type === 'punct' &&
+        (beforePrevious.value === '{' ||
+          beforePrevious.value === '}' ||
+          beforePrevious.value === ';'))
+    )
+  }
   if (previous.type !== 'punct') return false
   return new Set([
     '{', '(', '[', ',', ':', '=', ';', '+', '-', '*', '/', '%', '<', '>',

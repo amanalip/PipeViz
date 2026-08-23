@@ -142,6 +142,22 @@ describe('tokenize - strings', () => {
     ])
   })
 
+  it('does not combine spaced division operators into a slashy string', () => {
+    const { tokens, diagnostics } = tokenize('ratio = total / parts + other / value')
+    expect(diagnostics).toEqual([])
+    expect(tokens.map((token) => [token.type, token.value])).toEqual([
+      ['ident', 'ratio'],
+      ['punct', '='],
+      ['ident', 'total'],
+      ['punct', '/'],
+      ['ident', 'parts'],
+      ['punct', '+'],
+      ['ident', 'other'],
+      ['punct', '/'],
+      ['ident', 'value'],
+    ])
+  })
+
   it('keeps division inside slashy interpolation inside the string', () => {
     const { tokens, diagnostics } = tokenize('echo /ratio ${total / parts} and }/')
     expect(diagnostics).toEqual([])

@@ -16,7 +16,7 @@ import react from '@vitejs/plugin-react'
 // Single source of truth for the app version: package.json's version field
 // is injected as a compile-time constant (see `define` below), so the UI
 // footer can never drift from the release version again.
-import pkg from './package.json'
+import pkg from './package.json' with { type: 'json' }
 
 // Exported config consumed by the vite CLI through both scripts in package.json.
 export default defineConfig({

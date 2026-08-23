@@ -27,8 +27,14 @@
 // ---------------------------------------------------------------------------
 
 import { useEffect, useMemo, useRef, useState } from 'react'
-import type { ChangeEvent } from 'react'
+import type {
+  CSSProperties,
+  ChangeEvent,
+  KeyboardEvent as ReactKeyboardEvent,
+  PointerEvent as ReactPointerEvent,
+} from 'react'
 
+import { loadSessionDraft, storeSessionDraft } from './draft'
 import { FlowCanvas } from './graph/FlowCanvas'
 import type { FlowApi } from './graph/FlowCanvas'
 import { computeLayout } from './layout/computeLayout'
@@ -47,6 +53,15 @@ import type { EditorApi } from './ui/EditorPane'
 import { SamplePicker } from './ui/SamplePicker'
 import type { SamplePickerApi } from './ui/SamplePicker'
 import { candidateStageCount, partialGraphNote, stageForDiagnostic } from './ui/diagnosticsSupport'
+import {
+  DEFAULT_EDITOR_WIDTH,
+  EDITOR_WIDTH_STEP,
+  MIN_CANVAS_WIDTH,
+  MIN_EDITOR_WIDTH,
+  clampEditorWidth,
+  loadStoredEditorWidth,
+  storeEditorWidth,
+} from './ui/editorResize'
 
 // Repository URL for the header link; same repo this code lives in.
 const REPO_URL = 'https://github.com/amanalip/PipeViz'
@@ -59,14 +74,35 @@ const REPO_URL = 'https://github.com/amanalip/PipeViz'
  * reported as invalid instead of silently booting empty. Anything else
  * boots clean.
  */
-function bootFromHash(): { source: string; sampleName: string | null; shareInvalid: boolean } {
+function bootFromHash(): {
+  source: string
+  sampleName: string | null
+  shareInvalid: boolean
+  draftRecovered: boolean
+} {
   const hash = typeof window === 'undefined' ? '' : window.location.hash
   const shared = readHashSource(hash)
-  if (shared === null) {
-    return { source: '', sampleName: null, shareInvalid: isShareHash(hash) }
+  if (shared !== null) {
+    const sample = SAMPLES.find((entry) => entry.source === shared)
+    return {
+      source: shared,
+      sampleName: sample?.name ?? null,
+      shareInvalid: false,
+      draftRecovered: false,
+    }
   }
-  const sample = SAMPLES.find((entry) => entry.source === shared)
-  return { source: shared, sampleName: sample?.name ?? null, shareInvalid: false }
+
+  const draft =
+    typeof window === 'undefined'
+      ? null
+      : loadSessionDraft(window.sessionStorage, SOURCE_LENGTH_LIMIT)
+  const sample = draft === null ? undefined : SAMPLES.find((entry) => entry.source === draft)
+  return {
+    source: draft ?? '',
+    sampleName: sample?.name ?? null,
+    shareInvalid: isShareHash(hash),
+    draftRecovered: draft !== null,
+  }
 }
 
 // Mockup §13: re-parse fires 400ms after typing stops.
@@ -175,10 +211,20 @@ export default function App() {
   // corrupt (bad base64, broken UTF-8). The editor still boots empty, but
   // an explicit banner says so instead of leaving a silent mystery.
   const [shareInvalid, setShareInvalid] = useState(boot.shareInvalid)
+  // Session storage restores work after an accidental reload. The banner is
+  // informational and clears once the recovered text is edited or replaced.
+  const [draftRecovered, setDraftRecovered] = useState(boot.draftRecovered)
   // M6 color scheme (mockups §2 shipped dark-only v1): persisted choice,
   // dark unless the visitor explicitly picked light.
   const [theme, setTheme] = useState<Theme>(() =>
     typeof window === 'undefined' ? 'dark' : loadStoredTheme(window.localStorage),
+  )
+  // Desktop source/canvas split. Narrow layouts stack panes and hide the
+  // horizontal divider, while the desktop width persists locally.
+  const [editorWidth, setEditorWidth] = useState(() =>
+    typeof window === 'undefined'
+      ? DEFAULT_EDITOR_WIDTH
+      : clampEditorWidth(loadStoredEditorWidth(window.localStorage), window.innerWidth),
   )
 
   // Imperative handles into the two interactive regions.
@@ -186,6 +232,17 @@ export default function App() {
   const flowApi = useRef<FlowApi | null>(null)
   const samplePickerApi = useRef<SamplePickerApi | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const workspaceRef = useRef<HTMLElement>(null)
+
+  // Session-only recovery protects work from reloads without retaining
+  // pipeline source after the tab's session ends.
+  useEffect(() => {
+    storeSessionDraft(window.sessionStorage, source, SOURCE_LENGTH_LIMIT)
+  }, [source])
+
+  useEffect(() => {
+    storeEditorWidth(window.localStorage, editorWidth)
+  }, [editorWidth])
 
   /**
    * Debounce gate between typing and parsing. Each keystroke resets the
@@ -261,6 +318,7 @@ export default function App() {
         return
       }
       setShareInvalid(false)
+      setDraftRecovered(false)
       const sample = SAMPLES.find((entry) => entry.source === shared)
       setSource(shared)
       setSettledSource(shared) // settle immediately, like a shared-link boot
@@ -431,6 +489,7 @@ export default function App() {
   function pickSample(sample: Sample) {
     clearDivergentShareHash(sample.source)
     setSampleName(sample.name)
+    setDraftRecovered(false)
     setSource(sample.source)
     setSettledSource(sample.source)
     setSelectedId(null)
@@ -444,6 +503,7 @@ export default function App() {
   function changeSource(next: string) {
     clearDivergentShareHash(next)
     setSampleName(null)
+    setDraftRecovered(false)
     setSource(next)
   }
 
@@ -501,6 +561,7 @@ export default function App() {
       }
       clearDivergentShareHash(text)
       setSampleName(null)
+      setDraftRecovered(false)
       setSource(text)
       setSettledSource(text)
       setSelectedId(null)
@@ -664,6 +725,49 @@ export default function App() {
     setFitGraphVersion((version) => version + 1)
   }
 
+  /** Current editor maximum, preserving a useful canvas beside it. */
+  function editorWidthMax(): number {
+    const workspaceWidth = workspaceRef.current?.getBoundingClientRect().width ?? window.innerWidth
+    return Math.max(MIN_EDITOR_WIDTH, Math.round(workspaceWidth - MIN_CANVAS_WIDTH))
+  }
+
+  /** Pointer drag uses the workspace's left edge as the width origin. */
+  function resizeEditorAt(clientX: number) {
+    const workspace = workspaceRef.current
+    if (!workspace) return
+    const bounds = workspace.getBoundingClientRect()
+    setEditorWidth(clampEditorWidth(clientX - bounds.left, bounds.width))
+  }
+
+  function handleResizePointerDown(event: ReactPointerEvent<HTMLDivElement>) {
+    event.preventDefault()
+    event.currentTarget.setPointerCapture(event.pointerId)
+    resizeEditorAt(event.clientX)
+  }
+
+  function handleResizePointerMove(event: ReactPointerEvent<HTMLDivElement>) {
+    if (!event.currentTarget.hasPointerCapture(event.pointerId)) return
+    resizeEditorAt(event.clientX)
+  }
+
+  function handleResizePointerUp(event: ReactPointerEvent<HTMLDivElement>) {
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId)
+    }
+  }
+
+  function handleResizeKeyDown(event: ReactKeyboardEvent<HTMLDivElement>) {
+    let requested: number | null = null
+    if (event.key === 'ArrowLeft') requested = editorWidth - EDITOR_WIDTH_STEP
+    else if (event.key === 'ArrowRight') requested = editorWidth + EDITOR_WIDTH_STEP
+    else if (event.key === 'Home') requested = MIN_EDITOR_WIDTH
+    else if (event.key === 'End') requested = editorWidthMax()
+    if (requested === null) return
+    event.preventDefault()
+    const workspaceWidth = workspaceRef.current?.getBoundingClientRect().width ?? window.innerWidth
+    setEditorWidth(clampEditorWidth(requested, workspaceWidth))
+  }
+
   // ---- Render -------------------------------------------------------------
   return (
     <div className="app">
@@ -698,10 +802,12 @@ export default function App() {
             <button
               type="button"
               className={copyState === 'copied' ? 'btn btn-copied' : 'btn'}
-              disabled={sourceTooLarge}
+              disabled={source.length === 0 || sourceTooLarge}
               onClick={copyModelJson}
               title={
-                sourceTooLarge
+                source.length === 0
+                  ? 'Unavailable until the editor contains a Jenkinsfile'
+                  : sourceTooLarge
                   ? 'Unavailable because this source exceeds the visualization limit'
                   : 'Copy the parsed pipeline model as JSON'
               }
@@ -771,9 +877,21 @@ export default function App() {
         <div className="share-invalid" role="alert">
           <span>
             <strong>This PipeViz link is invalid or corrupted.</strong> The embedded pipeline could
-            not be decoded, so the editor starts empty.
+            not be decoded. {draftRecovered ? 'Your recovered tab draft is still open.' : 'The editor starts empty.'}
           </span>
           <button type="button" className="btn" onClick={() => setShareInvalid(false)}>
+            Dismiss
+          </button>
+        </div>
+      )}
+
+      {draftRecovered && !shareInvalid && (
+        <div className="draft-recovered" role="status">
+          <span>
+            <strong>Recovered your draft after reload.</strong> It is stored only for this browser
+            tab session.
+          </span>
+          <button type="button" className="btn" onClick={() => setDraftRecovered(false)}>
             Dismiss
           </button>
         </div>
@@ -792,13 +910,37 @@ export default function App() {
       )}
 
       {/* ---- Region 2: workspace = editor pane + canvas area --------------- */}
-      <main className="workspace">
+      <main
+        ref={workspaceRef}
+        className="workspace"
+        style={{ '--editor-width': `${editorWidth}px` } as CSSProperties}
+      >
         <EditorPane value={source} onChange={changeSource} apiRef={editorApi} />
+        <div
+          className="editor-resizer"
+          role="separator"
+          aria-label="Resize pipeline source editor"
+          aria-orientation="vertical"
+          aria-valuemin={MIN_EDITOR_WIDTH}
+          aria-valuemax={editorWidthMax()}
+          aria-valuenow={editorWidth}
+          tabIndex={0}
+          title="Drag to resize the editor. Use arrow keys for precise adjustment."
+          onPointerDown={handleResizePointerDown}
+          onPointerMove={handleResizePointerMove}
+          onPointerUp={handleResizePointerUp}
+          onPointerCancel={handleResizePointerUp}
+          onDoubleClick={() => setEditorWidth(DEFAULT_EDITOR_WIDTH)}
+          onKeyDown={handleResizeKeyDown}
+        />
 
         {/* Canvas area: the live graph once anything parsed, otherwise the
             how-to card. FlowCanvas fills the pane absolutely; React Flow
             provides its own dotted background and floating controls. */}
-        <section className="canvas-area" aria-label="Pipeline graph canvas">
+        <section
+          className={caption !== null || showMatrixToggle ? 'canvas-area has-toolbar' : 'canvas-area'}
+          aria-label="Pipeline graph canvas"
+        >
           {/* Canvas caption (§5/§8/§11) plus the M6 matrix toggle share one
               floating toolbar: the pill names the loaded sample while the
               text still is that sample and swaps to the honest parse-failed

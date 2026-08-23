@@ -144,9 +144,7 @@ export function EditorPane({ value, onChange, apiRef }: EditorPaneProps) {
       bracketMatching(),
       PIPEVIZ_THEME,
       EditorView.lineWrapping,
-      placeholder(
-        '# Paste a declarative or scripted Jenkinsfile here.\n\nExample:\npipeline {\n  agent any\n  stages {\n    stage(\'Build\') {\n      steps {\n        sh \'make build\'\n      }\n    }\n  }\n}',
-      ),
+      placeholder('Paste or upload a Jenkinsfile to visualize it.'),
       // Accessible name for the editable surface: the visible <label> can
       // only point at a labelable control and CodeMirror renders a div
       // [contenteditable], so name it directly (a11y audit #20).
@@ -226,4 +224,3 @@ export function EditorPane({ value, onChange, apiRef }: EditorPaneProps) {
     </section>
   )
 }
-
