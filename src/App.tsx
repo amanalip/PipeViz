@@ -101,7 +101,8 @@ function bootFromHash(): {
     source: draft ?? '',
     sampleName: sample?.name ?? null,
     shareInvalid: isShareHash(hash),
-    draftRecovered: draft !== null,
+    // A bundled sample is reproducible and therefore not unsaved work.
+    draftRecovered: draft !== null && sample === undefined,
   }
 }
 
@@ -159,6 +160,11 @@ function isAcceptedUploadName(name: string): boolean {
 function clearDivergentShareHash(nextSource: string): void {
   const hash = window.location.hash
   if (!isShareHash(hash) || readHashSource(hash) === nextSource) return
+  clearShareHash()
+}
+
+/** Remove any current share payload without creating a history entry. */
+function clearShareHash(): void {
   window.history.replaceState(
     null,
     '',
@@ -175,6 +181,9 @@ export default function App() {
   const boot = useRef(bootFromHash()).current
   // Live editor contents; single source of truth for the whole app.
   const [source, setSource] = useState(boot.source)
+  // A deliberate source load is a recovery point. Manual changes diverging
+  // from it are the only state that warrants a close-tab warning.
+  const baselineSourceRef = useRef(boot.draftRecovered ? '' : boot.source)
   // The most recent input we actually parsed; trails `source` by the debounce
   // (except on a shared-link boot, which settles immediately).
   const [settledSource, setSettledSource] = useState(boot.source)
@@ -226,6 +235,9 @@ export default function App() {
       ? DEFAULT_EDITOR_WIDTH
       : clampEditorWidth(loadStoredEditorWidth(window.localStorage), window.innerWidth),
   )
+  const [workspaceWidth, setWorkspaceWidth] = useState(() =>
+    typeof window === 'undefined' ? 1280 : window.innerWidth,
+  )
 
   // Imperative handles into the two interactive regions.
   const editorApi = useRef<EditorApi | null>(null)
@@ -243,6 +255,39 @@ export default function App() {
   useEffect(() => {
     storeEditorWidth(window.localStorage, editorWidth)
   }, [editorWidth])
+
+  // Track live workspace bounds so the CSS width, stored preference, and
+  // separator ARIA values cannot disagree after a browser resize.
+  useEffect(() => {
+    const workspace = workspaceRef.current
+    if (!workspace) return
+    const updateWidth = () => {
+      const nextWidth = workspace.getBoundingClientRect().width
+      setWorkspaceWidth(nextWidth)
+      if (window.matchMedia('(min-width: 901px)').matches) {
+        setEditorWidth((current) => clampEditorWidth(current, nextWidth))
+      }
+    }
+    updateWidth()
+    const observer = new ResizeObserver(updateWidth)
+    observer.observe(workspace)
+    return () => observer.disconnect()
+  }, [])
+
+  const hasUnsavedWork = source.length > 0 && source !== baselineSourceRef.current
+
+  // Browsers show their standard confirmation when closing or reloading a
+  // tab that contains edits not represented by a loaded sample, file, or
+  // share link. No custom text is used because modern browsers ignore it.
+  useEffect(() => {
+    if (!hasUnsavedWork) return
+    const warnBeforeUnload = (event: BeforeUnloadEvent) => {
+      event.preventDefault()
+      event.returnValue = ''
+    }
+    window.addEventListener('beforeunload', warnBeforeUnload)
+    return () => window.removeEventListener('beforeunload', warnBeforeUnload)
+  }, [hasUnsavedWork])
 
   /**
    * Debounce gate between typing and parsing. Each keystroke resets the
@@ -313,12 +358,14 @@ export default function App() {
       const shared = readHashSource(hash)
       if (shared === null) {
         // A corrupt share payload navigating in mid-session gets the same
-        // explicit notice a cold boot would; foreign hashes stay ignored.
-        if (isShareHash(hash)) setShareInvalid(true)
+        // explicit notice a cold boot would. Leaving a share hash clears any
+        // stale warning without replacing the current editor contents.
+        setShareInvalid(isShareHash(hash))
         return
       }
       setShareInvalid(false)
       setDraftRecovered(false)
+      baselineSourceRef.current = shared
       const sample = SAMPLES.find((entry) => entry.source === shared)
       setSource(shared)
       setSettledSource(shared) // settle immediately, like a shared-link boot
@@ -488,6 +535,7 @@ export default function App() {
    */
   function pickSample(sample: Sample) {
     clearDivergentShareHash(sample.source)
+    baselineSourceRef.current = sample.source
     setSampleName(sample.name)
     setDraftRecovered(false)
     setSource(sample.source)
@@ -560,6 +608,7 @@ export default function App() {
         return
       }
       clearDivergentShareHash(text)
+      baselineSourceRef.current = text
       setSampleName(null)
       setDraftRecovered(false)
       setSource(text)
@@ -727,8 +776,12 @@ export default function App() {
 
   /** Current editor maximum, preserving a useful canvas beside it. */
   function editorWidthMax(): number {
-    const workspaceWidth = workspaceRef.current?.getBoundingClientRect().width ?? window.innerWidth
     return Math.max(MIN_EDITOR_WIDTH, Math.round(workspaceWidth - MIN_CANVAS_WIDTH))
+  }
+
+  /** Fit only after the resize transaction commits and layout is measurable. */
+  function refitGraphAfterResize() {
+    window.requestAnimationFrame(() => flowApi.current?.fitGraph())
   }
 
   /** Pointer drag uses the workspace's left edge as the width origin. */
@@ -754,6 +807,7 @@ export default function App() {
     if (event.currentTarget.hasPointerCapture(event.pointerId)) {
       event.currentTarget.releasePointerCapture(event.pointerId)
     }
+    refitGraphAfterResize()
   }
 
   function handleResizeKeyDown(event: ReactKeyboardEvent<HTMLDivElement>) {
@@ -766,6 +820,13 @@ export default function App() {
     event.preventDefault()
     const workspaceWidth = workspaceRef.current?.getBoundingClientRect().width ?? window.innerWidth
     setEditorWidth(clampEditorWidth(requested, workspaceWidth))
+    refitGraphAfterResize()
+  }
+
+  function resetEditorWidth() {
+    const width = workspaceRef.current?.getBoundingClientRect().width ?? window.innerWidth
+    setEditorWidth(clampEditorWidth(DEFAULT_EDITOR_WIDTH, width))
+    refitGraphAfterResize()
   }
 
   // ---- Render -------------------------------------------------------------
@@ -879,7 +940,14 @@ export default function App() {
             <strong>This PipeViz link is invalid or corrupted.</strong> The embedded pipeline could
             not be decoded. {draftRecovered ? 'Your recovered tab draft is still open.' : 'The editor starts empty.'}
           </span>
-          <button type="button" className="btn" onClick={() => setShareInvalid(false)}>
+          <button
+            type="button"
+            className="btn"
+            onClick={() => {
+              clearShareHash()
+              setShareInvalid(false)
+            }}
+          >
             Dismiss
           </button>
         </div>
@@ -930,7 +998,7 @@ export default function App() {
           onPointerMove={handleResizePointerMove}
           onPointerUp={handleResizePointerUp}
           onPointerCancel={handleResizePointerUp}
-          onDoubleClick={() => setEditorWidth(DEFAULT_EDITOR_WIDTH)}
+          onDoubleClick={resetEditorWidth}
           onKeyDown={handleResizeKeyDown}
         />
 

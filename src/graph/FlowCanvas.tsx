@@ -58,6 +58,7 @@ const NODE_TYPES = {
  */
 export interface FlowApi {
   clearSelection(): void
+  fitGraph(): void
   exportPng(options: { backgroundColor: string }): Promise<void>
 }
 
@@ -69,12 +70,15 @@ function SelectionBridge({
   apiRef?: RefObject<FlowApi | null>
   hostRef: RefObject<HTMLDivElement | null>
 }) {
-  const { setNodes, getNodes } = useReactFlow<FlowNode, FlowEdge>()
+  const { setNodes, getNodes, fitView } = useReactFlow<FlowNode, FlowEdge>()
   useImperativeHandle(
     apiRef,
     () => ({
       clearSelection() {
         setNodes((nodes) => nodes.map((node) => (node.selected ? { ...node, selected: false } : node)))
+      },
+      fitGraph() {
+        void fitView({ padding: 0.2, maxZoom: 1 })
       },
       async exportPng(options) {
         // Only the viewport renders: cards and edges, never controls/minimap.
@@ -85,7 +89,7 @@ function SelectionBridge({
         await exportCanvasPng({ ...options, nodes: getNodes(), viewport })
       },
     }),
-    [setNodes, getNodes, hostRef],
+    [setNodes, getNodes, fitView, hostRef],
   )
   return null
 }
