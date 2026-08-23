@@ -575,6 +575,23 @@ export function interpretStage(
     }
   }
 
+  // Structural honesty: parallel/matrix containers and nested 'stages'
+  // chains are mutually exclusive shapes downstream - the layout renders
+  // the container and would silently drop the chain, so mixing them in one
+  // stage body must surface as an explicit diagnostic.
+  const structures = [
+    ...(stage.parallelBranches ? ['parallel'] : []),
+    ...(stage.matrixAxes ? ['matrix'] : []),
+    ...(stage.sequentialChildren ? ["nested 'stages'"] : []),
+  ]
+  if (structures.length > 1) {
+    warn(
+      ctx,
+      `Stage '${stage.name}' mixes ${structures.join(' and ')}; only the first structure is rendered`,
+      stage.line,
+    )
+  }
+
   return stage
 }
 

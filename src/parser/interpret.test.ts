@@ -374,6 +374,34 @@ describe('declarative - nested sequential stages', () => {
     expect(g2.sequentialChildren?.map((c) => c.id)).toEqual(['s0/sq1/sq0'])
   })
 
+  it('warns when one stage body mixes parallel with nested stages', () => {
+    // The layout renders only the container shape; without this warning the
+    // nested chain would silently vanish from the graph.
+    const model = parse(
+      [
+        'pipeline {',
+        '  stages {',
+        '    stage("both") {',
+        '      parallel {',
+        '        stage("a") { steps { echo 1 } }',
+        '      }',
+        '      stages {',
+        '        stage("b") { steps { echo 2 } }',
+        '      }',
+        '    }',
+        '  }',
+        '}',
+      ].join('\n'),
+    )
+    const both = stageNamed(model, 'both')
+    expect(both.parallelBranches).toHaveLength(1)
+    expect(both.sequentialChildren).toHaveLength(1)
+    const warning = model.diagnostics.find((d) => d.message.includes('mixes'))
+    expect(warning?.severity).toBe('warning')
+    expect(warning?.message).toContain("'both'")
+    expect(warning?.line).toBe(3)
+  })
+
   it('warns when nested stages contain non-stage items', () => {
     const model = parse(
       [
