@@ -131,6 +131,14 @@ export default function App() {
       setSettledSource(source)
       setRevision((current) => current + 1)
       setSelectedId(null)
+      // Privacy (M6 sharing): the address bar is nobody's storage. A share
+      // payload only sits there because a link was opened, so once edits
+      // diverge from it, strip it back to the bare page URL. Encoded links
+      // exist solely in the clipboard, built fresh by Copy Link.
+      const nextHash = sourceToHash(source)
+      if (window.location.hash !== '' && window.location.hash !== nextHash) {
+        window.history.replaceState(null, '', `${window.location.pathname}${window.location.search}`)
+      }
     }, REPARSE_DEBOUNCE_MS)
     return () => window.clearTimeout(timer)
   }, [source, settledSource])
@@ -157,21 +165,13 @@ export default function App() {
     return () => window.clearTimeout(timer)
   }, [linkState])
 
-  // URL hash mirrors the settled source (M6 sharing): replaceState keeps
-  // typing out of browser history. Empty source clears the hash entirely.
-  useEffect(() => {
-    const nextHash = sourceToHash(settledSource)
-    if (window.location.hash === nextHash) return
-    const url = nextHash === '' ? `${window.location.pathname}${window.location.search}` : nextHash
-    window.history.replaceState(null, '', url)
-  }, [settledSource])
-
   // Inbound shared links land as hashchange events after mount: opening a
   // second share URL in the same tab, or back/forward across two share
   // URLs, must swap the editor and canvas just like a cold boot would.
   // Only a valid #p=… payload syncs; foreign or cleared hashes never wipe
-  // current work. Our own hash writes above use replaceState, which fires
-  // no event, so this listener cannot echo.
+  // current work. The app never pushes share hashes into the address bar
+  // itself (Copy Link builds the URL in the clipboard), so this listener
+  // only ever reacts to real navigations.
   useEffect(() => {
     const onHashChange = () => {
       const shared = readHashSource(window.location.hash)
@@ -389,22 +389,21 @@ export default function App() {
   }
 
   /**
-   * Copy the page URL with its up-to-date share hash (M6). The hash effect
-   * keeps the address bar in sync with the settled source, but a user may
-   * copy before the debounce settles - flush the current text into the hash
-   * first so the clipboard never trails the editor. The URL is assembled
-   * from location parts (not by resolving the hash against the origin) so
-   * the /PipeViz/ deployment subpath survives into copied links.
+   * Copy the page URL carrying the current source, encoded into the hash
+   * (M6 sharing). The address bar is never touched: normal editing URLs
+   * stay clean and the encoded link exists only in the clipboard. The URL
+   * is assembled from location parts (not by resolving the hash against
+   * the origin) so the /PipeViz/ deployment subpath survives into copied
+   * links.
    */
   async function copyShareLink() {
     if (source.length === 0) return
     try {
-      const hash = source !== settledSource ? sourceToHash(source) : window.location.hash
       const url = pageUrlWithHash(
         window.location.origin,
         window.location.pathname,
         window.location.search,
-        hash,
+        sourceToHash(source),
       )
       await navigator.clipboard.writeText(url)
       setLinkState('copied')
