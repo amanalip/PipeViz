@@ -16,8 +16,8 @@ import { req } from '../parser/testSupport'
 import {
   computeLayout,
   CONTAINER_HEADER,
-  CONTAINER_PAD_X,
   CONTAINER_PAD_Y,
+  GROUP_MIN_WIDTH,
   H_GAP,
   NODE_H,
   NODE_W,
@@ -106,7 +106,7 @@ describe('layout - parallel-tests (golden)', () => {
       id: 's1',
       x: NODE_W + H_GAP,
       y: 0,
-      width: CONTAINER_PAD_X * 2 + NODE_W,
+      width: GROUP_MIN_WIDTH,
       height:
         CONTAINER_HEADER +
         CONTAINER_PAD_Y +
@@ -119,7 +119,7 @@ describe('layout - parallel-tests (golden)', () => {
   })
 
   it('stacks lane cards in one shared column', () => {
-    const laneX = req(result.containers[0]).x + CONTAINER_PAD_X
+    const laneX = req(result.containers[0]).x + (GROUP_MIN_WIDTH - NODE_W) / 2
     expect(req(nodes.get('s1/p0'))).toMatchObject({ x: laneX, y: CONTAINER_HEADER + CONTAINER_PAD_Y })
     expect(req(nodes.get('s1/p1')).y).toBe(CONTAINER_HEADER + CONTAINER_PAD_Y + NODE_H + V_GAP)
     expect(req(nodes.get('s1/p2')).y).toBe(CONTAINER_HEADER + CONTAINER_PAD_Y + (NODE_H + V_GAP) * 2)
@@ -482,7 +482,7 @@ describe('layout - size growth', () => {
       expect(box.height).toBe(
         CONTAINER_HEADER + CONTAINER_PAD_Y + lanes * NODE_H + (lanes - 1) * V_GAP + CONTAINER_PAD_Y,
       )
-      expect(box.width).toBe(CONTAINER_PAD_X * 2 + NODE_W)
+      expect(box.width).toBe(GROUP_MIN_WIDTH)
       // A single lane has no fan shape - its two connections are plain chains.
       expect(result.edges.filter((e) => e.kind === 'fan-out')).toHaveLength(lanes > 1 ? lanes : 0)
       expect(result.edges.filter((e) => e.kind === 'fan-in')).toHaveLength(lanes > 1 ? lanes : 0)

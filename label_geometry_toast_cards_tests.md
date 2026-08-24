@@ -60,6 +60,7 @@ Every corpus input is checked in compact mode, fully expanded sequential mode, a
 - Long titles truncate without increasing card dimensions.
 - Narrow viewport checks use 390 by 844 pixels. Desktop checks use the current browser viewport, normally at least 1280 pixels wide.
 - Vertical sequential edges attach through bottom and top handles. Outer pipeline edges remain horizontal.
+- Expanded group headers reserve layout width for the complete structural label, owner name, count, and visible metadata chips. These labels must not depend on ellipsis.
 - Collapsing or expanding a group preserves valid selection and toast state.
 - Local expansion fitting occurs only when newly revealed content would be clipped.
 

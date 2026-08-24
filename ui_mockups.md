@@ -291,6 +291,9 @@ Layout constants (v1): `NODE_W 220 · NODE_H 72 · H_GAP 90 · V_GAP 36`.
 Outer sequential siblings occupy successive columns. Parallel branches stack
 in lanes. Nested `stages` stay compact until expanded into a vertical,
 numbered container. Parents center against their structural children.
+Expanded container headers use a two-row title and metadata layout. Container
+width grows deterministically with the complete owner name and visible chips,
+so structural labels do not collapse into ambiguous ellipses.
 
 ---
 

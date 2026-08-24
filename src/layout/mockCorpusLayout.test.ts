@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import mockCorpus from '../../jenkins_pipelines_mock.md?raw'
 import { parseJenkinsfile } from '../parser'
-import { computeLayout, NODE_H, NODE_W } from './computeLayout'
+import { computeLayout, groupHeaderWidth, NODE_H, NODE_W } from './computeLayout'
 import type { LayoutResult, ParallelBox, PositionedStage } from './computeLayout'
 import type { PipelineModel, StageNode } from '../model/types'
 
@@ -42,6 +42,13 @@ function contains(outer: Rect, inner: Rect): boolean {
 }
 
 function expectSoundGeometry(result: LayoutResult, title: string): void {
+  for (const box of result.containers) {
+    expect(
+      box.width,
+      `${title}: ${box.id} is too narrow for its complete expanded header`,
+    ).toBeGreaterThanOrEqual(groupHeaderWidth(box.stage, box.kind, box.itemCount))
+  }
+
   for (let first = 0; first < result.nodes.length; first += 1) {
     for (let second = first + 1; second < result.nodes.length; second += 1) {
       const a = result.nodes[first] as PositionedStage

@@ -53,9 +53,11 @@ export const V_GAP = 36
  * plus breathing room above the first lane and below the last one. Values are
  * internal to layout; mockups pin only card sizes and gaps.
  */
-export const CONTAINER_HEADER = 28
+export const CONTAINER_HEADER = 52
 export const CONTAINER_PAD_X = 18
 export const CONTAINER_PAD_Y = 14
+export const GROUP_MIN_WIDTH = 300
+export const GROUP_MAX_WIDTH = 720
 
 /** Why an edge exists; drives styling at render time, never geometry. */
 export type EdgeKind = 'chain' | 'fan-out' | 'fan-in'
@@ -203,6 +205,34 @@ function sequentialExpanded(stage: StageNode, options: ResolvedLayoutOptions): b
 }
 
 /**
+ * Reserve enough header width for the complete owner name and compact facts.
+ * React Flow nodes cannot measure their DOM before layout, so this deterministic
+ * estimate uses the UI font sizes with conservative character widths.
+ */
+export function groupHeaderWidth(stage: StageNode, kind: GroupKind, itemCount: number): number {
+  const kindWidth = kind === 'sequential' ? 78 : kind === 'parallel' ? 62 : 48
+  const titleWidth = 24 + kindWidth + 8 + stage.name.length * 7 + (kind === 'sequential' ? 34 : 0)
+  let badgeWidth = 24 + 62
+  if (kind === 'matrix' && stage.matrixAxes?.length) {
+    badgeWidth += stage.matrixAxes.join(' × ').length * 7 + 20
+  }
+  if (stage.failFast) badgeWidth += 72
+  if (stage.when?.length) badgeWidth += 54
+  if (stage.agent) badgeWidth += 112
+  if (stage.environmentEntries?.length) badgeWidth += 62
+  if (stage.tools?.length) badgeWidth += 68
+  if (stage.options?.length) badgeWidth += 62
+  if (stage.hasInput) badgeWidth += 40
+  for (const fact of stage.metadata ?? []) {
+    if (fact.visibility !== 'details') {
+      badgeWidth += 26 + `${fact.label}${fact.value ? `: ${fact.value}` : ''}`.length * 6.5
+    }
+  }
+  badgeWidth += String(itemCount).length * 7
+  return Math.min(GROUP_MAX_WIDTH, Math.max(GROUP_MIN_WIDTH, Math.ceil(titleWidth), Math.ceil(badgeWidth)))
+}
+
+/**
  * Bottom-up pass: bounding box of one stage's whole subtree. Sequential lists
  * sum widths per link and take max height; parallel/matrix groups take the
  * widest lane plus horizontal padding and stack lane heights with V_GAP.
@@ -217,8 +247,9 @@ function measure(stage: StageNode, options: ResolvedLayoutOptions): Box {
       widest = Math.max(widest, inner.width)
       lanes += inner.height
     }
+    const kind = branchKind(stage, options)
     return {
-      width: CONTAINER_PAD_X * 2 + widest,
+      width: Math.max(CONTAINER_PAD_X * 2 + widest, groupHeaderWidth(stage, kind, branches.length)),
       height:
         CONTAINER_HEADER +
         CONTAINER_PAD_Y +
@@ -231,7 +262,10 @@ function measure(stage: StageNode, options: ResolvedLayoutOptions): Box {
   if (sequentialExpanded(stage, options) && stage.sequentialChildren) {
     const stack = measureStack(stage.sequentialChildren, options)
     return {
-      width: CONTAINER_PAD_X * 2 + stack.width,
+      width: Math.max(
+        CONTAINER_PAD_X * 2 + stack.width,
+        groupHeaderWidth(stage, 'sequential', stage.sequentialChildren.length),
+      ),
       height: CONTAINER_HEADER + CONTAINER_PAD_Y + stack.height + CONTAINER_PAD_Y,
     }
   }
@@ -338,7 +372,8 @@ function placeStage(
     })
     connect(ctx, entries, branches.flatMap((branch) => headIds(branch, options)), entryOrientation)
 
-    const laneX = x + CONTAINER_PAD_X
+    const widestLane = Math.max(...branches.map((branch) => measure(branch, options).width))
+    const laneX = x + (box.width - widestLane) / 2
     let laneTop = ownTop + CONTAINER_HEADER + CONTAINER_PAD_Y
     const exits: string[] = []
     for (const branch of branches) {
@@ -361,7 +396,7 @@ function placeStage(
     })
     return placeStack(
       stage.sequentialChildren,
-      x + CONTAINER_PAD_X,
+      x + (box.width - measureStack(stage.sequentialChildren, options).width) / 2,
       ownTop + CONTAINER_HEADER + CONTAINER_PAD_Y,
       entries,
       ctx,

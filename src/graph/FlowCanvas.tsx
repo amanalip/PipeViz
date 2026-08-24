@@ -233,46 +233,37 @@ function GroupContainerNodeView({ data, selected }: NodeProps<GroupContainerNode
         </button>
       </NodeToolbar>
       <header className="parallel-container-header">
-        {data.sequenceIndex !== undefined && (
-          <span className="sequence-order group-order" aria-hidden="true">{data.sequenceIndex}</span>
-        )}
-        <span className="parallel-container-label">{kindLabel}</span>
-        <span className="parallel-container-name">{data.label}</span>
-        {data.kind === 'matrix' ? (
-          <>
-            {data.matrixAxes && <span className="parallel-container-chip">{data.matrixAxes}</span>}
-            <span className="parallel-container-chip">×{data.branchCount}</span>
-            {data.failFast && <span className="parallel-container-chip">failFast</span>}
-            {data.metadataBadges.map((badge) => <span key={badge} className="parallel-container-chip">{badge}</span>)}
-          </>
-        ) : data.kind === 'parallel' ? (
-          <>
-            <span className="parallel-container-chip">PAR ×{data.branchCount}</span>
-            {data.failFast && <span className="parallel-container-chip">failFast</span>}
-            {data.metadataBadges.map((badge) => <span key={badge} className="parallel-container-chip">{badge}</span>)}
-          </>
-        ) : (
-          <>
-            <span className="parallel-container-chip">SEQ ×{data.itemCount}</span>
-            {data.metadataBadges.map((badge) => <span key={badge} className="parallel-container-chip">{badge}</span>)}
-          </>
-        )}
-        {data.collapsible && (
-          <button
-            type="button"
-            className="group-collapse-button nodrag nowheel"
-            aria-label={`Collapse ${data.label} sequential group`}
-            aria-expanded="true"
-            title="Collapse nested sequential stages"
-            onDoubleClick={(event) => event.stopPropagation()}
-            onClick={(event) => {
-              event.stopPropagation()
-              data.onToggleSequential?.(data.stage.id)
-            }}
-          >
-            <span aria-hidden="true">⌃</span>
-          </button>
-        )}
+        <div className="parallel-container-title-row">
+          {data.sequenceIndex !== undefined && (
+            <span className="sequence-order group-order" aria-hidden="true">{data.sequenceIndex}</span>
+          )}
+          <span className="parallel-container-label">{kindLabel}</span>
+          <span className="parallel-container-name">{data.label}</span>
+          {data.collapsible && (
+            <button
+              type="button"
+              className="group-collapse-button nodrag nowheel"
+              aria-label={`Collapse ${data.label} sequential group`}
+              aria-expanded="true"
+              title="Collapse nested sequential stages"
+              onDoubleClick={(event) => event.stopPropagation()}
+              onClick={(event) => {
+                event.stopPropagation()
+                data.onToggleSequential?.(data.stage.id)
+              }}
+            >
+              <span aria-hidden="true">⌃</span>
+            </button>
+          )}
+        </div>
+        <div className="parallel-container-chip-row">
+          {data.kind === 'matrix' && data.matrixAxes && <span className="parallel-container-chip">{data.matrixAxes}</span>}
+          <span className="parallel-container-chip">
+            {data.kind === 'parallel' ? `PAR ×${data.branchCount}` : data.kind === 'sequential' ? `SEQ ×${data.itemCount}` : `×${data.branchCount}`}
+          </span>
+          {data.failFast && <span className="parallel-container-chip">failFast</span>}
+          {data.metadataBadges.map((badge) => <span key={badge} className="parallel-container-chip">{badge}</span>)}
+        </div>
       </header>
     </div>
   )

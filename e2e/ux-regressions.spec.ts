@@ -31,12 +31,21 @@ test.describe('high-impact UX regressions', () => {
     await expect(page.getByRole('group', { name: /Static Analysis stage/ })).toBeVisible()
     await expect(page.getByRole('group', { name: /Deep Checks stage/ })).toBeVisible()
 
+    const headerRows = group.locator('.parallel-container-title-row, .parallel-container-chip-row')
+    await expect(headerRows).toHaveCount(2)
+    for (const row of await headerRows.all()) {
+      expect(await row.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true)
+    }
+    await expect(group.locator('.parallel-container-title-row')).toContainText('Sequential')
+    await expect(group.locator('.parallel-container-title-row')).toContainText('Quality Suite')
+    await expect(group.locator('.parallel-container-chip-row')).toContainText('SEQ ×2')
+
     const first = await page.getByRole('group', { name: /Static Analysis stage/ }).boundingBox()
     const second = await page.getByRole('group', { name: /Deep Checks stage/ }).boundingBox()
     if (!first || !second) throw new Error('Sequential child geometry missing')
     expect(second.y).toBeGreaterThan(first.y + first.height)
 
-    await group.locator('.parallel-container').dblclick()
+    await group.locator('.parallel-container-header').dblclick()
     await expect(page.getByRole('group', { name: /Quality Suite stage/ })).toBeVisible()
     await expect(page.getByRole('group', { name: /Static Analysis stage/ })).toBeHidden()
   })
