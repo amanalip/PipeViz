@@ -348,22 +348,16 @@ Rules: the wordmark is plain HTML text next to the mark in the header, never bak
 
 ## 11. Sample Pipeline Corpus
 
-Seven bundled samples double as documentation and parser fixtures. A separate 68-input Markdown corpus covers broad label, metadata, recovery, matrix, parallel, and deeply nested grouping variations.
+Thirty-six bundled samples double as documentation and parser fixtures. They are balanced into six searchable menu categories with six entries each: Core Patterns, Configuration and Controls, Agents and Platforms, Advanced Orchestration, Delivery and Operations, and Real World and Recovery. The catalog ranges from basic chains to nested matrix, parallel, sequential, multi-agent, deployment, shared-library, and partial-recovery examples.
 
-1. **Simple CI**: checkout, build, test, deploy. Four sequential stages.
-2. **Parallel tests**: unit and integration branches converging before deploy.
-3. **Matrix**: build across linux/windows with axes declared.
-4. **Conditional deploy**: `when { branch 'main' }` and `when { tag pattern: "v*" }` variants, post handlers for success/failure notifications.
-5. **Scripted**: node-based classic pipeline with inline stage calls.
-6. **Sequential groups**: nested `stages` inside a stage.
-7. **Messy real world**: odd indentation, comments mid-block, long step arguments, one deliberately unbalanced brace to exercise diagnostics.
+A separate 68-input Markdown corpus remains the exhaustive internal UX regression set. Bundled samples and mock inputs are audited independently so presentation examples cannot pass merely because a similar internal fixture exists.
 
 ## 12. Testing Strategy
 
-- Parser unit tests in Vitest: each corpus sample asserts exact expected model (stage names, order, parallel grouping, step lists, diagnostic counts). Property checks: parser never throws on random ASCII fuzz inputs; always returns a model.
+- Parser unit tests in Vitest: the original seven samples retain exact model snapshots, while all 36 curated samples assert deterministic structure, unique IDs, intentional diagnostics, and balanced categories. Property checks ensure the parser never throws on random ASCII fuzz inputs and always returns a model.
 - Layout unit tests: golden assertions on node positions and structural containers; non-overlap, containment, and expanded command-row reservation across all 68 Markdown corpus inputs in compact, sequential-expanded, and matrix-plus-sequential-expanded views.
 - Snapshot tests for the model output only, not rendered DOM.
-- Playwright end-to-end coverage verifies core UI flows. The real-browser corpus audit compares expanded DOM commands with parser output and checks metadata rows, SVG markers, overflow, search, focused paths, selection toolbars, group expansion, theme persistence, editor resizing, details-card persistence, and responsive geometry.
+- Playwright end-to-end coverage verifies core UI flows. Independent real-browser audits load all 36 categorized samples through the menu and all 68 internal mocks through shared links, compare expanded DOM commands with parser output, and check metadata rows, SVG markers, overflow, search, focused paths, selection toolbars, group expansion, theme persistence, editor resizing, details-card persistence, and responsive geometry.
 
 ## 13. Deployment
 

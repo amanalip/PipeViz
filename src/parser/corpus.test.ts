@@ -1,5 +1,5 @@
 // ---------------------------------------------------------------------------
-// parser/corpus.test.ts - the seven-sample corpus as fixtures (plan §11/§12).
+// parser/corpus.test.ts - the curated sample catalog as fixtures (plan §11/§12).
 //
 // Each sample asserts its expected model shape exactly enough to catch
 // regressions: kind, agent, sections, stage tree with ids/order/steps,
@@ -270,6 +270,16 @@ describe('corpus - messy-realworld', () => {
 })
 
 describe('corpus - invariants across every sample', () => {
+  const snapshotIds = new Set([
+    'simple-ci',
+    'parallel-tests',
+    'matrix-build',
+    'conditional-deploy',
+    'sequential-groups',
+    'scripted-classic',
+    'messy-realworld',
+  ])
+
   for (const sample of SAMPLES) {
     it(`${sample.id}: deterministic, uniquely identified, structurally sound`, () => {
       const first = parseJenkinsfile(sample.source)
@@ -295,20 +305,40 @@ describe('corpus - invariants across every sample', () => {
       expect(Array.isArray(first.diagnostics)).toBe(true)
     })
 
-    it(`${sample.id}: matches its model snapshot`, () => {
-      expect(parseJenkinsfile(sample.source)).toMatchSnapshot(`[${sample.id}] PipelineModel`)
-    })
+    if (snapshotIds.has(sample.id)) {
+      it(`${sample.id}: matches its model snapshot`, () => {
+        expect(parseJenkinsfile(sample.source)).toMatchSnapshot(`[${sample.id}] PipelineModel`)
+      })
+    }
   }
 
-  it('exposes exactly the seven planned corpus entries', () => {
-    expect(SAMPLES.map((s) => s.id)).toEqual([
-      'simple-ci',
-      'parallel-tests',
-      'matrix-build',
-      'conditional-deploy',
-      'sequential-groups',
-      'scripted-classic',
-      'messy-realworld',
-    ])
+  it('exposes 36 unique samples balanced across six categories', () => {
+    expect(SAMPLES).toHaveLength(36)
+    expect(new Set(SAMPLES.map((sample) => sample.id)).size).toBe(36)
+    expect(new Set(SAMPLES.map((sample) => sample.name)).size).toBe(36)
+    expect(Object.fromEntries(
+      ['core', 'controls', 'agents', 'orchestration', 'delivery', 'real-world'].map((category) => [
+        category,
+        SAMPLES.filter((sample) => sample.category === category).length,
+      ]),
+    )).toEqual({
+      core: 6,
+      controls: 6,
+      agents: 6,
+      orchestration: 6,
+      delivery: 6,
+      'real-world': 6,
+    })
+  })
+
+  it('keeps diagnostics intentional in the presentation catalog', () => {
+    const diagnosticDemos = new Set(['scripted-classic', 'messy-realworld', 'partial-syntax-recovery'])
+    expect(SAMPLES.flatMap((sample) =>
+      diagnosticDemos.has(sample.id)
+        ? []
+        : parseJenkinsfile(sample.source).diagnostics.map((diagnostic) =>
+            `${sample.id}: line ${diagnostic.line} ${diagnostic.message}`,
+          ),
+    )).toEqual([])
   })
 })

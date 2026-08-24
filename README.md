@@ -46,7 +46,7 @@ Shipped:
 - **Parser** (M1): hand rolled tokenizer + block tree + declarative interpreter, with a scripted `stage()` fallback; never throws, always returns a model plus line-numbered diagnostics
 - **Layout engine** (M2): recursive structural layout with horizontal pipeline flow, parallel fan-out/fan-in, matrices, and collapsible vertical sequential groups
 - **Canvas** (M3): React Flow subflows with pan, zoom, semantic minimap, controlled selection, graph search, focused execution paths, selected-node toolbars, and category-colored stage cards
-- **Full UI** (M4): editor pane with debounced re-parse, file upload, seven bundled samples, details panel, Copy JSON export, expandable diagnostics bar with click-to-jump
+- **Full UI** (M4): editor pane with debounced re-parse, file upload, 36 categorized and searchable samples, details panel, Copy JSON export, expandable diagnostics bar with click-to-jump
 - **CI/CD** (M5): every push to main builds `dist/` and deploys it to GitHub Pages automatically
 - **M6 batch**: matrix axis expansion behind a canvas toggle, Export PNG of the graph, share links that encode the pipeline in the URL, a persisted light/dark theme toggle, and a CodeMirror 6 editor with Groovy highlighting
 
@@ -88,7 +88,7 @@ Versions verified against the npm registry on Saturday, 22 August 2026:
 2. Get a pipeline in via any of:
    - **Paste** a Jenkinsfile into the editor pane (focused by default),
    - **Upload** a `.jenkinsfile`, `Jenkinsfile`, `.groovy`, or `.txt` file from the header,
-   - **Samples ▾** pick one of the seven bundled examples (including a deliberately broken one that demos diagnostics).
+   - **Samples ▾** search 36 bundled examples across six categories, including advanced orchestration and deliberate recovery cases.
 3. The graph re-renders ~400ms after you stop typing.
 4. Interact:
    - **Click the metadata summary** above the graph for the inherited pipeline agent, environment, tools, options, parameters, triggers, and pipeline post handlers,
@@ -145,7 +145,7 @@ PipeViz/
      graph/             FlowCanvas, StageNodeCard, flow conversion, PNG export
      ui/                EditorPane (CodeMirror), SamplePicker, DetailsPanel, DiagnosticsBar
      share/             URL hash codec for shareable pipeline links
-     samples/           seven bundled example Jenkinsfiles
+     samples/           36 categorized bundled Jenkinsfiles
      theme.ts           color scheme plumbing and canvas palettes
      styles/            global.css design tokens (dark + light)
   index.html           Vite entry document

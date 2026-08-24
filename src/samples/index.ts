@@ -1,22 +1,19 @@
 // ---------------------------------------------------------------------------
 // samples/index.ts - built-in example Jenkinsfiles (plan §11).
 //
-// The corpus doubles as documentation and as parser fixtures: corpus tests
-// assert exact expected models for every sample, and the UI sample picker
-// (M4) loads the same sources. Sample 7 is deliberately malformed so the
-// diagnostics path stays exercised end to end.
+// The 36-example catalog doubles as documentation and parser fixtures. The
+// picker groups six samples into each of six categories. Recovery examples
+// deliberately retain malformed syntax so diagnostics stay exercised.
 //
 // Note for editors: GString `${...}` sequences are escaped as \${ inside
 // these template literals - they must survive verbatim into Groovy source.
 // ---------------------------------------------------------------------------
 
-export interface Sample {
-  /** Stable identifier used by tests and the sample picker. */
-  id: string
-  name: string
-  description: string
-  source: string
-}
+import { ADDITIONAL_SAMPLES } from './catalog'
+import type { Sample } from './types'
+
+export type { Sample, SampleCategory } from './types'
+export { SAMPLE_CATEGORIES, SAMPLE_CATEGORY_LABELS } from './types'
 
 const SIMPLE_CI = `pipeline {
     agent any
@@ -347,44 +344,52 @@ export const SAMPLES: readonly Sample[] = [
     id: 'simple-ci',
     name: 'Simple CI',
     description: 'Four sequential stages with environment entries and an always handler',
+    category: 'core',
     source: SIMPLE_CI,
   },
   {
     id: 'parallel-tests',
     name: 'Parallel Tests',
     description: 'Three fail-fast lanes converging into a reporting stage',
+    category: 'core',
     source: PARALLEL_TESTS,
   },
   {
     id: 'matrix-build',
     name: 'Matrix Build',
     description: 'Two-axis matrix with excludes and a per-cell nested stage',
+    category: 'orchestration',
     source: MATRIX_BUILD,
   },
   {
     id: 'conditional-deploy',
     name: 'Conditional Deploy',
     description: 'Parameters, triggers, when combinators, approval gate, and stage post handlers',
+    category: 'core',
     source: CONDITIONAL_DEPLOY,
   },
   {
     id: 'sequential-groups',
     name: 'Sequential Groups',
     description: 'Nested stages two levels deep inside a docker agent pipeline',
+    category: 'core',
     source: SEQUENTIAL_GROUPS,
   },
   {
     id: 'scripted-classic',
     name: 'Scripted Classic',
     description: 'Node-based scripted pipeline with shared library import and nested stages',
+    category: 'core',
     source: SCRIPTED_CLASSIC,
   },
   {
     id: 'messy-realworld',
     name: 'Messy Real World',
     description: 'Odd indentation, comments mid-block, long scripts, and one unbalanced brace',
+    category: 'real-world',
     source: MESSY_REALWORLD,
   },
+  ...ADDITIONAL_SAMPLES,
 ]
 
 export function sampleById(id: string): Sample | undefined {

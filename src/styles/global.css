@@ -510,23 +510,97 @@ img {
   position: relative;
 }
 
-.samples-menu {
+.samples-popover {
   position: absolute;
   top: calc(100% + 6px);
   right: 0;
   z-index: 40;
-  min-width: 230px;
-  max-height: 60vh;
-  overflow-y: auto;
-  margin: 0;
+  width: min(340px, calc(100vw - 24px));
   padding: 6px;
-  list-style: none;
   background: var(--surface-strong);
   backdrop-filter: blur(8px);
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-card);
   animation: rise-in 160ms ease both;
+}
+
+.samples-search {
+  height: 36px;
+  display: grid;
+  grid-template-columns: 16px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 5px;
+  padding: 0 10px;
+  color: var(--ink-muted);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+
+.samples-search:focus-within {
+  color: var(--accent);
+  border-color: var(--accent-chip);
+  box-shadow: 0 0 0 2px var(--accent-soft);
+}
+
+.samples-search svg {
+  width: 15px;
+  height: 15px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.5;
+  stroke-linecap: round;
+}
+
+.samples-search input {
+  min-width: 0;
+  padding: 0;
+  color: var(--ink);
+  background: transparent;
+  border: 0;
+  outline: 0;
+  font: 12px var(--font-ui);
+}
+
+.samples-search input::placeholder {
+  color: var(--ink-muted);
+}
+
+.samples-search > span {
+  font: 10px var(--font-mono);
+  color: var(--ink-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.samples-menu {
+  max-height: min(64vh, 600px);
+  overflow-y: auto;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  scrollbar-gutter: stable;
+}
+
+.samples-category,
+.samples-category > ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.samples-category-label {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  padding: 8px 10px 5px;
+  color: var(--ink-muted);
+  background: var(--surface-solid);
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
 }
 
 .samples-option {
@@ -551,6 +625,13 @@ img {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.samples-empty {
+  padding: 22px 12px;
+  text-align: center;
+  color: var(--ink-muted);
+  font-size: 12px;
 }
 
 /* Amber defect badge for samples that demo the diagnostics story. */

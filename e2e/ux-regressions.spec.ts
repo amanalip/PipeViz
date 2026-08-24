@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs'
 import { computeLayout } from '../src/layout/computeLayout'
 import type { StageNode } from '../src/model/types'
 import { parseJenkinsfile } from '../src/parser'
+import { SAMPLES } from '../src/samples'
 import { sourceToHash } from '../src/share/hash'
 
 const mockCorpus = readFileSync(new URL('../jenkins_pipelines_mock.md', import.meta.url), 'utf8')
@@ -19,6 +20,62 @@ function indexStages(stages: readonly StageNode[], result = new Map<string, Stag
     indexStages(stage.matrixCellStages ?? [], result)
   }
   return result
+}
+
+async function auditExpandedCards(
+  page: import('@playwright/test').Page,
+  title: string,
+  source: string,
+): Promise<void> {
+  const model = parseJenkinsfile(source)
+  const stages = indexStages(model.rootStages)
+  if (stages.size === 0) return
+  const expandedSequentialIds = new Set(
+    [...stages.values()].filter((stage) => stage.sequentialChildren?.length).map((stage) => stage.id),
+  )
+  const expandedStepIds = new Set(
+    [...stages.values()].filter((stage) => stage.steps.length > 0).map((stage) => stage.id),
+  )
+  const expectedExpandedCards = computeLayout(model, {
+    expandedSequentialIds,
+    expandedStepIds,
+  }).nodes.filter((stage) => stage.steps.length > 0).length
+  const expandAll = page.getByRole('button', { name: 'Expand all' })
+  if (await expandAll.count()) await expandAll.click()
+
+  const cards = page.locator('.stage-card.steps-expanded')
+  await expect(cards, `${title}: expanded card count`).toHaveCount(expectedExpandedCards)
+  for (let index = 0; index < await cards.count(); index += 1) {
+    const card = cards.nth(index)
+    const rendered = await card.evaluate((element) => {
+      const list = element.querySelector('.stage-step-list')
+      const lastRow = list?.lastElementChild
+      const cardBounds = element.getBoundingClientRect()
+      const lastBounds = lastRow?.getBoundingClientRect()
+      return {
+        id: element.closest('.react-flow__node')?.getAttribute('data-id') ?? '',
+        commands: [...element.querySelectorAll('.stage-step-content code')].map((node) => node.textContent ?? ''),
+        metadata: [...element.querySelectorAll('.stage-step-metadata')].map((node) => node.textContent ?? ''),
+        iconCount: element.querySelectorAll('.step-flow-icon').length,
+        cardFits: element.scrollHeight <= element.clientHeight + 1,
+        listFits: !list || list.scrollHeight <= list.clientHeight + 1,
+        lastRowFits: !lastBounds || lastBounds.bottom <= cardBounds.bottom + 1,
+      }
+    })
+    const stage = stages.get(rendered.id)
+    expect(stage, `${title}: missing model stage ${rendered.id}`).toBeDefined()
+    if (!stage) continue
+    expect(rendered.commands, `${title}: command fidelity`).toEqual(
+      stage.steps.map((step) => `${step.name}${step.args ? ` ${step.args}` : ''}`),
+    )
+    expect(rendered.metadata, `${title}: step metadata`).toEqual(
+      stage.steps.map((step) => `line ${step.line} · ${step.kind}`),
+    )
+    expect(rendered.iconCount, `${title}: SVG step markers`).toBe(stage.steps.length)
+    expect(rendered.cardFits, `${title}: card content overflow`).toBe(true)
+    expect(rendered.listFits, `${title}: step list overflow`).toBe(true)
+    expect(rendered.lastRowFits, `${title}: clipped final step`).toBe(true)
+  }
 }
 
 async function loadSimpleSample(page: import('@playwright/test').Page) {
@@ -115,8 +172,8 @@ test.describe('high-impact UX regressions', () => {
     await build.getByRole('button', { name: 'Expand Build steps' }).click()
     await expect(build.getByRole('list', { name: 'Build steps' })).toContainText("sh 'make build'")
     await expect(build).toHaveAttribute('aria-label', /steps expanded/)
-    const expanded = await build.boundingBox()
-    const after = await testStage.boundingBox()
+    const expanded = await build.locator('.stage-card').boundingBox()
+    const after = await testStage.locator('.stage-card').boundingBox()
     if (!expanded || !after) throw new Error('Expanded step geometry missing')
     expect(await build.evaluate((element) => Number.parseFloat(element.style.height))).toBeGreaterThan(72)
     expect(after.x).toBeGreaterThan(expanded.x + expanded.width)
@@ -144,57 +201,42 @@ test.describe('high-impact UX regressions', () => {
 
     for (const pipeline of mockPipelines) {
       const model = parseJenkinsfile(pipeline.source)
-      const stages = indexStages(model.rootStages)
-      if (stages.size === 0) continue
-      const expandedSequentialIds = new Set(
-        [...stages.values()].filter((stage) => stage.sequentialChildren?.length).map((stage) => stage.id),
-      )
-      const expandedStepIds = new Set(
-        [...stages.values()].filter((stage) => stage.steps.length > 0).map((stage) => stage.id),
-      )
-      const expectedExpandedCards = computeLayout(model, {
-        expandedSequentialIds,
-        expandedStepIds,
-      }).nodes.filter((stage) => stage.steps.length > 0).length
-
       await page.goto(`/${sourceToHash(pipeline.source)}`)
       await expect(page.locator('.react-flow__node').first(), pipeline.title).toBeVisible()
-      const expandAll = page.getByRole('button', { name: 'Expand all' })
-      if (await expandAll.count()) await expandAll.click()
+      expect(model.rootStages.length + model.unparsedRegions.length, pipeline.title).toBeGreaterThan(0)
+      await auditExpandedCards(page, pipeline.title, pipeline.source)
+    }
+  })
 
-      const cards = page.locator('.stage-card.steps-expanded')
-      await expect(cards, `${pipeline.title}: expanded card count`).toHaveCount(expectedExpandedCards)
-      for (let index = 0; index < await cards.count(); index += 1) {
-        const card = cards.nth(index)
-        const rendered = await card.evaluate((element) => {
-          const list = element.querySelector('.stage-step-list')
-          const lastRow = list?.lastElementChild
-          const cardBounds = element.getBoundingClientRect()
-          const lastBounds = lastRow?.getBoundingClientRect()
-          return {
-            id: element.closest('.react-flow__node')?.getAttribute('data-id') ?? '',
-            commands: [...element.querySelectorAll('.stage-step-content code')].map((node) => node.textContent ?? ''),
-            metadata: [...element.querySelectorAll('.stage-step-metadata')].map((node) => node.textContent ?? ''),
-            iconCount: element.querySelectorAll('.step-flow-icon').length,
-            cardFits: element.scrollHeight <= element.clientHeight + 1,
-            listFits: !list || list.scrollHeight <= list.clientHeight + 1,
-            lastRowFits: !lastBounds || lastBounds.bottom <= cardBounds.bottom + 1,
-          }
-        })
-        const stage = stages.get(rendered.id)
-        expect(stage, `${pipeline.title}: missing model stage ${rendered.id}`).toBeDefined()
-        if (!stage) continue
-        expect(rendered.commands, `${pipeline.title}: command fidelity`).toEqual(
-          stage.steps.map((step) => `${step.name}${step.args ? ` ${step.args}` : ''}`),
-        )
-        expect(rendered.metadata, `${pipeline.title}: step metadata`).toEqual(
-          stage.steps.map((step) => `line ${step.line} · ${step.kind}`),
-        )
-        expect(rendered.iconCount, `${pipeline.title}: SVG step markers`).toBe(stage.steps.length)
-        expect(rendered.cardFits, `${pipeline.title}: card content overflow`).toBe(true)
-        expect(rendered.listFits, `${pipeline.title}: step list overflow`).toBe(true)
-        expect(rendered.lastRowFits, `${pipeline.title}: clipped final step`).toBe(true)
+  test('all 36 curated samples load through the categorized menu and render safely', async ({ page }) => {
+    test.setTimeout(120_000)
+    expect(SAMPLES).toHaveLength(36)
+    await page.goto('/')
+
+    for (const sample of SAMPLES) {
+      await page.getByRole('button', { name: 'Samples ▾' }).click()
+      await page.getByRole('searchbox', { name: 'Search sample pipelines' }).fill(sample.name)
+      await page.getByRole('listbox').getByText(sample.name, { exact: true }).click()
+      const model = parseJenkinsfile(sample.source)
+      if (model.diagnostics.some((diagnostic) => diagnostic.severity === 'error')) {
+        await expect(page.locator('.canvas-caption'), sample.name).toHaveText('parse failed: showing what parsed')
+      } else {
+        await expect(page.locator('.canvas-caption'), sample.name).toHaveText(`sample · ${sample.name}`)
       }
+      await expect(page.locator('.react-flow__node').first(), sample.name).toBeVisible()
+
+      expect(model.rootStages.length + model.unparsedRegions.length, sample.name).toBeGreaterThan(0)
+      if (model.diagnostics.length > 0) {
+        await expect(page.locator('.status-bar'), `${sample.name}: diagnostics`).toContainText(/error|warning/)
+      }
+
+      const matrixToggle = page.getByRole('button', { name: 'Expand matrix' })
+      if (await matrixToggle.count()) {
+        await matrixToggle.click()
+        await expect(page.getByRole('group', { name: /Matrix group/ }), sample.name).toBeVisible()
+        await page.getByRole('button', { name: 'Collapse matrix' }).click()
+      }
+      await auditExpandedCards(page, sample.name, sample.source)
     }
   })
 

@@ -5,6 +5,7 @@ This document is the durable UX test contract for PipeViz. It records every corp
 ## Source of truth
 
 - `jenkins_pipelines_mock.md` contains 68 independent Jenkinsfile inputs.
+- `src/samples/` contains 36 presentation-ready samples, six in each menu category.
 - `src/ui/mockCorpusLabels.test.ts` parses every input and checks compact labels.
 - `src/layout/mockCorpusLayout.test.ts` computes compact and expanded geometry for every input.
 - `src/ui/pipelineMetadata.test.ts` checks pipeline-level metadata badges and full inspector values.
@@ -12,6 +13,7 @@ This document is the durable UX test contract for PipeViz. It records every corp
 - `src/ui/detailsSections.test.ts` checks the full stage and container inspector labels.
 - `src/graph/toFlow.test.ts` checks rendered node and container accessibility labels.
 - `e2e/ux-regressions.spec.ts` opens all 68 inputs in Chromium and checks expanded command fidelity, metadata, SVG markers, and DOM overflow.
+- The same browser suite independently loads all 36 bundled samples through search and category navigation, including matrix expansion and diagnostic cases.
 
 The markdown corpus is intentionally imported by the automated tests. Adding a new fenced Jenkinsfile here is not enough. Add it to `jenkins_pipelines_mock.md`, update the expected corpus count, and add its UX purpose to the inventory below.
 

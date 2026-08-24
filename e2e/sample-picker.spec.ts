@@ -11,6 +11,24 @@
 import { test, expect } from '@playwright/test'
 
 test.describe('sample picker dropdown', () => {
+  test('organizes 36 searchable samples into six compact categories', async ({ page }) => {
+    await page.goto('/')
+    await page.getByRole('button', { name: 'Samples ▾' }).click()
+    const menu = page.getByRole('listbox', { name: 'Bundled sample pipelines' })
+    await expect(menu.getByRole('option')).toHaveCount(36)
+    await expect(menu.getByRole('group')).toHaveCount(6)
+    await expect(menu.getByRole('group', { name: 'Advanced Orchestration' })).toBeVisible()
+
+    const search = page.getByRole('searchbox', { name: 'Search sample pipelines' })
+    await search.fill('kubernetes')
+    await expect(menu.getByRole('option')).toHaveCount(1)
+    await expect(menu.getByRole('option')).toContainText('Kubernetes Pod Agent')
+    await search.press('Enter')
+
+    await expect(menu).toBeHidden()
+    await expect(page.locator('.canvas-caption')).toHaveText('sample · Kubernetes Pod Agent')
+  })
+
   test('clicking an option loads it into the editor and labels the canvas', async ({ page }) => {
     await page.goto('/')
     await page.getByRole('button', { name: 'Samples ▾' }).click()

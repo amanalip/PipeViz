@@ -501,23 +501,28 @@ Rules:
 four-chip header; the anatomy above is the authoritative chip set. The header
 wraps under the brand on tight windows rather than shrinking chips.)
 
-Sample picker open state — native-feeling menu, keyboard navigable:
+Sample picker open state with 36 entries, six sticky categories, search, and keyboard navigation:
 
 ```
-                                            ┌─────────────────────────┐
-                                            │ Simple CI               │
-                                            │ Parallel tests          │
-                                            │ Matrix                  │
-                                            │ Conditional deploy      │
-                                            │ Scripted (classic)      │
-                                            │ Sequential groups       │
-                                            │ Messy real world   ⚠ 1  │
-                                            └─────────────────────────┘
+                                      ┌──────────────────────────────────┐
+                                      │ ⌕ Find a sample...           36 │
+                                      ├──────────────────────────────────┤
+                                      │ CORE PATTERNS                    │ sticky
+                                      │ Simple CI                        │
+                                      │ Parallel Tests                   │
+                                      │ ...                              │
+                                      │ ADVANCED ORCHESTRATION           │ sticky
+                                      │ Matrix With Nested Stages        │
+                                      │ Deep Mixed Topology              │
+                                      │ ...                              │
+                                      │ REAL WORLD AND RECOVERY           │ sticky
+                                      │ Messy Real World            ⚠ 2 │
+                                      └──────────────────────────────────┘
 ```
 
-Choosing a sample replaces the editor contents immediately (undo is out of
-scope for v1); "Messy real world" intentionally ships a broken brace so the
-diagnostics story demos itself.
+The list shows about ten compact rows before scrolling. Search matches names,
+descriptions, and category labels. Choosing a sample replaces the editor
+contents immediately; recovery samples intentionally exercise diagnostics.
 
 ---
 
