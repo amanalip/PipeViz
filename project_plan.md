@@ -33,7 +33,7 @@ A browser based tool that turns Jenkins pipeline definitions into an interactive
 
 PipeViz is a static single page application. A user pastes a Jenkinsfile or uploads one, the app parses it in the browser, builds a model of the pipeline structure, lays the stages out as a directed graph, and renders it with React Flow. No backend is involved at any point, which keeps hosting on GitHub Pages trivial and keeps user code on their own machine.
 
-The visual language follows the horizontal flow made familiar by Jenkins Blue Ocean: stages run left to right, parallel branches stack vertically inside a shared column, and each stage card carries badges for conditions such as `when` or `parallel`. Clicking a card opens a detail panel listing its steps.
+The visual language keeps the horizontal flow made familiar by Jenkins Blue Ocean while using reusable React Flow subflows: ordinary stages run left to right, parallel branches fan out in lanes, matrices expand into cells, and nested sequential stages expand into numbered vertical groups. Clicking a card opens complete scoped metadata; graph search, focused execution paths, and selected-node toolbars support large pipelines.
 
 ## 2. Goals and Non Goals
 
@@ -210,6 +210,14 @@ interface StageNode {
   parallelBranches?: StageNode[];
   matrixAxes?: string[];     // axis names when matrix
   sequentialChildren?: StageNode[];
+  metadata?: MetadataFact[]; // adapter-neutral runtime/security/artifact/etc.
+}
+
+interface PipelineDialect {
+  id: string;       // e.g. jenkins, github-actions, terraform
+  label: string;
+  format: string;
+  version?: string;
 }
 
 interface PostHandler {
@@ -219,6 +227,8 @@ interface PostHandler {
 
 interface PipelineModel {
   kind: 'declarative' | 'scripted';
+  dialect?: PipelineDialect;
+  metadata?: MetadataFact[];
   agent?: string;
   environmentEntries: { key: string; value: string; line: number }[];
   parameters: { name: string; type: string }[];
@@ -239,10 +249,12 @@ IDs are path based (`s0`, `s0/p0`, `s0/p0/sq1`) which makes them deterministic a
 
 ## 8. Layout Algorithm
 
-Horizontal flow, Blue Ocean style.
+Horizontal outer flow with recursive structural subflows.
 
 - Sequential siblings occupy successive columns: column index increments left to right.
 - A `parallel` group places every branch's first stage in the same column, stacked vertically in lanes. Each branch then continues rightward within its own lane.
+- A compact nested-stage parent occupies one card. Expanding its stable ID replaces the card with a `sequential` parent container whose direct children form a numbered vertical chain.
+- Matrix, parallel, and sequential structures emit the same `GroupBox` contract (`kind`, owner stage, item count, bounds), allowing future adapters to reuse layout and rendering without Jenkins-specific containers.
 - Nested structures recurse: a branch containing its own parallel group gets sub lanes offset vertically within that branch's band.
 - The algorithm computes each subtree's bounding box bottom up, then positions parents centered vertically relative to their children. Concretely:
 
@@ -251,6 +263,7 @@ layout(subtree) -> { width, height, place(x, y) }
   for a leaf stage: width = NODE_W, height = NODE_H
   for sequential list: sum widths + H_GAP per link; height = max child height
   for parallel group: width = sum of widest per-column widths; height = sum of branch heights + V_GAP
+  for sequential group: width = widest child + padding; height = sum child heights + V_GAP
 ```
 
 Constants for v1: `NODE_W = 220`, `NODE_H = 72`, `H_GAP = 90`, `V_GAP = 36`.
@@ -258,18 +271,22 @@ Constants for v1: `NODE_W = 220`, `NODE_H = 72`, `H_GAP = 90`, `V_GAP = 36`.
 Edges:
 
 - Chain edge between consecutive sequential stages.
+- Vertical chain edges inside sequential groups attach from bottom to top through named handles.
 - Fan-out edges from the last node before a parallel group to each branch head; fan-in edges from each branch tail to the next sequential stage.
-- React Flow edge type `smoothstep`, no animation.
+- React Flow edge type `smoothstep`; focused-path edges may animate to communicate the selected execution route and respect reduced-motion preferences.
 
 Sanity properties asserted by tests: no two nodes overlap, columns are monotonic along any chain, total canvas size grows linearly with stage count.
 
 ## 9. Rendering with React Flow
 
-- One custom node component `StageNodeCard`: title, badge row (step count, `when` marker, `parallel n` marker, `input` marker), colored left border by category (build/test/deploy guessed from name keywords, neutral otherwise).
-- Handles: target on the left, source on the right, hidden visually but present for edge attachment.
-- Canvas features enabled: `fitView` on load, `<Controls />`, `<MiniMap />` pannable zoomable, dotted `<Background />`.
-- Selection: clicking a card selects it in flow and opens the details panel showing full step list with arguments and raw `when` text.
-- Node/edge objects are memoized; re-parse creates a fresh graph object keyed by an incrementing revision so stale selections clear cleanly.
+- Custom stage, ghost, and structural group nodes with provider-neutral metadata surfaces.
+- Named left/right and top/bottom handles let the same stage card participate in horizontal outer flow and vertical sequential flow.
+- Parent-child subflows for parallel, matrix, and sequential containers, including arbitrarily nested mixed structures.
+- Canvas features: conditional `fitView`, local group reveal, `<Controls />`, semantically colored pannable `<MiniMap />`, dotted `<Background />`, and a canvas `<Panel />` containing search, Focus Path, Expand All, and Collapse All.
+- `<NodeToolbar />` exposes source navigation and structural actions on the selected node without crowding every card.
+- Search spotlights matching nodes but never deletes dependency context. Focus Path computes directed predecessors and successors so unrelated parallel lanes dim without implying that they do not exist.
+- Selection is controlled by stable IDs and survives theme changes, compatible edits, and card-to-container transformations. Viewport changes are preserved unless newly revealed content is clipped.
+- Node positions, container dimensions, edges, and search/focus opacity use restrained transitions with a complete reduced-motion fallback.
 
 ## 10. UI Specification
 
@@ -330,7 +347,7 @@ Rules: the wordmark is plain HTML text next to the mark in the header, never bak
 
 ## 11. Sample Pipeline Corpus
 
-Bundled examples double as documentation and parser fixtures:
+Seven bundled samples double as documentation and parser fixtures. A separate 68-input Markdown corpus covers broad label, metadata, recovery, matrix, parallel, and deeply nested grouping variations.
 
 1. **Simple CI**: checkout, build, test, deploy. Four sequential stages.
 2. **Parallel tests**: unit and integration branches converging before deploy.
@@ -343,9 +360,9 @@ Bundled examples double as documentation and parser fixtures:
 ## 12. Testing Strategy
 
 - Parser unit tests in Vitest: each corpus sample asserts exact expected model (stage names, order, parallel grouping, step lists, diagnostic counts). Property checks: parser never throws on random ASCII fuzz inputs; always returns a model.
-- Layout unit tests: golden assertions on node positions for the parallel and nested samples; non-overlap property across all corpus files.
+- Layout unit tests: golden assertions on node positions and structural containers; non-overlap and containment properties across all 68 Markdown corpus inputs in compact, sequential-expanded, and matrix-plus-sequential-expanded views.
 - Snapshot tests for the model output only, not rendered DOM.
-- No end to end framework in v1; manual smoke checklist lives in this doc section and gets ticked before each release commit: load sample, edit causes re-parse, upload file, export JSON, resize window.
+- Playwright end-to-end coverage verifies core UI flows. A final real-browser audit covers search, focused paths, selection toolbars, group expansion, theme persistence, editor resizing, details-card persistence, and responsive geometry.
 
 ## 13. Deployment
 

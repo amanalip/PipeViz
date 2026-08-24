@@ -21,6 +21,46 @@
 export type StepKind = 'known' | 'unknown' | 'script'
 
 /**
+ * Adapter-neutral metadata vocabulary. Future parsers can expose information
+ * without adding one model field and one custom UI branch per provider.
+ */
+export type MetadataCategory =
+  | 'runtime'
+  | 'condition'
+  | 'environment'
+  | 'security'
+  | 'artifact'
+  | 'cache'
+  | 'trigger'
+  | 'deployment'
+  | 'resource'
+  | 'custom'
+
+export interface MetadataFact {
+  /** Stable adapter-owned key, such as `github.permissions` or `aws.region`. */
+  key: string
+  /** Short human-facing label suitable for a badge or details heading. */
+  label: string
+  /** Display-ready value. Omit for boolean/presence facts. */
+  value?: string
+  category: MetadataCategory
+  /** Source provenance when the adapter can locate the declaration. */
+  line?: number
+  /** Defaults to both so new adapters are visible without UI changes. */
+  visibility?: 'badge' | 'details' | 'both'
+  /** Optional scope label explaining where an inherited value came from. */
+  inheritedFrom?: string
+}
+
+/** Identity of the source adapter which produced this normalized graph. */
+export interface PipelineDialect {
+  id: string
+  label: string
+  format: string
+  version?: string
+}
+
+/**
  * One statement inside a `steps` block (or scripted stage body).
  * `args` keeps raw source text (quotes included) for display only.
  */
@@ -69,6 +109,8 @@ export interface StageNode {
   hasInput?: boolean
   /** Display-ready directives declared inside the stage input gate. */
   input?: string[]
+  /** Adapter-neutral facts rendered by shared badge and inspector surfaces. */
+  metadata?: MetadataFact[]
   /** Lanes fanning out of this stage (from a `parallel` block). */
   parallelBranches?: StageNode[]
   /** Axis names when this stage is a `matrix`. */
@@ -175,6 +217,10 @@ export interface UnparsedRegion {
 
 export interface PipelineModel {
   kind: ModelKind
+  /** Optional until non-Jenkins adapters join the application. */
+  dialect?: PipelineDialect
+  /** Adapter-neutral pipeline-scope facts. */
+  metadata?: MetadataFact[]
   agent?: string
   environmentEntries: EnvironmentEntry[]
   parameters: ParameterEntry[]

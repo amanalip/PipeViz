@@ -5,25 +5,24 @@
 // output, which keeps the mapping unit-testable and lets FlowCanvas memoize
 // it without fear (plan §9: "node/edge objects are memoized").
 //
-// The interesting part is parallel containers. Layout reports them as
-// absolute-coordinate ParallelBoxes while React Flow subflows want parent
-// nodes with children positioned *relative* to their immediate parent
+// The interesting part is structural containers. Layout reports parallel,
+// matrix, and sequential groups as absolute-coordinate GroupBoxes. React Flow
+// subflows want parent nodes with children positioned *relative* to their immediate parent
 // (`parentId`). This module rebuilds the nesting by geometric containment -
 // containers never partially overlap by construction, so "strictly inside"
 // is unambiguous - then rewrites every coordinate relative to the nearest
 // ancestor box. Cards outside any container keep absolute coordinates.
 //
-// Parent stage data (name, failFast, branch count) comes straight from the
-// PipelineModel via the container id, which equals the parent stage id, so
-// the tested layout module stays untouched.
+// Parent stage data travels with each layout container. This also supports
+// synthesized matrix lanes whose stable ids do not exist in PipelineModel.
 // ---------------------------------------------------------------------------
 
 import type { Edge, Node } from '@xyflow/react'
 import { MarkerType } from '@xyflow/react'
 
-import type { LayoutOptions, LayoutResult, PositionedStage } from '../layout/computeLayout'
+import type { GroupKind, LayoutOptions, LayoutResult, PositionedStage } from '../layout/computeLayout'
 import { NODE_H, NODE_W } from '../layout/computeLayout'
-import { axesLabel, canExpandMatrix, matrixCombinationCount } from '../layout/matrixCombos'
+import { axesLabel } from '../layout/matrixCombos'
 import type { PipelineModel, StageNode } from '../model/types'
 import { CANVAS_PALETTES } from '../theme'
 import type { Theme } from '../theme'
@@ -34,6 +33,14 @@ import { stageBadgeRow, stageMetadataBadges } from './stageBadges'
 export interface StageCardData extends Record<string, unknown> {
   stage: PositionedStage
   category: ReturnType<typeof categorize>
+  /** Compact structural card which can become a sequential group. */
+  expandable: boolean
+  /** One-based order when directly hosted by a sequential container. */
+  sequenceIndex?: number
+  /** Injected by FlowCanvas while keeping this converter pure. */
+  onToggleSequential?: (stageId: string) => void
+  /** Injected source-navigation action for the selected-node toolbar. */
+  onJumpToSource?: (line: number) => void
 }
 
 /**
@@ -44,14 +51,26 @@ export interface StageCardData extends Record<string, unknown> {
 export interface GroupContainerData extends Record<string, unknown> {
   /** Parent stage display name (kept for a11y/title). */
   label: string
-  kind: 'parallel' | 'matrix'
-  /** Lane count feeding the PAR ×n chip (parallel only). */
+  kind: GroupKind
+  /** Complete owner metadata, including synthesized matrix-lane stages. */
+  stage: StageNode
+  /** Generic item count for future group kinds. */
+  itemCount: number
+  /** Compatibility name used by existing parallel/matrix presentation. */
   branchCount: number
   failFast: boolean
   /** Axis names joined for the MATRIX header chip, e.g. `OS × BROWSER`. */
   matrixAxes?: string
   /** Metadata declared on the structural parent stage. */
   metadataBadges: string[]
+  /** One-based order when this group is directly nested in a sequential group. */
+  sequenceIndex?: number
+  /** Sequential groups are collapsible; other group kinds currently are not. */
+  collapsible: boolean
+  /** Injected by FlowCanvas while keeping this converter pure. */
+  onToggleSequential?: (stageId: string) => void
+  /** Injected source-navigation action for the selected-node toolbar. */
+  onJumpToSource?: (line: number) => void
 }
 
 /**
@@ -124,8 +143,20 @@ function toFlowEdge(edge: LayoutResult['edges'][number], theme: Theme, ghosts: R
     id: edge.id,
     source: edge.source,
     target: edge.target,
+    ...(edge.orientation === 'vertical'
+      ? {
+          sourceHandle: 'source-bottom',
+          targetHandle: 'target-top',
+          className: 'sequential-edge',
+        }
+      : {
+          sourceHandle: 'source-right',
+          targetHandle: 'target-left',
+        }),
     type: 'smoothstep',
     animated: false,
+    selectable: false,
+    focusable: false,
     style: {
       stroke: palette.edgeStroke,
       strokeWidth: 1.5,
@@ -151,8 +182,6 @@ export function buildFlowGraph(
   if (layout.nodes.length === 0 && layout.containers.length === 0) {
     return { nodes: [], edges: [] }
   }
-  const expandMatrix = options.expandMatrix === true
-
   const stagesById = indexStages(model)
 
   // ---- Containers: sort big -> small so parents precede descendants -------
@@ -193,6 +222,34 @@ export function buildFlowGraph(
     })
   }
 
+  // Resolve the nearest container for every card before emitting nodes. This
+  // also lets sequential groups number only their direct children rather
+  // than every deeply-contained descendant.
+  const hostByStageId = new Map<string, string>()
+  for (const stage of layout.nodes) {
+    let hostId: string | null = null
+    const cardRect = { x: stage.x, y: stage.y, width: NODE_W, height: NODE_H }
+    for (const box of boxes) {
+      if (contains(box, cardRect)) hostId = box.id
+    }
+    if (hostId) hostByStageId.set(stage.id, hostId)
+  }
+
+  const sequenceIndexById = new Map<string, number>()
+  for (const box of boxes) {
+    if (box.kind !== 'sequential') continue
+    const directChildren: { id: string; y: number }[] = []
+    for (const childBox of boxes) {
+      if (parentOf.get(childBox.id) === box.id) directChildren.push({ id: childBox.id, y: childBox.y })
+    }
+    for (const stage of layout.nodes) {
+      if (hostByStageId.get(stage.id) === box.id) directChildren.push({ id: stage.id, y: stage.y })
+    }
+    directChildren
+      .sort((a, b) => a.y - b.y || a.id.localeCompare(b.id))
+      .forEach((child, index) => sequenceIndexById.set(child.id, index + 1))
+  }
+
   // ---- Container nodes first ----------------------------------------------
   // React Flow subflows require every parent node to appear in the array
   // BEFORE any node carrying its id as `parentId`, so containers are emitted
@@ -200,33 +257,23 @@ export function buildFlowGraph(
   // containers ahead of the boxes nested inside them, too.
   const nodes: FlowNode[] = []
   for (const box of boxes) {
-    const parentStage = stagesById.get(box.id)
-    // Matrix styling mirrors the layout's expansion decision exactly: a
-    // stage past MATRIX_CELL_LIMIT stayed a summary card and must not be
-    // reported as an expanded matrix here.
-    const expandedMatrix =
-      expandMatrix &&
-      parentStage !== undefined &&
-      parentStage.matrixAxes !== undefined &&
-      canExpandMatrix(parentStage)
-    const branchCount =
-      parentStage?.parallelBranches?.length ??
-      (expandedMatrix && parentStage !== undefined
-        ? matrixCombinationCount(parentStage)
-        : 0)
+    const parentStage = stagesById.get(box.id) ?? box.stage
+    const branchCount = box.itemCount
     const grandparentId = parentOf.get(box.id) ?? null
     const metadataBadges = parentStage ? stageMetadataBadges(parentStage) : []
     const metadataAria = metadataBadges.length > 0 ? `, ${metadataBadges.join(', ')}` : ''
     // Screen-reader copy per the a11y audit (#21): name the group shape,
     // its owner, size, and failFast instead of letting React Flow fall
     // back to opaque node ids.
-    const ariaLabel = expandedMatrix
-      ? `Matrix group ${parentStage?.name ?? box.id}, axes ${axesLabel(parentStage)}, ${branchCount} ${branchCount === 1 ? 'combination' : 'combinations'}${
+    const ariaLabel = box.kind === 'matrix'
+      ? `Matrix group ${parentStage?.name ?? box.id}, axes ${parentStage ? axesLabel(parentStage) : ''}, ${branchCount} ${branchCount === 1 ? 'combination' : 'combinations'}${
           parentStage?.failFast ? ', fail fast' : ''
         }${metadataAria}`
-      : `Parallel group ${parentStage?.name ?? box.id}, ${branchCount} ${branchCount === 1 ? 'branch' : 'branches'}${
-          parentStage?.failFast ? ', fail fast' : ''
-        }${metadataAria}`
+      : box.kind === 'sequential'
+        ? `Sequential group ${parentStage?.name ?? box.id}, ${branchCount} nested ${branchCount === 1 ? 'stage' : 'stages'}, expanded${metadataAria}`
+        : `Parallel group ${parentStage?.name ?? box.id}, ${branchCount} ${branchCount === 1 ? 'branch' : 'branches'}${
+            parentStage?.failFast ? ', fail fast' : ''
+          }${metadataAria}`
     nodes.push({
       id: box.id,
       type: 'groupContainer',
@@ -235,13 +282,19 @@ export function buildFlowGraph(
       ariaLabel,
       data: {
         label: parentStage?.name ?? box.id,
-        kind: expandedMatrix ? 'matrix' : 'parallel',
+        kind: box.kind,
+        stage: parentStage,
+        itemCount: box.itemCount,
         branchCount,
         // failFast belongs to the stage whatever shape it renders as -
         // expanded matrices used to swallow it here.
         failFast: parentStage?.failFast ?? false,
         metadataBadges,
-        ...(expandedMatrix && parentStage !== undefined
+        collapsible: box.kind === 'sequential',
+        ...(sequenceIndexById.has(box.id)
+          ? { sequenceIndex: sequenceIndexById.get(box.id) }
+          : {}),
+        ...(box.kind === 'matrix' && parentStage !== undefined
           ? { matrixAxes: axesLabel(parentStage) }
           : {}),
       },
@@ -255,11 +308,7 @@ export function buildFlowGraph(
   // enclosing box, which is the immediate subflow parent React Flow expects.
   const ghostIds = new Set<string>()
   for (const stage of layout.nodes) {
-    let hostId: string | null = null
-    const cardRect = { x: stage.x, y: stage.y, width: NODE_W, height: NODE_H }
-    for (const box of boxes) {
-      if (contains(box, cardRect)) hostId = box.id
-    }
+    const hostId = hostByStageId.get(stage.id) ?? null
 
     // Relative to the host's absolute origin when nested, else as laid out.
     let x = stage.x
@@ -300,8 +349,15 @@ export function buildFlowGraph(
       type: 'stage',
       position: { x, y },
       style: { width: NODE_W, height: NODE_H },
-      ariaLabel: `${stage.name} stage, ${stageBadgeRow(stage)}, line ${stage.line}`,
-      data: { stage, category: categorize(stage.name) },
+      ariaLabel: `${stage.name} stage, ${stageBadgeRow(stage)}, line ${stage.line}${stage.sequentialChildren?.length ? ', collapsed, expandable' : ''}`,
+      data: {
+        stage,
+        category: categorize(stage.name),
+        expandable: Boolean(stage.sequentialChildren?.length),
+        ...(sequenceIndexById.has(stage.id)
+          ? { sequenceIndex: sequenceIndexById.get(stage.id) }
+          : {}),
+      },
       ...(hostId ? { parentId: hostId } : {}),
     })
   }

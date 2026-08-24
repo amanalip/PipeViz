@@ -1,6 +1,6 @@
 # PipeViz Jenkinsfile UX corpus
 
-This corpus contains 60 compact Jenkinsfile variations for parser and interface review. It mixes common production shapes, uncommon but valid structures, work in progress files, and intentionally malformed tails. Each fenced block is one independent input.
+This corpus contains 68 compact Jenkinsfile variations for parser and interface review. It mixes common production shapes, uncommon but valid structures, deeply nested group combinations, metadata-heavy stages, work in progress files, and intentionally malformed tails. Each fenced block is one independent input.
 
 ## Basic declarative pipelines
 
@@ -740,5 +740,181 @@ pipeline {
   agent any
   stages { stage('Build') { steps { sh 'make' } } }
 }
+}
+```
+
+## Expandable grouping and metadata variations
+
+### 61. Three-level sequential group
+
+```groovy
+pipeline {
+  agent any
+  stages {
+    stage('Quality') {
+      stages {
+        stage('Static') { steps { sh 'npm run lint' } }
+        stage('Verification') {
+          stages {
+            stage('Types') { steps { sh 'npm run typecheck' } }
+            stage('Tests') {
+              stages {
+                stage('Unit') { steps { sh 'npm test' } }
+                stage('Integration') { steps { sh 'npm run test:integration' } }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+```
+
+### 62. Sequential group containing parallel work
+
+```groovy
+pipeline {
+  agent any
+  stages {
+    stage('Release checks') {
+      stages {
+        stage('Compile') { steps { sh 'make compile' } }
+        stage('Platform tests') {
+          failFast true
+          parallel {
+            stage('Linux') { steps { sh './test-linux' } }
+            stage('Windows') { steps { bat 'test-windows.cmd' } }
+            stage('macOS') { steps { sh './test-macos' } }
+          }
+        }
+        stage('Approve') { input { message 'Release?' } steps { echo 'approved' } }
+      }
+    }
+  }
+}
+```
+
+### 63. Parallel branches with their own sequential groups
+
+```groovy
+pipeline {
+  agent none
+  stages {
+    stage('Regional deploy') {
+      parallel {
+        stage('Canada') {
+          stages {
+            stage('Plan CA') { steps { sh 'terraform plan -var region=ca' } }
+            stage('Apply CA') { steps { sh 'terraform apply -auto-approve' } }
+          }
+        }
+        stage('Europe') {
+          stages {
+            stage('Plan EU') { steps { sh 'terraform plan -var region=eu' } }
+            stage('Apply EU') { steps { sh 'terraform apply -auto-approve' } }
+          }
+        }
+      }
+    }
+  }
+}
+```
+
+### 64. Matrix cell with a multi-stage sequential chain
+
+```groovy
+pipeline {
+  agent none
+  stages {
+    stage('Compatibility') {
+      matrix {
+        axes {
+          axis { name 'OS'; values 'linux', 'windows' }
+          axis { name 'JDK'; values '17', '21' }
+        }
+        stages {
+          stage('Build cell') { steps { echo 'compile current cell' } }
+          stage('Test cell') { steps { echo 'test current cell' } }
+          stage('Publish cell report') { steps { junit 'reports/*.xml' } }
+        }
+      }
+    }
+  }
+}
+```
+
+### 65. Sequential group with inherited and overridden agents
+
+```groovy
+pipeline {
+  agent { label 'linux' }
+  environment { REGION = 'ca-central-1' }
+  stages {
+    stage('Delivery') {
+      when { branch 'main' }
+      options { timeout(time: 30, unit: 'MINUTES') }
+      stages {
+        stage('Package') { agent { docker { image 'node:22' } } steps { sh 'npm pack' } }
+        stage('Sign') { agent { label 'secure' } steps { sh './sign.sh' } }
+        stage('Upload') { steps { archiveArtifacts artifacts: 'dist/**' } }
+      }
+    }
+  }
+}
+```
+
+### 66. Sequential group with input and post metadata
+
+```groovy
+pipeline {
+  agent any
+  stages {
+    stage('Production promotion') {
+      input { message 'Promote to production?'; submitter 'release-team' }
+      post {
+        failure { mail to: 'ops@example.com', subject: 'Promotion failed' }
+        success { echo 'Promotion complete' }
+      }
+      stages {
+        stage('Canary') { steps { sh './deploy --percent 10' } }
+        stage('Observe') { steps { sh './check-slo --minutes 15' } }
+        stage('Complete') { steps { sh './deploy --percent 100' } }
+      }
+    }
+  }
+}
+```
+
+### 67. Duplicate display names across nested scopes
+
+```groovy
+pipeline {
+  agent any
+  stages {
+    stage('Test') { steps { sh 'make smoke' } }
+    stage('Quality') {
+      stages {
+        stage('Test') { steps { sh 'make unit' } }
+        stage('Test') { steps { sh 'make integration' } }
+      }
+    }
+    stage('Test') { steps { sh 'make acceptance' } }
+  }
+}
+```
+
+### 68. Scripted deeply nested stage calls
+
+```groovy
+node('linux') {
+  stage('Outer') {
+    stage('Prepare') { sh 'make prepare' }
+    stage('Inner') {
+      stage('Compile') { sh 'make compile' }
+      stage('Test') { sh 'make test' }
+    }
+    stage('Package') { sh 'make package' }
+  }
 }
 ```

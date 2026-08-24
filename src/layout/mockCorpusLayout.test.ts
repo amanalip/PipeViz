@@ -4,6 +4,7 @@ import mockCorpus from '../../jenkins_pipelines_mock.md?raw'
 import { parseJenkinsfile } from '../parser'
 import { computeLayout, NODE_H, NODE_W } from './computeLayout'
 import type { LayoutResult, ParallelBox, PositionedStage } from './computeLayout'
+import type { PipelineModel, StageNode } from '../model/types'
 
 const pipelines = [
   ...mockCorpus.matchAll(/### ([^\n]+)\n\n\x60{3}groovy\n([\s\S]*?)\x60{3}/g),
@@ -84,18 +85,50 @@ function expectSoundGeometry(result: LayoutResult, title: string): void {
   }
 }
 
-describe('layout geometry across the 60-file UX corpus', () => {
-  it('keeps the documented corpus at 60 independent pipelines', () => {
-    expect(pipelines).toHaveLength(60)
+function collectSequentialIds(stages: readonly StageNode[], sink: Set<string>): void {
+  for (const stage of stages) {
+    if (stage.sequentialChildren?.length) sink.add(stage.id)
+    collectSequentialIds(stage.parallelBranches ?? [], sink)
+    collectSequentialIds(stage.sequentialChildren ?? [], sink)
+    collectSequentialIds(stage.matrixCellStages ?? [], sink)
+  }
+}
+
+/** Expand recursively, including layout-time matrix lane clones. */
+function fullyExpandedLayout(model: PipelineModel, expandMatrix: boolean): LayoutResult {
+  const ids = new Set<string>()
+  collectSequentialIds(model.rootStages, ids)
+  let result = computeLayout(model, { expandMatrix, expandedSequentialIds: ids })
+  for (let depth = 0; depth < 12; depth += 1) {
+    const before = ids.size
+    for (const stage of result.nodes) {
+      if (stage.sequentialChildren?.length) ids.add(stage.id)
+    }
+    if (ids.size === before) return result
+    result = computeLayout(model, { expandMatrix, expandedSequentialIds: ids })
+  }
+  return result
+}
+
+describe('layout geometry across the 68-file UX corpus', () => {
+  it('keeps the documented corpus at 68 independent pipelines', () => {
+    expect(pipelines).toHaveLength(68)
   })
 
   for (const pipeline of pipelines) {
-    it(`${pipeline.title}: compact and expanded views have sound geometry`, () => {
+    it(`${pipeline.title}: every structural view has sound geometry`, () => {
       const model = parseJenkinsfile(pipeline.source)
-      expectSoundGeometry(computeLayout(model), `${pipeline.title} compact`)
       expectSoundGeometry(
-        computeLayout(model, { expandMatrix: true }),
-        `${pipeline.title} expanded`,
+        computeLayout(model, { expandedSequentialIds: new Set() }),
+        `${pipeline.title} compact`,
+      )
+      expectSoundGeometry(
+        fullyExpandedLayout(model, false),
+        `${pipeline.title} sequential expanded`,
+      )
+      expectSoundGeometry(
+        fullyExpandedLayout(model, true),
+        `${pipeline.title} matrix and sequential expanded`,
       )
     })
   }

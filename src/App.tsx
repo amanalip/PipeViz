@@ -11,14 +11,13 @@
 //   - DetailsPanel floats over the canvas for the selected card
 //   - DiagnosticsBar replaces the bare status line: expandable rows,
 //     click-to-jump caret + node flash, partial-graph honesty
-//   - double-clicking a card jumps the editor to its source line
+//   - double-clicking a structural card expands it; leaf cards jump to source
 //
 // UX principles applied here:
 //   - Debounced re-parse: the graph refreshes 400ms after typing stops
 //     (mockup §13), so mid-word keystrokes never thrash the canvas.
-//   - FlowCanvas updates its graph in place (no remount), so the camera
-//     survives re-parses and theme flips, while fresh graph data still
-//     clears stale selections exactly as mockup §17 promises.
+//   - FlowCanvas updates its graph in place (no remount), so camera and
+//     compatible selection survive re-parses, shape changes, and theme flips.
 //   - The status bar tells the truth about app state: busy while the
 //     debounce settles, ready with kind/stage/step counts once parsed,
 //     diagnostic counts as soon as the parser reports any (mockup §15).
@@ -26,7 +25,7 @@
 //     it only yields its slot to the partial-graph note when errors exist.
 // ---------------------------------------------------------------------------
 
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type {
   CSSProperties,
   ChangeEvent,
@@ -175,6 +174,17 @@ function clearShareHash(): void {
   )
 }
 
+/** Collect every parser-owned nested-stage parent across recursive shapes. */
+function sequentialGroupIds(stages: readonly StageNode[], sink = new Set<string>()): Set<string> {
+  for (const stage of stages) {
+    if (stage.sequentialChildren?.length) sink.add(stage.id)
+    sequentialGroupIds(stage.parallelBranches ?? [], sink)
+    sequentialGroupIds(stage.sequentialChildren ?? [], sink)
+    sequentialGroupIds(stage.matrixCellStages ?? [], sink)
+  }
+  return sink
+}
+
 /**
  * App renders the three-region layout from the UI spec (plan section 10):
  * header / workspace (editor + canvas) / diagnostics bar.
@@ -211,6 +221,11 @@ export default function App() {
   // M6 view preference: expand matrix stages into one card per axis combo
   // (mockups §10). Session-only; flipping it re-fits and clears selection.
   const [expandMatrix, setExpandMatrix] = useState(false)
+  // Nested stages start compact. Stable path ids preserve each user's local
+  // expansion choices through theme changes and compatible source edits.
+  const [expandedSequentialIds, setExpandedSequentialIds] = useState<Set<string>>(
+    () => new Set(),
+  )
   // Whole-source replacements and matrix shape changes request a fresh fit.
   // Ordinary debounced edits preserve the user's current camera.
   const [fitGraphVersion, setFitGraphVersion] = useState(0)
@@ -296,14 +311,13 @@ export default function App() {
   /**
    * Debounce gate between typing and parsing. Each keystroke resets the
    * timer; only when the keyboard rests for 400ms do we commit the new
-   * source (fresh graph + cleared selection), and let the memoized
+   * source, and let the memoized
    * parse/layout below run.
    */
   useEffect(() => {
     if (source === settledSource) return
     const timer = window.setTimeout(() => {
       setSettledSource(source)
-      setSelectedId(null)
       // Privacy (M6 sharing): the address bar is nobody's storage. A share
       // payload only sits there because a link was opened, so once edits
       // diverge from it, strip it back to the bare page URL. Encoded links
@@ -374,6 +388,7 @@ export default function App() {
       setSource(shared)
       setSettledSource(shared) // settle immediately, like a shared-link boot
       setSelectedId(null)
+      setExpandedSequentialIds(new Set())
       setPipelineDetailsOpen(false)
       setSampleName(sample?.name ?? null)
       setFitGraphVersion((version) => version + 1)
@@ -388,18 +403,6 @@ export default function App() {
     const timer = window.setTimeout(() => setPngState('idle'), COPY_FLASH_MS)
     return () => window.clearTimeout(timer)
   }, [pngState])
-
-  // Matrix expansion changes node identities, so its selection must clear.
-  // Theme changes keep the same identities and preserve the selected node
-  // and its open toast card.
-  const mounted = useRef(false)
-  useEffect(() => {
-    if (!mounted.current) {
-      mounted.current = true
-      return
-    }
-    setSelectedId(null)
-  }, [expandMatrix])
 
   // Reflect the theme on <html>, persist it, and keep browser chrome in
   // step (widget colors + mobile status bar).
@@ -431,9 +434,32 @@ export default function App() {
   // True while the live editor holds more than PipeViz will parse.
   const sourceTooLarge = source.length > SOURCE_LENGTH_LIMIT
   const layout = useMemo(
-    () => computeLayout(model, { expandMatrix }),
-    [model, expandMatrix],
+    () => computeLayout(model, { expandMatrix, expandedSequentialIds }),
+    [model, expandMatrix, expandedSequentialIds],
   )
+  const availableSequentialIds = useMemo(() => {
+    const ids = sequentialGroupIds(model.rootStages)
+    // Expanded matrix lanes are layout-time clones. Once visible, include
+    // their stable clone ids in the same bulk-control system.
+    for (const stage of layout.nodes) {
+      if (stage.sequentialChildren?.length) ids.add(stage.id)
+    }
+    for (const container of layout.containers) {
+      if (container.kind === 'sequential') ids.add(container.id)
+    }
+    return ids
+  }, [layout, model])
+
+  // Selection is controlled by App so a card can become a group container
+  // without dismissing its inspector. Only remove it when its stable id no
+  // longer exists in the rendered graph.
+  useEffect(() => {
+    if (!selectedId) return
+    const stillRendered =
+      layout.nodes.some((node) => node.id === selectedId) ||
+      layout.containers.some((container) => container.id === selectedId)
+    if (!stillRendered) setSelectedId(null)
+  }, [layout, selectedId])
 
   // True between a keystroke and the debounce settling (status bar "busy").
   const parsing = source !== settledSource
@@ -496,40 +522,27 @@ export default function App() {
   const selectedStage = selectedId
     ? (layout.nodes.find((node) => node.id === selectedId) ?? null)
     : null
-  const selectedName = selectedStage?.name ?? null
-  const selectedContainer = useMemo(() => {
-    if (!selectedId || selectedStage) return null
-    const find = (stages: readonly StageNode[]): StageNode | null => {
-      for (const stage of stages) {
-        if (stage.id === selectedId) return stage
-        const nested = find([
-          ...(stage.parallelBranches ?? []),
-          ...(stage.sequentialChildren ?? []),
-        ])
-        if (nested) return nested
-      }
-      return null
-    }
-    return find(model.rootStages)
-  }, [model, selectedId, selectedStage])
+  const selectedContainer = selectedId && !selectedStage
+    ? (layout.containers.find((container) => container.id === selectedId)?.stage ?? null)
+    : null
+  const selectedName = selectedStage?.name ?? selectedContainer?.name ?? null
 
   /** Close the details panel and drop the canvas selection ring with it. */
-  function closeDetailsPanel() {
+  const closeDetailsPanel = useCallback(() => {
     flowApi.current?.clearSelection()
     setSelectedId(null)
-  }
+  }, [])
 
-  function selectCanvasNode(id: string | null) {
+  const selectCanvasNode = useCallback((id: string | null) => {
     if (id !== null) setPipelineDetailsOpen(false)
     setSelectedId(id)
-  }
+  }, [])
 
   // ---- Header actions ------------------------------------------------------
 
   /**
-   * Sample pick replaces the editor immediately (§12) and settles just as
-   * immediately (§17: "fresh parse clears stale selection") - no reason to
-   * make the user wait out the typing debounce for a whole-file swap.
+   * Sample pick replaces and settles the editor immediately. A whole-source
+   * replacement intentionally resets selection and structural preferences.
    * Provenance records which sample the text came from.
    */
   function pickSample(sample: Sample) {
@@ -540,6 +553,7 @@ export default function App() {
     setSource(sample.source)
     setSettledSource(sample.source)
     setSelectedId(null)
+    setExpandedSequentialIds(new Set())
     setPipelineDetailsOpen(false)
     setFitGraphVersion((version) => version + 1)
   }
@@ -569,6 +583,7 @@ export default function App() {
       const text = await navigator.clipboard.readText()
       if (text.length > 0) {
         setPasteHint(false)
+        setExpandedSequentialIds(new Set())
         changeSource(text)
         editorApi.current?.focus()
         return
@@ -615,6 +630,7 @@ export default function App() {
       setSource(text)
       setSettledSource(text)
       setSelectedId(null)
+      setExpandedSequentialIds(new Set())
       setPipelineDetailsOpen(false)
       setFitGraphVersion((version) => version + 1)
       setUploadError(null)
@@ -627,9 +643,8 @@ export default function App() {
   /**
    * Serialize the settled model to the clipboard (§12). A fast click right
    * after typing must never export the previous parse: the pending debounce
-   * settles first (same contract as the timer - fresh graph, stale
-   * selection dropped), then the model for the text currently in the editor
-   * is what gets copied.
+   * settles first, then the model for the text currently in the editor is
+   * what gets copied. Compatible selection remains controlled by stable ids.
    */
   async function copyModelJson() {
     if (source.length > SOURCE_LENGTH_LIMIT) {
@@ -640,7 +655,6 @@ export default function App() {
     if (pending) {
       clearDivergentShareHash(source)
       setSettledSource(source)
-      setSelectedId(null)
     }
     // After a flush the memoized `model` still trails one render behind, so
     // the settled text is parsed directly; otherwise reuse the settled memo.
@@ -705,9 +719,12 @@ export default function App() {
   // ---- Cross-region interactions --------------------------------------------
 
   /** Editor caret to a source line; shared by rows and card double-click. */
-  function revealLine(line: number) {
+  const revealLine = useCallback((line: number) => {
     editorApi.current?.revealLine(line)
-  }
+  }, [])
+  const jumpStageToSource = useCallback((stage: StageNode) => {
+    revealLine(stage.line)
+  }, [revealLine])
 
   // Keyboard path for §17's jump-to-source (a11y audit #22): pressing `j`
   // jumps the caret to the selected card/container's source line, so the
@@ -732,7 +749,7 @@ export default function App() {
     }
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
-  }, [selectedId, selectedContainer, layout])
+  }, [selectedId, selectedContainer, layout, revealLine])
 
   /** One-shot highlight on a rendered card (§11 diagnostic click). */
   function flashNode(stageId: string | null) {
@@ -775,6 +792,30 @@ export default function App() {
     setExpandMatrix((value) => !value)
     setFitGraphVersion((version) => version + 1)
   }
+
+  /**
+   * Turn one compact nested-stage card into a reusable React Flow group, or
+   * collapse it back. Expansion only reframes when the new group would be
+   * clipped; otherwise the user's camera stays exactly where it was.
+   */
+  const toggleSequentialExpansion = useCallback((stageId: string) => {
+    setExpandedSequentialIds((current) => {
+      const next = new Set(current)
+      if (next.has(stageId)) next.delete(stageId)
+      else next.add(stageId)
+      return next
+    })
+    flowApi.current?.revealGroup(stageId)
+  }, [])
+
+  const expandAllSequential = useCallback(() => {
+    setExpandedSequentialIds(new Set(availableSequentialIds))
+    window.requestAnimationFrame(() => window.requestAnimationFrame(() => flowApi.current?.fitGraph()))
+  }, [availableSequentialIds])
+
+  const collapseAllSequential = useCallback(() => {
+    setExpandedSequentialIds(new Set())
+  }, [])
 
   /** Current editor maximum, preserving a useful canvas beside it. */
   function editorWidthMax(): number {
@@ -1064,8 +1105,14 @@ export default function App() {
               layout={layout}
               onSelect={selectCanvasNode}
               apiRef={flowApi}
-              onStageDoubleClick={(stage) => revealLine(stage.line)}
+              onStageDoubleClick={jumpStageToSource}
               expandMatrix={expandMatrix}
+              expandedSequentialIds={expandedSequentialIds}
+              onToggleSequential={toggleSequentialExpansion}
+              selectedId={selectedId}
+              onExpandAllSequential={expandAllSequential}
+              onCollapseAllSequential={collapseAllSequential}
+              sequentialGroupCount={availableSequentialIds.size}
               theme={theme}
               fitKey={fitGraphVersion}
             />

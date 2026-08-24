@@ -10,7 +10,7 @@
 // class on the node wrapper), ghost styling waits for M4's partial graphs.
 // ---------------------------------------------------------------------------
 
-import { Handle, Position } from '@xyflow/react'
+import { Handle, NodeToolbar, Position } from '@xyflow/react'
 import type { NodeProps } from '@xyflow/react'
 
 import { stageBadgeRow } from './stageBadges'
@@ -23,15 +23,60 @@ import type { StageCardNode } from './toFlow'
  * branches (layout normally replaces those cards).
  */
 /** Custom node renderer registered as `nodeTypes.stage` in FlowCanvas. */
-export function StageNodeCard({ data }: NodeProps<StageCardNode>) {
+export function StageNodeCard({ data, selected }: NodeProps<StageCardNode>) {
   const { stage } = data
   return (
-    <div className="stage-card" data-category={data.category} title={stage.name}>
-      {/* Invisible edge anchors: target left, source right (mockup §6). */}
-      <Handle type="target" position={Position.Left} className="card-handle" isConnectable={false} />
-      <span className="stage-card-title">{stage.name}</span>
+    <div
+      className="stage-card"
+      data-category={data.category}
+      title={stage.name}
+      onClick={(event) => {
+        if (event.detail !== 2) return
+        event.stopPropagation()
+        if (data.expandable) data.onToggleSequential?.(stage.id)
+        else data.onJumpToSource?.(stage.line)
+      }}
+    >
+      <NodeToolbar isVisible={selected} position={Position.Top} className="node-quick-toolbar">
+        {data.expandable && (
+          <button type="button" onClick={() => data.onToggleSequential?.(stage.id)}>
+            Expand group
+          </button>
+        )}
+        <button type="button" onClick={() => data.onJumpToSource?.(stage.line)}>
+          Source
+        </button>
+      </NodeToolbar>
+      {/* Named horizontal and vertical anchors let one card participate in
+          outer pipeline flow or a vertical sequential group without custom
+          card variants. */}
+      <Handle id="target-left" type="target" position={Position.Left} className="card-handle" isConnectable={false} />
+      <Handle id="target-top" type="target" position={Position.Top} className="card-handle" isConnectable={false} />
+      <div className="stage-card-heading">
+        {data.sequenceIndex !== undefined && (
+          <span className="sequence-order" aria-hidden="true">{data.sequenceIndex}</span>
+        )}
+        <span className="stage-card-title">{stage.name}</span>
+        {data.expandable && (
+          <button
+            type="button"
+            className="stage-expand-button nodrag nowheel"
+            aria-label={`Expand ${stage.name}, ${stage.sequentialChildren?.length ?? 0} nested stages`}
+            aria-expanded="false"
+            title="Expand nested sequential stages"
+            onDoubleClick={(event) => event.stopPropagation()}
+            onClick={(event) => {
+              event.stopPropagation()
+              data.onToggleSequential?.(stage.id)
+            }}
+          >
+            <span aria-hidden="true">⌄</span>
+          </button>
+        )}
+      </div>
       <span className="stage-card-badges">{stageBadgeRow(stage)}</span>
-      <Handle type="source" position={Position.Right} className="card-handle" isConnectable={false} />
+      <Handle id="source-right" type="source" position={Position.Right} className="card-handle" isConnectable={false} />
+      <Handle id="source-bottom" type="source" position={Position.Bottom} className="card-handle" isConnectable={false} />
     </div>
   )
 }

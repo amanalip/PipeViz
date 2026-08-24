@@ -46,6 +46,36 @@ describe('buildDetailSections', () => {
     expect(buildDetailSections(stage(), [])).toEqual([])
   })
 
+  it('shows adapter-neutral metadata with provenance and inheritance', () => {
+    const sections = buildDetailSections(
+      stage({
+        metadata: [
+          {
+            key: 'permissions',
+            label: 'Permissions',
+            value: 'contents: read',
+            category: 'security',
+            line: 8,
+            inheritedFrom: 'workflow',
+          },
+          {
+            key: 'runner',
+            label: 'Runner',
+            value: 'ubuntu',
+            category: 'runtime',
+            visibility: 'badge',
+          },
+        ],
+      }),
+      [],
+    )
+    expect(sections).toContainEqual({
+      title: 'METADATA (1)',
+      lines: ['Permissions: contents: read · security · inherited from workflow · line 8'],
+      bullet: true,
+    })
+  })
+
   it('titles the steps section with the count and bullets each line', () => {
     const sections = buildDetailSections(
       stage({ steps: [step('sh', "'make build'"), step('checkout')] }),
@@ -254,6 +284,21 @@ describe('buildContainerSections', () => {
     expect(buildContainerSections(container)[0]?.lines).toEqual([
       'Linux flow · 1 nested stage',
     ])
+  })
+
+  it('lists sequential children in their real execution order', () => {
+    const container = stage({
+      name: 'Quality',
+      sequentialChildren: [
+        stage({ id: 's0/sq0', name: 'Lint', steps: [step('sh')] }),
+        stage({ id: 's0/sq1', name: 'Test', steps: [step('junit'), step('sh')] }),
+      ],
+    })
+    expect(buildContainerSections(container)[0]).toEqual({
+      title: 'SEQUENTIAL STAGES (2)',
+      lines: ['1. Lint · 1 step', '2. Test · 2 steps'],
+      bullet: false,
+    })
   })
 
   it('labels incomplete matrices without blank axis values or numeric zeroes', () => {

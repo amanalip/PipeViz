@@ -39,4 +39,33 @@ describe('pipeline metadata labels', () => {
       { title: 'POST · success', lines: ["line 9 · known · echo 'done'"], bullet: true },
     ])
   })
+
+  it('accepts provider identity and generic metadata from future adapters', () => {
+    const model = parseJenkinsfile(source)
+    model.dialect = {
+      id: 'github-actions',
+      label: 'GitHub Actions',
+      format: 'workflow-yaml',
+      version: '1',
+    }
+    model.metadata = [
+      {
+        key: 'permissions',
+        label: 'PERMISSIONS',
+        value: 'read',
+        category: 'security',
+      },
+    ]
+    expect(pipelineMetadataBadges(model).at(-1)?.label).toBe('PERMISSIONS: read')
+    expect(buildPipelineMetadataSections(model)).toContainEqual({
+      title: 'SOURCE FORMAT',
+      lines: ['GitHub Actions · workflow-yaml · 1'],
+      bullet: false,
+    })
+    expect(buildPipelineMetadataSections(model)).toContainEqual({
+      title: 'METADATA (1)',
+      lines: ['PERMISSIONS: read · security'],
+      bullet: true,
+    })
+  })
 })

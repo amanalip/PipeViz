@@ -62,12 +62,19 @@ export function DetailsPanel({ stage, container, postHandlers, pipeline, onClose
   // Exactly one of the two is provided; containers get a shape inspector
   // instead of the step-oriented card view.
   const heading = stage ? `STAGE · ${stage.name}` : `CONTAINER · ${container?.name ?? ''}`
-  const containerSummary = container?.matrixAxes
-    ? stagePrimaryLabel(container)
-    : `${container?.parallelBranches?.length ?? 0} ${container?.parallelBranches?.length === 1 ? 'branch' : 'branches'}`
+  const containerKind = container?.matrixAxes
+    ? 'matrix'
+    : container?.parallelBranches?.length
+      ? 'parallel'
+      : 'sequential'
+  const containerSummary = containerKind === 'matrix'
+    ? stagePrimaryLabel(container as StageNode)
+    : containerKind === 'parallel'
+      ? `${container?.parallelBranches?.length ?? 0} ${container?.parallelBranches?.length === 1 ? 'branch' : 'branches'}`
+      : `${container?.sequentialChildren?.length ?? 0} nested ${container?.sequentialChildren?.length === 1 ? 'stage' : 'stages'}`
   const subline = stage
     ? `lines ${stage.line}-${stage.endLine ?? stage.line} · ${categorize(stage.name)} · ${stagePrimaryLabel(stage)}`
-    : `lines ${container?.line ?? 0}-${container?.endLine ?? container?.line ?? 0} · ${container?.matrixAxes ? 'matrix' : 'parallel'} group · ${containerSummary}`
+    : `lines ${container?.line ?? 0}-${container?.endLine ?? container?.line ?? 0} · ${containerKind} group · ${containerSummary}`
   const sections = stage
     ? buildDetailSections(stage, postHandlers, pipeline)
     : [

@@ -40,7 +40,7 @@ degrades gracefully (see §16).
 | Glyph | Meaning |
 |---|---|
 | `┌─┐ │ └─┘` | Single-line box — static chrome (header, panes, bars) |
-| `╔═╗ ║ ╚═╝` | Double-line box — elevated surfaces: floating panels, **selected** nodes, parallel/matrix containers |
+| `╔═╗ ║ ╚═╝` | Double-line box — elevated surfaces: floating panels, **selected** nodes, parallel/matrix/sequential containers |
 | `╭─╮ ╰─╯` | Round box — marketing / empty-state cards |
 | `█` | Colored category stripe on the left edge of a stage card |
 | `[chip]` | Button, pill, or badge |
@@ -257,7 +257,7 @@ Selection additionally opens the Details Panel (§9).
 
 ```
 chain edge          ┌────────┐      ┌────────┐
-                    │ Build  │─────▶│  Test  │          smoothstep, no animation
+                    │ Build  │─────▶│  Test  │          smoothstep
                     └────────┘      └────────┘
 
 fan-out / fan-in    ┌────────┐     ╔══════════════╗     ┌────────┐
@@ -272,14 +272,25 @@ fan-out / fan-in    ┌────────┐     ╔═══════�
                                    container carries the
                                    PAR ×2 badge + failFast
 
+sequential group    ┌────────┐     ╔══════════════════╗     ┌────────┐
+                    │ Build  │────▶║ SEQUENTIAL · QA  ║────▶│ Deploy │
+                    └────────┘     ║ ① Static checks  ║     └────────┘
+                                   ║       │          ║
+                                   ║       ▼          ║
+                                   ║ ② Tests          ║
+                                   ╚══════════════════╝
+                                   one entry, one exit;
+                                   vertical edges preserve order
+
 partial (unparsed)  ┌────────┐      ┌────────────┐
                     │ Build  │── - -│░ unparsed ░│       dashed stroke
                     └────────┘  - - └────────────┘
 ```
 
 Layout constants (v1): `NODE_W 220 · NODE_H 72 · H_GAP 90 · V_GAP 36`.
-Sequential siblings occupy successive columns; branches stack vertically in
-lanes inside a shared column; parents center against their children.
+Outer sequential siblings occupy successive columns. Parallel branches stack
+in lanes. Nested `stages` stay compact until expanded into a vertical,
+numbered container. Parents center against their structural children.
 
 ---
 
@@ -596,15 +607,21 @@ graceful degradation, not a mobile layout):
 |---|---|
 | Type in editor | status flips to `Parsing…`, debounce 400ms, graph re-renders in place |
 | Click stage card | select ring + details panel opens; click bg or Esc closes |
-| Double-click card | selects the stage's first line in the editor |
+| Double-click nested-stage card | expands it into a sequential React Flow subflow |
+| Double-click expanded sequential group | collapses it to one summary card |
+| Double-click leaf card | selects the stage's first line in the editor |
+| Click selected-node toolbar | expand/collapse the structure or jump to source |
+| Press `/` outside an editor/input | focuses graph search; matching nodes glow while context remains visible |
+| Toggle Focus path | directed predecessors and successors brighten; unrelated sibling lanes dim |
+| Expand All / Collapse All | materializes or summarizes every available sequential group |
 | Scroll / pinch on canvas | zoom toward cursor; Controls buttons mirror it |
 | Drag background | pan; minimap viewport rectangle follows |
 | Click minimap | recenters main camera there |
-| Pick sample | editor replaced instantly, fresh parse, revision bump clears stale selection |
+| Pick sample | editor replaced instantly, structural preferences and stale selection clear |
 | Upload file | same path as paste |
 | Copy JSON | model serialized to clipboard; button flashes "Copied ✓" for 1.5s |
 | Click diagnostic | caret jumps to line; related node flashes once if rendered |
-| Toggle Expand matrix | matrix stage swaps between compact card and one combo card per cell inside a MATRIX container; view refits, selection clears (M6, §10) |
+| Toggle Expand matrix | matrix stage swaps between compact card and one combo card per cell inside a MATRIX container; view refits while stable selection is preserved when possible (M6, §10) |
 | Toggle theme chip | dark ⇄ light via token override; canvas dots/minimap/edges swap palettes; choice persists across visits (M6) |
 | Copy link | URL with `#p=<source>` hash lands on the clipboard; "Copied ✓" flash; opening it restores editor + graph + sample caption (M6) |
 | Export PNG | graph framed by React Flow camera math renders to a downloaded PNG; button flashes "Export failed" on renderer errors (M6) |
@@ -635,6 +652,16 @@ M6 additions to the map:
 | Copy link / shared URLs | base64url source ⇄ hash codec | `src/share/hash.ts` |
 | Theme toggle palettes | scheme plumbing + canvas colors | `src/theme.ts` |
 
+Reusable graph-system additions:
+
+| Concern | Module | File |
+|---|---|---|
+| Compact/expanded sequential geometry | recursive group layout | `src/layout/computeLayout.ts` |
+| Parent-child grouping and directional handles | React Flow conversion | `src/graph/toFlow.ts` |
+| Search, Focus Path, minimap semantics, bulk controls | canvas toolkit | `src/graph/FlowCanvas.tsx` |
+| Selected-node actions | NodeToolbar renderers | `src/graph/StageNodeCard.tsx`, `src/graph/FlowCanvas.tsx` |
+| Provider-neutral metadata | normalized model contract | `src/model/types.ts` |
+
 Implementation notes, kept true to the reference:
 
 - The §15 "Partial graph: N of M stages rendered" line computes M as an
@@ -663,7 +690,7 @@ Implementation notes, kept true to the reference:
 | Constant | Value | Where |
 |---|---|---|
 | Header height | ≈52px (12px padding + 28px mark) | `.app-header` |
-| Editor width | 380px fixed | `.editor-pane` |
+| Editor width | 380px default, drag/keyboard resizable | `.editor-pane`, `.editor-resizer` |
 | Card size | 220 × 72px | layout constants |
 | Horizontal gap | 90px | between columns |
 | Vertical gap | 36px | between lanes |

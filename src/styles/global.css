@@ -1071,12 +1071,63 @@ button.chip:active {
 }
 
 .stage-card-title {
+  min-width: 0;
+  flex: 1;
   font-size: 13px;
   font-weight: 650;
   color: var(--ink);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.stage-card-heading {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.sequence-order {
+  width: 19px;
+  height: 19px;
+  flex: none;
+  display: inline-grid;
+  place-items: center;
+  border: 1px solid var(--accent-chip);
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.stage-expand-button,
+.group-collapse-button {
+  width: 24px;
+  height: 24px;
+  flex: none;
+  display: inline-grid;
+  place-items: center;
+  padding: 0;
+  color: var(--ink-secondary);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  cursor: pointer;
+  transition: color 120ms ease, border-color 120ms ease, background-color 120ms ease;
+}
+
+.stage-expand-button:hover,
+.stage-expand-button:focus-visible,
+.group-collapse-button:hover,
+.group-collapse-button:focus-visible {
+  color: var(--accent);
+  border-color: var(--accent-chip);
+  background: var(--accent-soft);
+  outline: none;
 }
 
 .stage-card-badges {
@@ -1114,6 +1165,25 @@ button.chip:active {
   border-radius: var(--radius-md);
   box-shadow: var(--container-inset);
   pointer-events: auto;
+  overflow: hidden;
+  transition: width 220ms cubic-bezier(0.22, 1, 0.36, 1),
+    height 220ms cubic-bezier(0.22, 1, 0.36, 1),
+    border-color 120ms ease,
+    box-shadow 120ms ease;
+}
+
+.parallel-container.sequential {
+  background:
+    linear-gradient(180deg, var(--accent-soft), transparent 76px),
+    var(--container-bg);
+  border-color: var(--accent-chip);
+  box-shadow: var(--container-inset), inset 3px 0 0 color-mix(in srgb, var(--accent) 65%, transparent);
+}
+
+.parallel-container.matrix {
+  background:
+    linear-gradient(180deg, color-mix(in srgb, #a78bfa 10%, transparent), transparent 80px),
+    var(--container-bg);
 }
 
 .parallel-container-header {
@@ -1137,6 +1207,25 @@ button.chip:active {
   text-overflow: ellipsis;
 }
 
+.parallel-container-name {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--ink);
+  font-size: 11.5px;
+  font-weight: 650;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.group-order {
+  width: 18px;
+  height: 18px;
+}
+
+.group-collapse-button {
+  margin-left: auto;
+}
+
 .parallel-container-chip {
   flex: none;
   font-size: 11px;
@@ -1154,6 +1243,177 @@ button.chip:active {
     0 0 0 2px var(--bg-1),
     0 0 0 3.5px var(--accent),
     0 0 26px var(--accent-glow);
+}
+
+/* React Flow keeps node identity stable while layout coordinates change, so
+   transforms can ease between compact and expanded group geometry. Newly
+   materialized descendants get one restrained entrance animation. */
+.react-flow__node {
+  transition: transform 220ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.react-flow__node-stage,
+.react-flow__node-groupContainer {
+  animation: graph-node-enter 180ms ease-out both;
+}
+
+.react-flow__edge-path {
+  transition: stroke 120ms ease, stroke-width 120ms ease, opacity 120ms ease;
+}
+
+/* Edges communicate execution but never act as controls in this viewer. */
+.react-flow__edge-interaction {
+  pointer-events: none;
+}
+
+.react-flow__edge.sequential-edge .react-flow__edge-path {
+  stroke-width: 1.8;
+}
+
+.node-quick-toolbar {
+  display: flex;
+  gap: 5px;
+  padding: 5px;
+  background: var(--surface-strong);
+  border: 1px solid var(--border-strong);
+  border-radius: 9px;
+  box-shadow: var(--shadow-card);
+}
+
+.node-quick-toolbar button {
+  padding: 4px 8px;
+  color: var(--ink-secondary);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font: 600 10.5px/1.2 var(--font-ui);
+  cursor: pointer;
+}
+
+.node-quick-toolbar button:hover,
+.node-quick-toolbar button:focus-visible {
+  color: var(--accent);
+  border-color: var(--accent-chip);
+  outline: none;
+}
+
+/* Canvas-native exploration tools stay inside React Flow so they remain
+   useful when the outer application shell changes for future adapters. */
+.graph-tools {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  max-width: calc(100% - 126px);
+  overflow-x: auto;
+  scrollbar-width: thin;
+  padding: 6px;
+  background: color-mix(in srgb, var(--surface-strong) 94%, transparent);
+  border: 1px solid var(--border);
+  border-radius: 11px;
+  box-shadow: var(--shadow-card);
+  backdrop-filter: blur(12px);
+}
+
+.graph-search {
+  width: 188px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 8px;
+  color: var(--ink-muted);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 7px;
+}
+
+.graph-search:focus-within {
+  border-color: var(--accent-chip);
+  box-shadow: 0 0 0 2px var(--accent-soft);
+}
+
+.graph-search input {
+  width: 100%;
+  min-width: 0;
+  color: var(--ink);
+  background: transparent;
+  border: 0;
+  outline: 0;
+  font: 12px/1 var(--font-ui);
+}
+
+.graph-search input::placeholder {
+  color: var(--ink-muted);
+}
+
+.graph-search kbd,
+.graph-search-count {
+  flex: none;
+  min-width: 18px;
+  padding: 2px 4px;
+  color: var(--ink-muted);
+  background: var(--surface-strong);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  font: 10px/1 var(--font-mono);
+  text-align: center;
+}
+
+.graph-tool-button {
+  height: 30px;
+  flex: none;
+  padding: 0 9px;
+  color: var(--ink-secondary);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  font: 600 11px/1 var(--font-ui);
+  cursor: pointer;
+}
+
+.graph-tool-button:hover:not(:disabled),
+.graph-tool-button:focus-visible,
+.graph-tool-button.active {
+  color: var(--accent);
+  background: var(--accent-soft);
+  border-color: var(--accent-chip);
+  outline: none;
+}
+
+.graph-tool-button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.react-flow__node.graph-search-dim,
+.react-flow__node.graph-path-dim,
+.react-flow__edge.graph-path-dim {
+  opacity: 0.2;
+}
+
+.react-flow__node.graph-search-match .stage-card,
+.react-flow__node.graph-search-match .parallel-container {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-soft), 0 0 22px var(--accent-glow);
+}
+
+.react-flow__node.graph-path-active .stage-card,
+.react-flow__node.graph-path-active .parallel-container {
+  border-color: var(--accent-ring);
+}
+
+.react-flow__edge.graph-path-active .react-flow__edge-path {
+  stroke: var(--accent);
+  stroke-width: 2.2;
+}
+
+@keyframes graph-node-enter {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
 /* ---- Ghost card (mockups §11) ------------------------------------------------

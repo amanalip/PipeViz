@@ -1,5 +1,10 @@
 import { MATRIX_CELL_LIMIT, matrixCombinationCount } from '../layout/matrixCombos'
-import type { StageNode } from '../model/types'
+import type { MetadataFact, StageNode } from '../model/types'
+
+/** Shared compact form used by stage, group, and pipeline badge surfaces. */
+export function metadataFactLabel(fact: MetadataFact): string {
+  return fact.value ? `${fact.label}: ${fact.value}` : fact.label
+}
 
 /** Describe the main content represented by one compact card. */
 export function stagePrimaryLabel(stage: StageNode): string {
@@ -38,6 +43,9 @@ export function stageMetadataBadges(stage: StageNode): string[] {
   if (stage.tools?.length) badges.push(`TOOLS ×${stage.tools.length}`)
   if (stage.options?.length) badges.push(`OPT ×${stage.options.length}`)
   if (stage.hasInput) badges.push('IN')
+  for (const fact of stage.metadata ?? []) {
+    if (fact.visibility !== 'details') badges.push(metadataFactLabel(fact))
+  }
   return badges
 }
 

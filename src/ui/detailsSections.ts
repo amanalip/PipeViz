@@ -107,6 +107,20 @@ export function buildDetailSections(
     })
   }
 
+  const genericMetadata = (stage.metadata ?? []).filter((fact) => fact.visibility !== 'badge')
+  if (genericMetadata.length > 0) {
+    sections.push({
+      title: `METADATA (${genericMetadata.length})`,
+      lines: genericMetadata.map((fact) => {
+        const value = fact.value ? `${fact.label}: ${fact.value}` : fact.label
+        const scope = fact.inheritedFrom ? ` · inherited from ${fact.inheritedFrom}` : ''
+        const line = fact.line ? ` · line ${fact.line}` : ''
+        return `${value} · ${fact.category}${scope}${line}`
+      }),
+      bullet: true,
+    })
+  }
+
   if (pipeline) {
     const context: string[] = []
     if (pipeline.environmentEntries.length) {
@@ -147,6 +161,16 @@ export function buildDetailSections(
  */
 export function buildContainerSections(stage: StageNode): DetailSection[] {
   const sections: DetailSection[] = []
+
+  if (stage.sequentialChildren && stage.sequentialChildren.length > 0) {
+    sections.push({
+      title: `SEQUENTIAL STAGES (${stage.sequentialChildren.length})`,
+      lines: stage.sequentialChildren.map(
+        (child, index) => `${index + 1}. ${child.name} · ${stagePrimaryLabel(child)}`,
+      ),
+      bullet: false,
+    })
+  }
 
   if (stage.parallelBranches && stage.parallelBranches.length > 0) {
     sections.push({

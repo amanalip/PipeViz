@@ -228,6 +228,58 @@ describe('group metadata labels', () => {
   })
 })
 
+describe('buildFlowGraph with collapsible sequential groups', () => {
+  const source = sampleById('sequential-groups')?.source ?? ''
+  const model = parseJenkinsfile(source)
+
+  it('marks the compact parent as expandable without rendering hidden children', () => {
+    const layout = computeLayout(model, { expandedSequentialIds: new Set() })
+    const graph = buildFlowGraph(model, layout, { expandedSequentialIds: new Set() })
+    const quality = graph.nodes.find((node) => node.id === 's1')
+    expect(quality?.type).toBe('stage')
+    if (quality?.type !== 'stage') return
+    expect(quality.data.expandable).toBe(true)
+    expect(quality.ariaLabel).toContain('collapsed, expandable')
+    expect(graph.nodes.some((node) => node.id === 's1/sq0')).toBe(false)
+  })
+
+  it('maps expanded parents to nested React Flow subflows with ordered children', () => {
+    const options = { expandedSequentialIds: new Set(['s1', 's1/sq1']) }
+    const layout = computeLayout(model, options)
+    const graph = buildFlowGraph(model, layout, options)
+    expectParentsBeforeChildren(graph)
+
+    const quality = graph.nodes.find((node) => node.id === 's1')
+    expect(quality?.type).toBe('groupContainer')
+    if (quality?.type !== 'groupContainer') return
+    expect(quality.data).toMatchObject({
+      kind: 'sequential',
+      itemCount: 2,
+      collapsible: true,
+    })
+    expect(quality.ariaLabel).toContain('2 nested stages, expanded')
+
+    const staticAnalysis = graph.nodes.find((node) => node.id === 's1/sq0')
+    expect(staticAnalysis?.parentId).toBe('s1')
+    expect(staticAnalysis?.type === 'stage' && staticAnalysis.data.sequenceIndex).toBe(1)
+    const deep = graph.nodes.find((node) => node.id === 's1/sq1')
+    expect(deep?.parentId).toBe('s1')
+    expect(deep?.type === 'groupContainer' && deep.data.sequenceIndex).toBe(2)
+  })
+
+  it('routes internal execution through bottom and top handles', () => {
+    const options = { expandedSequentialIds: new Set(['s1', 's1/sq1']) }
+    const layout = computeLayout(model, options)
+    const graph = buildFlowGraph(model, layout, options)
+    const vertical = graph.edges.filter((edge) => edge.className === 'sequential-edge')
+    expect(vertical).toHaveLength(2)
+    for (const edge of vertical) {
+      expect(edge.sourceHandle).toBe('source-bottom')
+      expect(edge.targetHandle).toBe('target-top')
+    }
+  })
+})
+
 describe('buildFlowGraph with nested parallel containers', () => {
   const NESTED = `pipeline {
   stages {
@@ -258,19 +310,24 @@ describe('buildFlowGraph with nested parallel containers', () => {
   }
 }
 `
-  const { layout, graph } = flow(NESTED)
+  const nestedModel = parseJenkinsfile(NESTED)
+  const nestedOptions = { expandedSequentialIds: new Set(['s1/p0']) }
+  const layout = computeLayout(nestedModel, nestedOptions)
+  const graph = buildFlowGraph(nestedModel, layout, nestedOptions)
 
   it('emits every parent container before the nodes parented to it', () => {
     expectParentsBeforeChildren(graph)
   })
 
-  it('recovers both container levels from geometry alone', () => {
+  it('recovers all mixed container levels from geometry alone', () => {
     expectParentsBeforeChildren(graph)
-    expect(layout.containers).toHaveLength(2)
+    expect(layout.containers).toHaveLength(3)
     const outer = layout.containers.find((box) => box.id === 's1')
-    const inner = layout.containers.find((box) => box.id !== 's1')
+    const sequential = layout.containers.find((box) => box.kind === 'sequential')
+    const inner = layout.containers.find((box) => box.kind === 'parallel' && box.id !== 's1')
     expect(outer && inner).toBeTruthy()
-    if (!outer || !inner) return
+    expect(sequential).toBeTruthy()
+    if (!outer || !inner || !sequential) return
     // Inner strictly inside outer - the precondition the converter relies on.
     expect(inner.x).toBeGreaterThanOrEqual(outer.x)
     expect(inner.y).toBeGreaterThanOrEqual(outer.y)
@@ -279,14 +336,17 @@ describe('buildFlowGraph with nested parallel containers', () => {
 
     const innerNode = graph.nodes.find((node) => node.id === inner.id)
     expect(innerNode?.type).toBe('groupContainer')
-    expect(innerNode?.parentId).toBe(outer.id)
-    expect(innerNode?.position).toEqual({ x: inner.x - outer.x, y: inner.y - outer.y })
+    expect(innerNode?.parentId).toBe(sequential.id)
+    expect(innerNode?.position).toEqual({
+      x: inner.x - sequential.x,
+      y: inner.y - sequential.y,
+    })
   })
 
   it('parents deep cards to the innermost container only', () => {
     // The two Herd-lane cards live inside both boxes geometrically but must
     // attach to the inner one with offsets measured from the inner origin.
-    const inner = layout.containers.find((box) => box.id !== 's1')
+    const inner = layout.containers.find((box) => box.kind === 'parallel' && box.id !== 's1')
     if (!inner) throw new Error('inner container missing')
     const laneIds = layout.nodes
       .filter((node) => node.name === 'Goat' || node.name === 'Ewe')

@@ -20,9 +20,9 @@ function allStages(stages: readonly StageNode[]): StageNode[] {
   ])
 }
 
-describe('labels across the 60-file UX corpus', () => {
-  it('keeps the documented corpus at 60 independent pipelines', () => {
-    expect(pipelines).toHaveLength(60)
+describe('labels across the 68-file UX corpus', () => {
+  it('keeps the documented corpus at 68 independent pipelines', () => {
+    expect(pipelines).toHaveLength(68)
   })
 
   for (const pipeline of pipelines) {

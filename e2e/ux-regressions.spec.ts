@@ -7,7 +7,75 @@ async function loadSimpleSample(page: import('@playwright/test').Page) {
   await expect(page.locator('.react-flow__node .stage-card').first()).toBeVisible()
 }
 
+async function loadSample(page: import('@playwright/test').Page, name: string) {
+  await page.goto('/')
+  await page.getByRole('button', { name: 'Samples ▾' }).click()
+  await page.getByRole('listbox').getByRole('option', { name }).click()
+  await expect(page.locator('.react-flow__node').first()).toBeVisible()
+}
+
 test.describe('high-impact UX regressions', () => {
+  test('nested stages expand into an ordered group and preserve the open toast', async ({ page }) => {
+    await loadSample(page, 'Sequential Groups')
+    const quality = page.getByRole('group', { name: /Quality Suite stage/ })
+    await expect(quality).toHaveAttribute('aria-label', /collapsed, expandable/)
+    await quality.click()
+    await expect(page.getByRole('dialog')).toContainText('STAGE · Quality Suite')
+
+    await quality.locator('.stage-card').dblclick()
+
+    const group = page.getByRole('group', { name: /Sequential group Quality Suite/ })
+    await expect(group).toBeVisible()
+    await expect(group).toHaveClass(/selected/)
+    await expect(page.getByRole('dialog')).toContainText('CONTAINER · Quality Suite')
+    await expect(page.getByRole('group', { name: /Static Analysis stage/ })).toBeVisible()
+    await expect(page.getByRole('group', { name: /Deep Checks stage/ })).toBeVisible()
+
+    const first = await page.getByRole('group', { name: /Static Analysis stage/ }).boundingBox()
+    const second = await page.getByRole('group', { name: /Deep Checks stage/ }).boundingBox()
+    if (!first || !second) throw new Error('Sequential child geometry missing')
+    expect(second.y).toBeGreaterThan(first.y + first.height)
+
+    await group.locator('.parallel-container').dblclick()
+    await expect(page.getByRole('group', { name: /Quality Suite stage/ })).toBeVisible()
+    await expect(page.getByRole('group', { name: /Static Analysis stage/ })).toBeHidden()
+  })
+
+  test('graph search keeps context and highlights metadata or stage matches', async ({ page }) => {
+    await loadSample(page, 'Parallel Tests')
+    const search = page.getByRole('searchbox', { name: 'Find stage in graph' })
+    await search.fill('Integration')
+    await expect(page.locator('.react-flow__node.graph-search-match')).toHaveCount(1)
+    await expect(page.locator('.react-flow__node.graph-search-dim')).toHaveCount(5)
+    await expect(page.getByRole('group', { name: /Build stage/ })).toBeVisible()
+    await search.press('Escape')
+    await expect(page.locator('.react-flow__node.graph-search-dim')).toHaveCount(0)
+  })
+
+  test('Focus path isolates one parallel lane without hiding sibling lanes', async ({ page }) => {
+    await loadSample(page, 'Parallel Tests')
+    await page.getByRole('group', { name: /Unit stage/ }).click()
+    await page.getByRole('button', { name: 'Focus path' }).click()
+
+    await expect(page.getByRole('group', { name: /Build stage/ })).toHaveClass(/graph-path-active/)
+    await expect(page.getByRole('group', { name: /Unit stage/ })).toHaveClass(/graph-path-active/)
+    await expect(page.getByRole('group', { name: /Report stage/ })).toHaveClass(/graph-path-active/)
+    await expect(page.getByRole('group', { name: /Lint stage/ })).toHaveClass(/graph-path-dim/)
+    await expect(page.getByRole('group', { name: /Lint stage/ })).toBeVisible()
+  })
+
+  test('bulk group controls expand deep nesting and collapse it again', async ({ page }) => {
+    await loadSample(page, 'Sequential Groups')
+    await page.getByRole('button', { name: 'Expand all' }).click()
+    await expect(page.getByRole('group', { name: /Sequential group Quality Suite/ })).toBeVisible()
+    await expect(page.getByRole('group', { name: /Sequential group Deep Checks/ })).toBeVisible()
+    await expect(page.getByRole('group', { name: /Dead Code stage/ })).toBeVisible()
+
+    await page.getByRole('button', { name: 'Collapse all' }).click()
+    await expect(page.getByRole('group', { name: /Quality Suite stage/ })).toBeVisible()
+    await expect(page.getByRole('group', { name: /Dead Code stage/ })).toBeHidden()
+  })
+
   test('the canvas toolbar does not block the first stage card', async ({ page }) => {
     await loadSimpleSample(page)
 

@@ -102,7 +102,7 @@ describe('layout - parallel-tests (golden)', () => {
     expect(result.containers.map((c) => c.id)).toEqual(['s1'])
 
     const box = result.containers[0]
-    expect(box).toEqual({
+    expect(box).toMatchObject({
       id: 's1',
       x: NODE_W + H_GAP,
       y: 0,
@@ -113,6 +113,8 @@ describe('layout - parallel-tests (golden)', () => {
         NODE_H * 3 +
         V_GAP * 2 +
         CONTAINER_PAD_Y,
+      kind: 'parallel',
+      itemCount: 3,
     })
   })
 
@@ -165,11 +167,8 @@ describe('layout - matrix-build, expanded (M6 toggle)', () => {
     expect(result.nodes.map((node) => node.id)).toEqual([
       's0',
       's1/m0',
-      's1/m0/c0',
       's1/m1',
-      's1/m1/c0',
       's1/m2',
-      's1/m2/c0',
       's2',
     ])
     expect(result.nodes.find((node) => node.id === 's1')).toBeUndefined()
@@ -196,12 +195,9 @@ describe('layout - matrix-build, expanded (M6 toggle)', () => {
       's0->s1/m0:fan-out',
       's0->s1/m1:fan-out',
       's0->s1/m2:fan-out',
-      's1/m0->s1/m0/c0:chain',
-      's1/m1->s1/m1/c0:chain',
-      's1/m2->s1/m2/c0:chain',
-      's1/m0/c0->s2:fan-in',
-      's1/m1/c0->s2:fan-in',
-      's1/m2/c0->s2:fan-in',
+      's1/m0->s2:fan-in',
+      's1/m1->s2:fan-in',
+      's1/m2->s2:fan-in',
     ])
   })
 
@@ -236,54 +232,74 @@ describe('layout - matrix-build, expanded (M6 toggle)', () => {
 })
 
 describe('layout - sequential-groups (golden)', () => {
-  const result = computeLayout(modelOf('sequential-groups'))
-
-  it('unfolds nested groups inline in successive columns', () => {
-    expect(
-      result.nodes.map((n) => `${n.id}@${n.x}`),
-    ).toEqual([
-      's0@0',
-      's1@310',
-      's1/sq0@620',
-      's1/sq1@930',
-      's1/sq1/sq0@1240',
-      's1/sq1/sq1@1550',
-      's2@1860',
-    ])
-    expect(result.nodes.every((n) => n.y === 0)).toBe(true)
+  const result = computeLayout(modelOf('sequential-groups'), {
+    expandedSequentialIds: new Set(['s1', 's1/sq1']),
   })
 
-  it('routes flow through the parent card and out of the last child', () => {
+  it('turns each expanded nested-stage parent into a reusable group', () => {
+    expect(result.containers.map((box) => `${box.id}:${box.kind}`)).toEqual([
+      's1:sequential',
+      's1/sq1:sequential',
+    ])
+    expect(result.nodes.map((node) => node.id)).toEqual([
+      's0',
+      's1/sq0',
+      's1/sq1/sq0',
+      's1/sq1/sq1',
+      's2',
+    ])
+    const outer = req(result.containers.find((box) => box.id === 's1'))
+    const inner = req(result.containers.find((box) => box.id === 's1/sq1'))
+    expect(inner.x).toBeGreaterThanOrEqual(outer.x)
+    expect(inner.y).toBeGreaterThan(outer.y)
+    expect(inner.x + inner.width).toBeLessThanOrEqual(outer.x + outer.width)
+    expect(inner.y + inner.height).toBeLessThanOrEqual(outer.y + outer.height)
+  })
+
+  it('routes one truthful vertical chain through nested children', () => {
     expect(result.edges.map((e) => e.id)).toEqual([
-      's0->s1',
-      's1->s1/sq0',
-      's1/sq0->s1/sq1',
-      's1/sq1->s1/sq1/sq0',
+      's0->s1/sq0',
+      's1/sq0->s1/sq1/sq0',
       's1/sq1/sq0->s1/sq1/sq1',
       's1/sq1/sq1->s2',
     ])
+    expect(result.edges.filter((edge) => edge.orientation === 'vertical').map((edge) => edge.id)).toEqual([
+      's1/sq0->s1/sq1/sq0',
+      's1/sq1/sq0->s1/sq1/sq1',
+    ])
+  })
+
+  it('supports a compact view with one expandable parent card', () => {
+    const compact = computeLayout(modelOf('sequential-groups'), {
+      expandedSequentialIds: new Set(),
+    })
+    expect(compact.containers).toEqual([])
+    expect(compact.nodes.map((node) => node.id)).toEqual(['s0', 's1', 's2'])
+    expect(compact.edges.map((edge) => edge.id)).toEqual(['s0->s1', 's1->s2'])
   })
 })
 
 describe('layout - scripted-classic', () => {
-  const result = computeLayout(modelOf('scripted-classic'))
+  const result = computeLayout(modelOf('scripted-classic'), {
+    expandedSequentialIds: new Set(['s2']),
+  })
 
-  it('chains all six cards including unfolded sequential children', () => {
+  it('groups scripted nested stages without losing execution order', () => {
     expect(result.nodes.map((n) => n.id)).toEqual([
       's0',
       's1',
-      's2',
       's3',
       's4',
       's5',
     ])
+    expect(result.containers.map((box) => `${box.id}:${box.kind}`)).toContain('s2:sequential')
     expect(result.edges.map((e) => e.kind)).toEqual([
       'chain',
       'chain',
       'chain',
       'chain',
-      'chain',
     ])
+    expect(result.edges.find((edge) => edge.id === 's3->s4')?.orientation).toBe('vertical')
   })
 })
 

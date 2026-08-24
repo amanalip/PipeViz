@@ -82,4 +82,23 @@ describe('stageBadgeRow', () => {
       ),
     ).toBe('1 step · AGENT: windows · ENV ×1 · TOOLS ×1 · OPT ×1')
   })
+
+  it('renders adapter-neutral metadata without a provider-specific component', () => {
+    expect(
+      stageBadgeRow(
+        stage({
+          metadata: [
+            { key: 'runner', label: 'RUNNER', value: 'ubuntu', category: 'runtime' },
+            {
+              key: 'permissions',
+              label: 'PERMISSIONS',
+              value: 'read',
+              category: 'security',
+              visibility: 'details',
+            },
+          ],
+        }),
+      ),
+    ).toBe('No steps · RUNNER: ubuntu')
+  })
 })

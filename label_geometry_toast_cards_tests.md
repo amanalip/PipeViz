@@ -4,7 +4,7 @@ This document is the durable UX test contract for PipeViz. It records every corp
 
 ## Source of truth
 
-- `jenkins_pipelines_mock.md` contains 60 independent Jenkinsfile inputs.
+- `jenkins_pipelines_mock.md` contains 68 independent Jenkinsfile inputs.
 - `src/ui/mockCorpusLabels.test.ts` parses every input and checks compact labels.
 - `src/layout/mockCorpusLayout.test.ts` computes compact and expanded geometry for every input.
 - `src/ui/pipelineMetadata.test.ts` checks pipeline-level metadata badges and full inspector values.
@@ -26,6 +26,8 @@ The markdown corpus is intentionally imported by the automated tests. Adding a n
 8. Compact text may truncate visually, but the complete value must remain available through an inspector, accessible label, or title.
 9. Pipeline inheritance and stage overrides must never be presented as though they have the same scope.
 10. Warning and error states must retain a useful rendered-stage summary.
+11. Adapter-neutral metadata facts use the shared `MetadataFact` contract and remain visible without provider-specific card components.
+12. Provider identity is exposed through `PipelineDialect` and appears in the pipeline inspector when supplied.
 
 ## Toast card contract
 
@@ -38,14 +40,14 @@ The floating pipeline, stage, and container inspectors are called toast cards in
 5. Pipeline environment, tools, and options appear as concise pipeline context on stage toasts, with complete values available from the pipeline toast.
 6. Input gates retain message, confirmation label, submitter, and other captured directives.
 7. Stage and pipeline post conditions retain condition, source line, step classification, and command.
-8. A parallel container toast names its branch count. A matrix container toast names runnable cells, axes, exclusions, shared steps, and fail-fast state.
+8. A parallel container toast names its branch count. A matrix container toast names runnable cells, axes, exclusions, shared steps, and fail-fast state. A sequential container toast lists nested stages in execution order.
 9. Long commands, YAML, labels, and metadata wrap inside the toast. They never widen it beyond the canvas.
 10. Toast headers remain visible while long content scrolls. Escape closes the toast, and focus returns to the invoking graph control.
 11. Switching between dark and light modes preserves the selected node and its open toast card because theme changes do not alter graph identity.
 
 ## Geometry contract
 
-Every corpus input is checked in compact mode and with matrix expansion requested.
+Every corpus input is checked in compact mode, fully expanded sequential mode, and fully expanded matrix plus sequential mode.
 
 - Stage cards do not overlap other stage cards.
 - Containers may nest, but sibling containers cannot partially overlap.
@@ -57,6 +59,20 @@ Every corpus input is checked in compact mode and with matrix expansion requeste
 - Details panels remain inside the canvas viewport and scroll when content is tall.
 - Long titles truncate without increasing card dimensions.
 - Narrow viewport checks use 390 by 844 pixels. Desktop checks use the current browser viewport, normally at least 1280 pixels wide.
+- Vertical sequential edges attach through bottom and top handles. Outer pipeline edges remain horizontal.
+- Collapsing or expanding a group preserves valid selection and toast state.
+- Local expansion fitting occurs only when newly revealed content would be clipped.
+
+## Graph interaction contract
+
+1. Single-click selects a card or group and opens its inspector.
+2. Double-click expands or collapses sequential structures. Double-clicking a leaf retains jump-to-source behavior.
+3. The visible chevron and selected-node toolbar provide discoverable alternatives to double-click.
+4. Expand All and Collapse All operate on stable structural IDs, including visible matrix-lane clones.
+5. Graph search matches stage names, step text, conditions, agents, environment values, and structural metadata without deleting unmatched nodes or edges.
+6. Focus Path highlights directed predecessors and successors while dimming unrelated sibling lanes.
+7. Search, selection, focus, expansion, theme, and viewport state must not accidentally reset one another.
+8. Parallel, matrix, and sequential containers have distinct labels, minimap colors, and accessible names.
 
 ## Editor theme contract
 
@@ -131,12 +147,20 @@ Every corpus input is checked in compact mode and with matrix expansion requeste
 | 58 | Matrix axis without values | `No runnable cells`; `(no values)` details | Compact safe bounds |
 | 59 | Missing closing braces | Partial graph and diagnostic labels | Ghost and parsed surfaces |
 | 60 | Unexpected closing brace | Diagnostic plus recovered graph | Recovered card bounds |
+| 61 | Three-level sequential group | Honest count at every level | Recursive sequential containment |
+| 62 | Sequential group containing parallel work | `SEQ`, `PAR ×3`, fail-fast and input metadata | Mixed vertical and fan-out routing |
+| 63 | Parallel branches with sequential groups | Independent nested counts per branch | Sequential containers inside parallel lanes |
+| 64 | Matrix cell with multi-stage chain | Cell and nested-stage summaries | Matrix lanes with vertical internal flow |
+| 65 | Sequential group with agent overrides | Inherited and overridden agents stay scoped | Metadata-heavy group headers |
+| 66 | Sequential group with input and post metadata | Input and post details on the parent group | Tall toast and ordered children |
+| 67 | Duplicate names across nested scopes | Stable IDs preserve distinct selections | Separate group membership and edges |
+| 68 | Scripted deeply nested stage calls | Scripted metadata and nested counts | Recursive scripted containment |
 
 ## Live browser label audit
 
 Use the Playwright CLI against a local production preview or development server.
 
-For each of the 60 inputs:
+For each of the 68 inputs:
 
 1. Replace the editor contents with the fenced source.
 2. Wait for the debounce and rendered graph.
@@ -146,10 +170,13 @@ For each of the 60 inputs:
 6. Open the pipeline metadata inspector when global metadata exists and verify every compact badge has complete backing content.
 7. Open representative stage and container inspectors and verify scoped metadata and full values.
 8. For matrix inputs, toggle expansion when available and repeat label checks.
+9. For nested-stage inputs, exercise card chevrons, double-click, selected-node toolbars, Expand All, and Collapse All.
+10. Search for a stage and metadata value, then verify matching emphasis without graph disconnection.
+11. Select one parallel lane, enable Focus Path, and verify sibling lanes dim while the incoming and outgoing path remains emphasized.
 
 ## Live browser geometry audit
 
-For every compact view and every expandable matrix view, obtain the rendered rectangles for stage nodes, group containers, container headers, toolbar controls, and the canvas viewport.
+For every compact, sequential-expanded, and matrix-expanded view, obtain the rendered rectangles for stage nodes, group containers, container headers, toolbar controls, and the canvas viewport.
 
 Check:
 
@@ -175,5 +202,6 @@ When PipeViz gains another pipeline format, create a separate corpus file and re
 - compact labels are honest and inspectable;
 - structural groups never masquerade as empty work;
 - every supported expansion mode passes the same rectangle invariants.
+- every adapter maps provider-specific facts into `PipelineDialect` and `MetadataFact` before reaching shared React Flow components.
 
 Add the new corpus import to label and layout regression tests, document each case in this file, and include representative live browser checks before release.

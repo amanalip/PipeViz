@@ -44,8 +44,8 @@ No backend, no accounts, no pipeline code leaving your machine. The whole thing 
 Shipped:
 
 - **Parser** (M1): hand rolled tokenizer + block tree + declarative interpreter, with a scripted `stage()` fallback; never throws, always returns a model plus line-numbered diagnostics
-- **Layout engine** (M2): Blue Ocean style column/lane layout with parallel fan-out/fan-in and nested stage unfolding
-- **Canvas** (M3): React Flow rendering with pan, zoom, minimap, selection, and category-colored stage cards
+- **Layout engine** (M2): recursive structural layout with horizontal pipeline flow, parallel fan-out/fan-in, matrices, and collapsible vertical sequential groups
+- **Canvas** (M3): React Flow subflows with pan, zoom, semantic minimap, controlled selection, graph search, focused execution paths, selected-node toolbars, and category-colored stage cards
 - **Full UI** (M4): editor pane with debounced re-parse, file upload, seven bundled samples, details panel, Copy JSON export, expandable diagnostics bar with click-to-jump
 - **CI/CD** (M5): every push to main builds `dist/` and deploys it to GitHub Pages automatically
 - **M6 batch**: matrix axis expansion behind a canvas toggle, Export PNG of the graph, share links that encode the pipeline in the URL, a persisted light/dark theme toggle, and a CodeMirror 6 editor with Groovy highlighting
@@ -55,6 +55,9 @@ Shipped:
 - Declarative pipeline support: stages, `parallel` blocks (with failFast), `matrix` blocks with axis values and excludes, sequential nested stages, `when` conditions, detailed `input` gates, stage/pipeline `post` handlers, agents, environment, tools, options, parameters, and triggers
 - Metadata scope clarity: pipeline metadata appears once above the graph; stage cards badge only local overrides, with complete values available in the pipeline or stage inspector
 - Matrix expansion toggle: one card per axis combination (exclude rules applied), or the compact MATRIX summary card
+- Reusable structural groups: nested sequential stages collapse to an honest summary card and expand into numbered vertical chains; parallel and matrix groups share the same future-ready container system
+- Pipeline graph exploration: search stage names and metadata with `/`, highlight a selected execution path, expand or collapse all nested groups, and use node toolbars for structural actions and source navigation
+- Adapter-ready metadata: `PipelineDialect` identifies a source format and `MetadataFact` carries runtime, condition, security, artifact, cache, deployment, resource, and custom facts through shared badges and inspectors
 - Share links: the pipeline rides in the URL hash, so a pasted Jenkinsfile is one "Copy link" away from being shared; opening such a link restores editor, graph, and even sample provenance
 - Export PNG: download the current graph as an image, framed by React Flow's own camera math (no controls or minimap in the shot)
 - Light and dark color schemes: dark is the default, the toggle persists locally, and the code editor uses a dedicated high-contrast palette in both modes
@@ -90,7 +93,11 @@ Versions verified against the npm registry on Saturday, 22 August 2026:
 4. Interact:
    - **Click the metadata summary** above the graph for the inherited pipeline agent, environment, tools, options, parameters, triggers, and pipeline post handlers,
    - **Click a card** for its steps, `when` text, stage agent override, environment, tools, options, input gate, and post handlers,
-   - **Double-click** a card to jump to its source line in the editor,
+   - **Double-click a nested-stage card** to expand it into a sequential group; double-click the expanded group to collapse it,
+   - **Double-click a leaf card** to jump to its source line in the editor,
+   - Use the selected-node toolbar for a keyboard-discoverable source or group action,
+   - Search the graph with `/`, and use **Focus path** to isolate the selected stage's directed execution path,
+   - Use **Expand all / Collapse all** to inspect or summarize every nested sequential group,
    - Pan/zoom the canvas; the minimap tracks the viewport,
    - **Expand matrix** swaps a matrix stage between the compact summary card and one card per axis combination,
    - **Copy JSON** exports the parsed model to your clipboard,
@@ -149,7 +156,7 @@ PipeViz/
   project_plan.md      architecture, milestones, risks, sources
   commit_tracker.md    commit conventions and running log
   ui_mockups.md        ASCII reference for every screen and state
-  jenkins_pipelines_mock.md  60-input UX corpus imported by regression tests
+  jenkins_pipelines_mock.md  68-input UX corpus imported by regression tests
   label_geometry_toast_cards_tests.md  label, metadata, toast card, and React Flow geometry test contract
   LICENSE              GNU GPL v3
 ```
@@ -161,8 +168,9 @@ PipeViz/
 | [project_plan.md](project_plan.md) | Full plan: goals, architecture, parser and layout design, data model, milestones, risks, verified sources |
 | [commit_tracker.md](commit_tracker.md) | Conventional commit conventions, complete history, planned commit sequence mapped to milestones |
 | [ui_mockups.md](ui_mockups.md) | ASCII reference for every screen, state, and dimension in the app |
-| [jenkins_pipelines_mock.md](jenkins_pipelines_mock.md) | 60 realistic, edge-case, and malformed Jenkinsfiles used for UX regression testing |
+| [jenkins_pipelines_mock.md](jenkins_pipelines_mock.md) | 68 realistic, edge-case, malformed, and deeply grouped Jenkinsfiles used for UX regression testing |
 | [label_geometry_toast_cards_tests.md](label_geometry_toast_cards_tests.md) | Complete label, metadata, toast card, geometry, browser-audit, and future pipeline-format test contract |
+| [future_project_expansion_plan.md](future_project_expansion_plan.md) | Prioritized roadmap for CI/CD, cloud workflow, and infrastructure-as-code adapters |
 
 ### Where future agents should look
 
@@ -171,6 +179,8 @@ PipeViz/
 - Pipeline metadata labels and inspector content: `src/ui/pipelineMetadata.ts`.
 - Stage and container inspector content: `src/ui/detailsSections.ts`.
 - React Flow geometry: `src/layout/computeLayout.ts` and `src/layout/mockCorpusLayout.test.ts`.
+- React Flow interactions, search, focus paths, subflows, minimap, and node toolbars: `src/graph/FlowCanvas.tsx` and `src/graph/toFlow.ts`.
+- Adapter-neutral provider identity and metadata: `src/model/types.ts`, `src/graph/stageBadges.ts`, and `src/ui/detailsSections.ts`.
 - Broad UX fixtures and expected checks: `jenkins_pipelines_mock.md` and `label_geometry_toast_cards_tests.md`.
 - Live browser behavior: `e2e/` and the browser-audit procedure in `label_geometry_toast_cards_tests.md`.
 

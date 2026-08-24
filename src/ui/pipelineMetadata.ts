@@ -1,4 +1,4 @@
-import { agentShortLabel } from '../graph/stageBadges'
+import { agentShortLabel, metadataFactLabel } from '../graph/stageBadges'
 import type { PipelineModel } from '../model/types'
 import type { DetailSection } from './detailsSections'
 import { stepDetailLabel } from './detailsSections'
@@ -32,11 +32,28 @@ export function pipelineMetadataBadges(model: PipelineModel): MetadataBadge[] {
   if (pipelinePost.length) {
     badges.push({ label: `POST ×${pipelinePost.length}`, title: `${pipelinePost.length} pipeline post conditions` })
   }
+  for (const fact of model.metadata ?? []) {
+    if (fact.visibility !== 'details') {
+      badges.push({
+        label: metadataFactLabel(fact),
+        title: `${fact.category} metadata${fact.value ? `: ${fact.value}` : ''}`,
+      })
+    }
+  }
   return badges
 }
 
 export function buildPipelineMetadataSections(model: PipelineModel): DetailSection[] {
   const sections: DetailSection[] = []
+  if (model.dialect) {
+    sections.push({
+      title: 'SOURCE FORMAT',
+      lines: [
+        `${model.dialect.label} · ${model.dialect.format}${model.dialect.version ? ` · ${model.dialect.version}` : ''}`,
+      ],
+      bullet: false,
+    })
+  }
   if (model.agent) sections.push({ title: 'AGENT', lines: [model.agent], bullet: false })
   if (model.environmentEntries.length) {
     sections.push({
@@ -77,6 +94,19 @@ export function buildPipelineMetadataSections(model: PipelineModel): DetailSecti
       title: `POST · ${handler.condition}`,
       lines: handler.steps.length ? handler.steps.map(stepDetailLabel) : ['No steps'],
       bullet: handler.steps.length > 0,
+    })
+  }
+  const genericMetadata = (model.metadata ?? []).filter((fact) => fact.visibility !== 'badge')
+  if (genericMetadata.length > 0) {
+    sections.push({
+      title: `METADATA (${genericMetadata.length})`,
+      lines: genericMetadata.map((fact) => {
+        const value = metadataFactLabel(fact)
+        const scope = fact.inheritedFrom ? ` · inherited from ${fact.inheritedFrom}` : ''
+        const line = fact.line ? ` · line ${fact.line}` : ''
+        return `${value} · ${fact.category}${scope}${line}`
+      }),
+      bullet: true,
     })
   }
   return sections
