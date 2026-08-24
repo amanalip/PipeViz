@@ -60,10 +60,12 @@ export const CONTAINER_PAD_X = 18
 export const CONTAINER_PAD_Y = 14
 export const GROUP_MIN_WIDTH = 300
 export const GROUP_MAX_WIDTH = 720
-export const STEP_CARD_MIN_WIDTH = 320
-export const STEP_CARD_MAX_WIDTH = 560
-export const STEP_CARD_BASE_HEIGHT = 66
-export const STEP_ROW_HEIGHT = 34
+export const STEP_CARD_MIN_WIDTH = 360
+export const STEP_CARD_MAX_WIDTH = 640
+export const STEP_CARD_CHROME_HEIGHT = 86
+export const STEP_ROW_BASE_HEIGHT = 32
+export const STEP_ROW_GAP = 6
+export const STEP_WRAP_LINE_HEIGHT = 16
 
 /** Why an edge exists; drives styling at render time, never geometry. */
 export type EdgeKind = 'chain' | 'fan-out' | 'fan-in'
@@ -213,22 +215,78 @@ function sequentialExpanded(stage: StageNode, options: ResolvedLayoutOptions): b
   return options.expandedSequentialIds?.has(stage.id) ?? false
 }
 
+function textLength(value: string): number {
+  return Array.from(value).length
+}
+
+/** Conservative browser-like wrapping estimate with long-token support. */
+function wrappedLineCount(value: string, usableWidth: number, characterWidth: number): number {
+  const capacity = Math.max(8, Math.floor(usableWidth / characterWidth))
+  const words = value.trim().split(/\s+/u).filter(Boolean)
+  if (words.length === 0) return 1
+
+  let lines = 1
+  let column = 0
+  for (const word of words) {
+    let remaining = textLength(word)
+    if (column > 0) {
+      if (column + 1 + remaining <= capacity) {
+        column += 1 + remaining
+        continue
+      }
+      lines += 1
+    }
+    while (remaining > capacity) {
+      lines += 1
+      remaining -= capacity
+    }
+    column = remaining
+  }
+  return lines
+}
+
+/** Conservative compact metadata copy used only for expanded-card sizing. */
+function badgeSizingLabel(stage: StageNode): string {
+  const labels = [`${stage.steps.length} ${stage.steps.length === 1 ? 'step' : 'steps'}`]
+  if (stage.when?.length) labels.push('WHEN')
+  if (stage.failFast) labels.push('failFast')
+  if (stage.agent) labels.push(`AGENT: ${stage.agent}`)
+  if (stage.environmentEntries?.length) labels.push(`ENV ×${stage.environmentEntries.length}`)
+  if (stage.tools?.length) labels.push(`TOOLS ×${stage.tools.length}`)
+  if (stage.options?.length) labels.push(`OPT ×${stage.options.length}`)
+  if (stage.hasInput) labels.push('IN')
+  for (const fact of stage.metadata ?? []) {
+    if (fact.visibility !== 'details') labels.push(`${fact.label}${fact.value ? `: ${fact.value}` : ''}`)
+  }
+  return labels.join(' · ')
+}
+
 /** Deterministic expanded-card dimensions for complete, wrapping step text. */
 export function stageCardSize(stage: StageNode, options: LayoutOptions = {}): Box {
   if (!stage.steps.length || !options.expandedStepIds?.has(stage.id)) {
     return { width: NODE_W, height: NODE_H }
   }
   const labels = stage.steps.map((step) => `${step.name}${step.args ? ` ${step.args}` : ''}`)
-  const longest = Math.max(stage.name.length, ...labels.map((label) => label.length))
-  const width = Math.min(STEP_CARD_MAX_WIDTH, Math.max(STEP_CARD_MIN_WIDTH, 44 + longest * 6.5))
-  const usableWidth = width - 44
+  const longest = Math.max(textLength(stage.name), ...labels.map(textLength))
+  const width = Math.ceil(
+    Math.min(STEP_CARD_MAX_WIDTH, Math.max(STEP_CARD_MIN_WIDTH, 72 + longest * 7.1)),
+  )
+  const commandWidth = width - 68
   const wrappedLines = labels.reduce(
-    (total, label) => total + Math.max(1, Math.ceil((label.length * 6.5) / usableWidth)),
+    (total, label) => total + wrappedLineCount(label, commandWidth, 7.1),
     0,
   )
+  const titleLines = wrappedLineCount(stage.name, width - 88, 7.2)
+  const badgeLines = wrappedLineCount(badgeSizingLabel(stage), width - 36, 6.6)
   return {
-    width: Math.ceil(width),
-    height: STEP_CARD_BASE_HEIGHT + stage.steps.length * STEP_ROW_HEIGHT + (wrappedLines - stage.steps.length) * 17,
+    width,
+    height:
+      STEP_CARD_CHROME_HEIGHT +
+      stage.steps.length * STEP_ROW_BASE_HEIGHT +
+      Math.max(0, stage.steps.length - 1) * STEP_ROW_GAP +
+      (wrappedLines - stage.steps.length) * STEP_WRAP_LINE_HEIGHT +
+      (titleLines - 1) * 18 +
+      (badgeLines - 1) * 16,
   }
 }
 

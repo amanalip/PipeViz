@@ -162,10 +162,15 @@ function toFlowEdge(edge: LayoutResult['edges'][number], theme: Theme, ghosts: R
     focusable: false,
     style: {
       stroke: palette.edgeStroke,
-      strokeWidth: 1.5,
+      strokeWidth: 1.7,
       ...(dashed ? { strokeDasharray: '5 4' } : {}),
     },
-    markerEnd: { type: MarkerType.ArrowClosed, color: palette.edgeArrow },
+    markerEnd: {
+      type: MarkerType.ArrowClosed,
+      color: palette.edgeArrow,
+      width: 15,
+      height: 15,
+    },
   }
 }
 

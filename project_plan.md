@@ -361,9 +361,9 @@ Seven bundled samples double as documentation and parser fixtures. A separate 68
 ## 12. Testing Strategy
 
 - Parser unit tests in Vitest: each corpus sample asserts exact expected model (stage names, order, parallel grouping, step lists, diagnostic counts). Property checks: parser never throws on random ASCII fuzz inputs; always returns a model.
-- Layout unit tests: golden assertions on node positions and structural containers; non-overlap and containment properties across all 68 Markdown corpus inputs in compact, sequential-expanded, and matrix-plus-sequential-expanded views.
+- Layout unit tests: golden assertions on node positions and structural containers; non-overlap, containment, and expanded command-row reservation across all 68 Markdown corpus inputs in compact, sequential-expanded, and matrix-plus-sequential-expanded views.
 - Snapshot tests for the model output only, not rendered DOM.
-- Playwright end-to-end coverage verifies core UI flows. A final real-browser audit covers search, focused paths, selection toolbars, group expansion, theme persistence, editor resizing, details-card persistence, and responsive geometry.
+- Playwright end-to-end coverage verifies core UI flows. The real-browser corpus audit compares expanded DOM commands with parser output and checks metadata rows, SVG markers, overflow, search, focused paths, selection toolbars, group expansion, theme persistence, editor resizing, details-card persistence, and responsive geometry.
 
 ## 13. Deployment
 

@@ -1,9 +1,9 @@
 // ---------------------------------------------------------------------------
 // graph/StageNodeCard.tsx - the one custom React Flow node (mockups §6).
 //
-// A stage card is a 220x72 elevated surface: bold title, quiet badge row
-// separated by middots, and a 3px category stripe down the full left edge.
-// Handles sit on both sides but are invisible; edges attach to them.
+// A compact stage card is a 220x72 elevated surface. Expanded command cards
+// receive content-aware dimensions from layout. Both variants retain the
+// title, badge row, category stripe, and invisible edge handles.
 //
 // Interaction states come from CSS: default -> hover brightens the border,
 // selected gets the double accent ring + glow (React Flow adds a `selected`
@@ -13,6 +13,7 @@
 import { Handle, NodeToolbar, Position } from '@xyflow/react'
 import type { NodeProps } from '@xyflow/react'
 
+import { DisclosureIcon, StepFlowIcon } from './GraphIcons'
 import { stageBadgeRow } from './stageBadges'
 import type { StageCardNode } from './toFlow'
 
@@ -82,7 +83,7 @@ export function StageNodeCard({ data, selected }: NodeProps<StageCardNode>) {
               else data.onToggleSteps?.(stage.id)
             }}
           >
-            <span aria-hidden="true">{data.stepsExpanded ? '⌃' : '⌄'}</span>
+            <DisclosureIcon expanded={data.stepsExpanded} />
           </button>
         )}
       </div>
@@ -91,8 +92,11 @@ export function StageNodeCard({ data, selected }: NodeProps<StageCardNode>) {
         <ol className="stage-step-list" aria-label={`${stage.name} steps`}>
           {stage.steps.map((step, index) => (
             <li key={`${step.line}-${index}`}>
-              <code>{step.name}{step.args ? ` ${step.args}` : ''}</code>
-              <span>line {step.line} · {step.kind}</span>
+              <StepFlowIcon />
+              <div className="stage-step-content">
+                <code>{step.name}{step.args ? ` ${step.args}` : ''}</code>
+                <span className="stage-step-metadata">line {step.line} · {step.kind}</span>
+              </div>
             </li>
           ))}
         </ol>

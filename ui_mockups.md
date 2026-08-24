@@ -620,7 +620,7 @@ graceful degradation, not a mobile layout):
 | Click selected-node toolbar | expand/collapse the structure or jump to source |
 | Press `/` outside an editor/input | focuses graph search; matching nodes glow while context remains visible |
 | Toggle Focus path | directed predecessors and successors brighten; unrelated sibling lanes dim |
-| Expand All / Collapse All | materializes or summarizes every available sequential group and command list |
+| Expand All / Collapse All | materializes or summarizes every available sequential group and complete command list; cards and parents resize to wrapped content |
 | Scroll / pinch on canvas | zoom toward cursor; Controls buttons mirror it |
 | Drag background | pan; minimap viewport rectangle follows |
 | Click minimap | recenters main camera there |

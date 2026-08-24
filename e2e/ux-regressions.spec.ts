@@ -1,4 +1,25 @@
 import { expect, test } from '@playwright/test'
+import { readFileSync } from 'node:fs'
+
+import { computeLayout } from '../src/layout/computeLayout'
+import type { StageNode } from '../src/model/types'
+import { parseJenkinsfile } from '../src/parser'
+import { sourceToHash } from '../src/share/hash'
+
+const mockCorpus = readFileSync(new URL('../jenkins_pipelines_mock.md', import.meta.url), 'utf8')
+const mockPipelines = [
+  ...mockCorpus.matchAll(/### ([^\n]+)\n\n\x60{3}groovy\n([\s\S]*?)\x60{3}/g),
+].map((match) => ({ title: match[1] as string, source: (match[2] as string).trim() }))
+
+function indexStages(stages: readonly StageNode[], result = new Map<string, StageNode>()): Map<string, StageNode> {
+  for (const stage of stages) {
+    result.set(stage.id, stage)
+    indexStages(stage.parallelBranches ?? [], result)
+    indexStages(stage.sequentialChildren ?? [], result)
+    indexStages(stage.matrixCellStages ?? [], result)
+  }
+  return result
+}
 
 async function loadSimpleSample(page: import('@playwright/test').Page) {
   await page.goto('/')
@@ -99,6 +120,82 @@ test.describe('high-impact UX regressions', () => {
     if (!expanded || !after) throw new Error('Expanded step geometry missing')
     expect(await build.evaluate((element) => Number.parseFloat(element.style.height))).toBeGreaterThan(72)
     expect(after.x).toBeGreaterThan(expanded.x + expanded.width)
+  })
+
+  test('parallel report card preserves complete mapped arguments and both metadata rows', async ({ page }) => {
+    await loadSample(page, 'Parallel Tests')
+    const report = page.getByRole('group', { name: /Report stage/ })
+    await report.getByRole('button', { name: 'Expand Report steps' }).click()
+    const rows = report.locator('.stage-step-list li')
+    await expect(rows).toHaveCount(2)
+    await expect(rows.nth(0).locator('code')).toHaveText("junit 'out/*.xml'")
+    await expect(rows.nth(0).locator('.stage-step-metadata')).toHaveText('line 32 · known')
+    await expect(rows.nth(1).locator('code')).toHaveText("publishHTML target: [reportDir: 'coverage']")
+    await expect(rows.nth(1).locator('.stage-step-metadata')).toHaveText('line 33 · known')
+    await expect(report.locator('.step-flow-icon')).toHaveCount(2)
+    expect(await report.locator('.stage-card').evaluate(
+      (element) => element.scrollHeight <= element.clientHeight + 1,
+    )).toBe(true)
+  })
+
+  test('all mock pipelines preserve expanded command text, metadata, icons, and DOM bounds', async ({ page }) => {
+    test.setTimeout(120_000)
+    expect(mockPipelines).toHaveLength(68)
+
+    for (const pipeline of mockPipelines) {
+      const model = parseJenkinsfile(pipeline.source)
+      const stages = indexStages(model.rootStages)
+      if (stages.size === 0) continue
+      const expandedSequentialIds = new Set(
+        [...stages.values()].filter((stage) => stage.sequentialChildren?.length).map((stage) => stage.id),
+      )
+      const expandedStepIds = new Set(
+        [...stages.values()].filter((stage) => stage.steps.length > 0).map((stage) => stage.id),
+      )
+      const expectedExpandedCards = computeLayout(model, {
+        expandedSequentialIds,
+        expandedStepIds,
+      }).nodes.filter((stage) => stage.steps.length > 0).length
+
+      await page.goto(`/${sourceToHash(pipeline.source)}`)
+      await expect(page.locator('.react-flow__node').first(), pipeline.title).toBeVisible()
+      const expandAll = page.getByRole('button', { name: 'Expand all' })
+      if (await expandAll.count()) await expandAll.click()
+
+      const cards = page.locator('.stage-card.steps-expanded')
+      await expect(cards, `${pipeline.title}: expanded card count`).toHaveCount(expectedExpandedCards)
+      for (let index = 0; index < await cards.count(); index += 1) {
+        const card = cards.nth(index)
+        const rendered = await card.evaluate((element) => {
+          const list = element.querySelector('.stage-step-list')
+          const lastRow = list?.lastElementChild
+          const cardBounds = element.getBoundingClientRect()
+          const lastBounds = lastRow?.getBoundingClientRect()
+          return {
+            id: element.closest('.react-flow__node')?.getAttribute('data-id') ?? '',
+            commands: [...element.querySelectorAll('.stage-step-content code')].map((node) => node.textContent ?? ''),
+            metadata: [...element.querySelectorAll('.stage-step-metadata')].map((node) => node.textContent ?? ''),
+            iconCount: element.querySelectorAll('.step-flow-icon').length,
+            cardFits: element.scrollHeight <= element.clientHeight + 1,
+            listFits: !list || list.scrollHeight <= list.clientHeight + 1,
+            lastRowFits: !lastBounds || lastBounds.bottom <= cardBounds.bottom + 1,
+          }
+        })
+        const stage = stages.get(rendered.id)
+        expect(stage, `${pipeline.title}: missing model stage ${rendered.id}`).toBeDefined()
+        if (!stage) continue
+        expect(rendered.commands, `${pipeline.title}: command fidelity`).toEqual(
+          stage.steps.map((step) => `${step.name}${step.args ? ` ${step.args}` : ''}`),
+        )
+        expect(rendered.metadata, `${pipeline.title}: step metadata`).toEqual(
+          stage.steps.map((step) => `line ${step.line} · ${step.kind}`),
+        )
+        expect(rendered.iconCount, `${pipeline.title}: SVG step markers`).toBe(stage.steps.length)
+        expect(rendered.cardFits, `${pipeline.title}: card content overflow`).toBe(true)
+        expect(rendered.listFits, `${pipeline.title}: step list overflow`).toBe(true)
+        expect(rendered.lastRowFits, `${pipeline.title}: clipped final step`).toBe(true)
+      }
+    }
   })
 
   test('brand transformation uses the custom flow mark instead of a text arrow', async ({ page }) => {

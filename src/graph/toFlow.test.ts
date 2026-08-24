@@ -133,7 +133,12 @@ describe('buildFlowGraph on the sequential sample (simple-ci)', () => {
     for (const edge of graph.edges) {
       expect(edge.type).toBe('smoothstep')
       expect(edge.animated).toBe(false)
-      expect(edge.markerEnd).toEqual({ type: 'arrowclosed', color: 'rgba(148, 163, 184, 0.65)' })
+      expect(edge.markerEnd).toEqual({
+        type: 'arrowclosed',
+        color: 'rgba(148, 163, 184, 0.65)',
+        width: 15,
+        height: 15,
+      })
     }
   })
 

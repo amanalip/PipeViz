@@ -2,7 +2,15 @@ import { describe, expect, it } from 'vitest'
 
 import mockCorpus from '../../jenkins_pipelines_mock.md?raw'
 import { parseJenkinsfile } from '../parser'
-import { computeLayout, groupHeaderWidth } from './computeLayout'
+import {
+  computeLayout,
+  groupHeaderWidth,
+  STEP_CARD_CHROME_HEIGHT,
+  STEP_CARD_MAX_WIDTH,
+  STEP_CARD_MIN_WIDTH,
+  STEP_ROW_BASE_HEIGHT,
+  STEP_ROW_GAP,
+} from './computeLayout'
 import type { LayoutResult, ParallelBox, PositionedStage } from './computeLayout'
 import type { PipelineModel, StageNode } from '../model/types'
 
@@ -72,6 +80,15 @@ function expectSoundGeometry(result: LayoutResult, title: string): void {
 
   for (const node of result.nodes) {
     const card = nodeRect(node)
+    if (node.steps.length > 0 && node.width > 220) {
+      expect(node.width, `${title}: ${node.id} expanded width`).toBeGreaterThanOrEqual(STEP_CARD_MIN_WIDTH)
+      expect(node.width, `${title}: ${node.id} expanded width cap`).toBeLessThanOrEqual(STEP_CARD_MAX_WIDTH)
+      expect(node.height, `${title}: ${node.id} expanded row reservation`).toBeGreaterThanOrEqual(
+        STEP_CARD_CHROME_HEIGHT +
+          node.steps.length * STEP_ROW_BASE_HEIGHT +
+          Math.max(0, node.steps.length - 1) * STEP_ROW_GAP,
+      )
+    }
     expect(card.left, `${title}: ${node.id} starts outside the canvas`).toBeGreaterThanOrEqual(0)
     expect(card.top, `${title}: ${node.id} starts outside the canvas`).toBeGreaterThanOrEqual(0)
     expect(card.right, `${title}: ${node.id} exceeds canvas width`).toBeLessThanOrEqual(

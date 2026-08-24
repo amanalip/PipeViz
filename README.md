@@ -176,6 +176,7 @@ PipeViz/
 
 - Parser behavior and metadata ownership: `src/parser/`, then the plain-data contract in `src/model/types.ts`.
 - Card and container labels: `src/graph/stageBadges.ts` and `src/graph/toFlow.ts`.
+- Expanded command sizing and containment: `src/layout/computeLayout.ts`, `src/graph/StageNodeCard.tsx`, and the 68-input browser audit in `e2e/ux-regressions.spec.ts`.
 - Pipeline metadata labels and inspector content: `src/ui/pipelineMetadata.ts`.
 - Stage and container inspector content: `src/ui/detailsSections.ts`.
 - React Flow geometry: `src/layout/computeLayout.ts` and `src/layout/mockCorpusLayout.test.ts`.

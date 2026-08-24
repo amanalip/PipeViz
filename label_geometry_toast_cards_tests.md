@@ -11,6 +11,7 @@ This document is the durable UX test contract for PipeViz. It records every corp
 - `src/graph/StageNodeCard.test.ts` checks stage card label grammar and scoped metadata badges.
 - `src/ui/detailsSections.test.ts` checks the full stage and container inspector labels.
 - `src/graph/toFlow.test.ts` checks rendered node and container accessibility labels.
+- `e2e/ux-regressions.spec.ts` opens all 68 inputs in Chromium and checks expanded command fidelity, metadata, SVG markers, and DOM overflow.
 
 The markdown corpus is intentionally imported by the automated tests. Adding a new fenced Jenkinsfile here is not enough. Add it to `jenkins_pipelines_mock.md`, update the expected corpus count, and add its UX purpose to the inventory below.
 
@@ -61,6 +62,7 @@ Every corpus input is checked in compact mode, fully expanded sequential plus st
 - Narrow viewport checks use 390 by 844 pixels. Desktop checks use the current browser viewport, normally at least 1280 pixels wide.
 - Vertical sequential edges attach through bottom and top handles. Outer pipeline edges remain horizontal.
 - Expanded group headers reserve layout width for the complete structural label, owner name, count, and visible metadata chips. These labels must not depend on ellipsis.
+- Expanded step cards reserve space for every wrapped command line and every metadata row. Their DOM `scrollHeight` must not exceed their assigned height.
 - Collapsing or expanding a group preserves valid selection and toast state.
 - Local expansion fitting occurs only when newly revealed content would be clipped.
 
@@ -68,7 +70,7 @@ Every corpus input is checked in compact mode, fully expanded sequential plus st
 
 1. Single-click selects a card or group and opens its inspector.
 2. Double-click expands or collapses sequential structures. Double-clicking a leaf retains jump-to-source behavior.
-3. The visible chevron and selected-node toolbar provide discoverable alternatives to double-click.
+3. The visible SVG chevron and selected-node toolbar provide discoverable alternatives to double-click. Disclosure and step-flow marks do not depend on font glyphs.
 4. Expand All and Collapse All operate on stable structural and step-card IDs, including visible matrix-lane clones.
 5. Graph search matches stage names, step text, conditions, agents, environment values, and structural metadata without deleting unmatched nodes or edges.
 6. Focus Path highlights directed predecessors and successors while dimming unrelated sibling lanes.
@@ -143,7 +145,7 @@ Every corpus input is checked in compact mode, fully expanded sequential plus st
 | 52 | Braces and comments inside strings | No false structure labels | Sequential cards |
 | 53 | Compact semicolon formatting | Correct stage and step separation | Sequential cards |
 | 54 | Unknown custom steps | Unknown steps stay visible | Single card |
-| 55 | Very long step arguments | Full details without card expansion | Inspector overflow |
+| 55 | Very long step arguments | Full text in the inspector and expanded card | Wrapped card and inspector overflow |
 | 56 | Kubernetes YAML agent | Kubernetes kind plus full YAML in inspector | Toolbar and inspector overflow |
 | 57 | Stage without a steps block | `No steps` | Empty card size |
 | 58 | Matrix axis without values | `No runnable cells`; `(no values)` details | Compact safe bounds |
@@ -173,6 +175,9 @@ For each of the 68 inputs:
 7. Open representative stage and container inspectors and verify scoped metadata and full values.
 8. For matrix inputs, toggle expansion when available and repeat label checks.
 9. For nested-stage inputs, exercise card chevrons, double-click, selected-node toolbars, Expand All, and Collapse All.
+10. Expand every visible step card and compare each rendered command with the parser's exact `name + args` value.
+11. Verify every command has a source-line and parser-kind row, an SVG flow marker, and no clipped final row.
+12. Reject expanded cards or lists whose DOM `scrollHeight` exceeds `clientHeight`.
 10. Search for a stage and metadata value, then verify matching emphasis without graph disconnection.
 11. Select one parallel lane, enable Focus Path, and verify sibling lanes dim while the incoming and outgoing path remains emphasized.
 12. Expand representative one-step, multi-step, long-command, scripted, and matrix-cell cards. Verify every command, source line, and classification is readable on the graph.
@@ -193,6 +198,7 @@ Check:
 - toast header collisions with the canvas toolbar;
 - toast source-range, step-line, and parser-kind labels;
 - long-title truncation and full-value availability.
+- exact expanded command text, SVG disclosure marks, and card/list DOM overflow.
 
 Repeat representative basics, parallel groups, nested groups, matrices, long labels, metadata-heavy inputs, and malformed inputs at 390 by 844 pixels.
 

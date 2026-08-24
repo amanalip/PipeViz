@@ -41,6 +41,7 @@ import type { PipelineModel, StageNode } from '../model/types'
 import { CANVAS_PALETTES } from '../theme'
 import type { CanvasPalette, Theme } from '../theme'
 import { CATEGORY_COLORS } from './categories'
+import { DisclosureIcon } from './GraphIcons'
 import { stageBadgeRow } from './stageBadges'
 import type { FlowEdge, FlowNode, GhostCardNode, GroupContainerNode, StageCardData } from './toFlow'
 import { buildFlowGraph } from './toFlow'
@@ -255,7 +256,7 @@ function GroupContainerNodeView({ data, selected }: NodeProps<GroupContainerNode
                 data.onToggleSequential?.(data.stage.id)
               }}
             >
-              <span aria-hidden="true">⌃</span>
+              <DisclosureIcon expanded />
             </button>
           )}
         </div>

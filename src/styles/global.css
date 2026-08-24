@@ -1042,9 +1042,8 @@ button.chip:active {
    ========================================================================== */
 
 /* ---- Stage card ------------------------------------------------------------
-   Fixed 220x72 comes from the layout constants via inline node style; the
-   card simply fills its node box. The category stripe is a ::before strip
-   pinned to the inner left edge, full height, per mockup §6. */
+   Compact cards use 220x72. Expanded command cards receive larger inline
+   dimensions from layout. The card always fills that assigned node box. */
 .stage-card {
   width: 100%;
   height: 100%;
@@ -1067,6 +1066,18 @@ button.chip:active {
   justify-content: flex-start;
   gap: 6px;
   padding-top: 12px;
+}
+
+.stage-card.steps-expanded .stage-card-title,
+.stage-card.steps-expanded .stage-card-badges {
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+  overflow-wrap: anywhere;
+}
+
+.stage-card.steps-expanded .stage-card-badges {
+  line-height: 1.35;
 }
 
 .stage-card::before {
@@ -1151,6 +1162,17 @@ button.chip:active {
   outline: none;
 }
 
+.disclosure-icon {
+  width: 14px;
+  height: 14px;
+  display: block;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.75;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
 .stage-card-badges {
   font-size: 11.5px;
   color: var(--ink-secondary);
@@ -1160,44 +1182,61 @@ button.chip:active {
 }
 
 .stage-step-list {
-  min-height: 0;
   display: flex;
-  flex: 1;
+  flex: none;
   flex-direction: column;
-  gap: 5px;
+  gap: 6px;
   margin: 2px 0 0;
   padding: 7px 0 0;
-  overflow: hidden;
+  overflow: visible;
   border-top: 1px solid var(--border);
   list-style: none;
 }
 
 .stage-step-list li {
   min-width: 0;
+  display: grid;
+  grid-template-columns: 14px minmax(0, 1fr);
+  align-items: start;
+  column-gap: 6px;
+  flex: none;
+}
+
+.step-flow-icon {
+  width: 12px;
+  height: 12px;
+  margin-top: 2px;
+  display: block;
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.stage-step-content {
+  min-width: 0;
   display: flex;
   flex-direction: column;
   gap: 2px;
-  padding-left: 12px;
-  position: relative;
-}
-
-.stage-step-list li::before {
-  content: '›';
-  position: absolute;
-  left: 0;
-  color: var(--accent);
 }
 
 .stage-step-list code {
+  display: block;
+  min-width: 0;
   color: var(--ink);
-  font: 11px/1.35 var(--font-mono);
+  font: 11px/1.45 var(--font-mono);
   white-space: normal;
   overflow-wrap: anywhere;
+  word-break: normal;
 }
 
-.stage-step-list li > span {
-  color: var(--ink-muted);
-  font: 9.5px/1.2 var(--font-ui);
+.stage-step-metadata {
+  display: block;
+  min-height: 13px;
+  color: var(--ink-secondary);
+  font: 10.5px/1.25 var(--font-ui);
+  font-variant-numeric: tabular-nums;
 }
 
 /* Hover: border brightens exactly one token step (mockup §6 states row). */
