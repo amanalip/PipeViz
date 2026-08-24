@@ -187,14 +187,17 @@ interface FlowCanvasProps {
   expandMatrix?: boolean
   /** Controlled ids of expanded nested sequential groups. */
   expandedSequentialIds?: ReadonlySet<string>
+  expandedStepIds?: ReadonlySet<string>
   /** Expand/collapse request from a card, group header, or double-click. */
   onToggleSequential?: (stageId: string) => void
+  onToggleSteps?: (stageId: string) => void
   /** Controlled selection keeps details stable across graph shape updates. */
   selectedId?: string | null
   /** Bulk structural controls exposed in the canvas-native tool panel. */
   onExpandAllSequential?: () => void
   onCollapseAllSequential?: () => void
   sequentialGroupCount?: number
+  stepExpandableCount?: number
   /** Active color scheme; picks edge/dot/minimap palettes + RF chrome. */
   theme?: Theme
   /** Incremented when a whole-source or shape replacement should refit. */
@@ -300,11 +303,14 @@ export function FlowCanvas({
   onStageDoubleClick,
   expandMatrix = false,
   expandedSequentialIds,
+  expandedStepIds,
   onToggleSequential,
+  onToggleSteps,
   selectedId = null,
   onExpandAllSequential,
   onCollapseAllSequential,
   sequentialGroupCount = 0,
+  stepExpandableCount = 0,
   theme = 'dark',
   fitKey = 0,
 }: FlowCanvasProps) {
@@ -317,14 +323,14 @@ export function FlowCanvas({
   // Node identities and data do not depend on the palette. Keeping this
   // array stable across theme changes preserves React Flow selection.
   const graph = useMemo(
-    () => buildFlowGraph(model, layout, { expandMatrix, expandedSequentialIds }),
-    [model, layout, expandMatrix, expandedSequentialIds],
+    () => buildFlowGraph(model, layout, { expandMatrix, expandedSequentialIds, expandedStepIds }),
+    [model, layout, expandMatrix, expandedSequentialIds, expandedStepIds],
   )
   const themedEdges = useMemo(
     () => theme === 'dark'
       ? graph.edges
-      : buildFlowGraph(model, layout, { expandMatrix, expandedSequentialIds, theme }).edges,
-    [graph.edges, model, layout, expandMatrix, expandedSequentialIds, theme],
+      : buildFlowGraph(model, layout, { expandMatrix, expandedSequentialIds, expandedStepIds, theme }).edges,
+    [graph.edges, model, layout, expandMatrix, expandedSequentialIds, expandedStepIds, theme],
   )
   const interactiveNodes = useMemo(
     () => graph.nodes.map((node) => {
@@ -352,6 +358,7 @@ export function FlowCanvas({
           data: {
             ...node.data,
             onToggleSequential,
+            onToggleSteps,
             onJumpToSource: () => onStageDoubleClick?.(node.data.stage),
           },
         }
@@ -374,7 +381,7 @@ export function FlowCanvas({
         className: matchesSearch ? 'graph-search-match' : searchQuery ? 'graph-search-dim' : undefined,
       }
     }),
-    [graph.nodes, onStageDoubleClick, onToggleSequential, searchQuery, selectedId],
+    [graph.nodes, onStageDoubleClick, onToggleSequential, onToggleSteps, searchQuery, selectedId],
   )
   const matchedNodeIds = useMemo(
     () => interactiveNodes.filter((node) => node.className === 'graph-search-match').map((node) => node.id),
@@ -488,7 +495,7 @@ export function FlowCanvas({
           >
             Focus path
           </button>
-          {sequentialGroupCount > 0 && (
+          {(sequentialGroupCount > 0 || stepExpandableCount > 0) && (
             <>
               <button type="button" className="graph-tool-button" onClick={onExpandAllSequential}>
                 Expand all

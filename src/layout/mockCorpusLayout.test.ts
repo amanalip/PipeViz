@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import mockCorpus from '../../jenkins_pipelines_mock.md?raw'
 import { parseJenkinsfile } from '../parser'
-import { computeLayout, groupHeaderWidth, NODE_H, NODE_W } from './computeLayout'
+import { computeLayout, groupHeaderWidth } from './computeLayout'
 import type { LayoutResult, ParallelBox, PositionedStage } from './computeLayout'
 import type { PipelineModel, StageNode } from '../model/types'
 
@@ -18,7 +18,7 @@ interface Rect {
 }
 
 function nodeRect(node: PositionedStage): Rect {
-  return { left: node.x, top: node.y, right: node.x + NODE_W, bottom: node.y + NODE_H }
+  return { left: node.x, top: node.y, right: node.x + node.width, bottom: node.y + node.height }
 }
 
 function boxRect(box: ParallelBox): Rect {
@@ -104,15 +104,26 @@ function collectSequentialIds(stages: readonly StageNode[], sink: Set<string>): 
 /** Expand recursively, including layout-time matrix lane clones. */
 function fullyExpandedLayout(model: PipelineModel, expandMatrix: boolean): LayoutResult {
   const ids = new Set<string>()
+  const stepIds = new Set<string>()
   collectSequentialIds(model.rootStages, ids)
-  let result = computeLayout(model, { expandMatrix, expandedSequentialIds: ids })
+  const collectSteps = (stages: readonly StageNode[]): void => {
+    for (const stage of stages) {
+      if (stage.steps.length) stepIds.add(stage.id)
+      collectSteps(stage.parallelBranches ?? [])
+      collectSteps(stage.sequentialChildren ?? [])
+      collectSteps(stage.matrixCellStages ?? [])
+    }
+  }
+  collectSteps(model.rootStages)
+  let result = computeLayout(model, { expandMatrix, expandedSequentialIds: ids, expandedStepIds: stepIds })
   for (let depth = 0; depth < 12; depth += 1) {
-    const before = ids.size
+    const before = ids.size + stepIds.size
     for (const stage of result.nodes) {
       if (stage.sequentialChildren?.length) ids.add(stage.id)
+      if (stage.steps.length) stepIds.add(stage.id)
     }
-    if (ids.size === before) return result
-    result = computeLayout(model, { expandMatrix, expandedSequentialIds: ids })
+    if (ids.size + stepIds.size === before) return result
+    result = computeLayout(model, { expandMatrix, expandedSequentialIds: ids, expandedStepIds: stepIds })
   }
   return result
 }
@@ -131,11 +142,11 @@ describe('layout geometry across the 68-file UX corpus', () => {
       )
       expectSoundGeometry(
         fullyExpandedLayout(model, false),
-        `${pipeline.title} sequential expanded`,
+        `${pipeline.title} sequential and steps expanded`,
       )
       expectSoundGeometry(
         fullyExpandedLayout(model, true),
-        `${pipeline.title} matrix and sequential expanded`,
+        `${pipeline.title} matrix, sequential, and steps expanded`,
       )
     })
   }

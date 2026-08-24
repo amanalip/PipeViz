@@ -21,7 +21,6 @@ import type { Edge, Node } from '@xyflow/react'
 import { MarkerType } from '@xyflow/react'
 
 import type { GroupKind, LayoutOptions, LayoutResult, PositionedStage } from '../layout/computeLayout'
-import { NODE_H, NODE_W } from '../layout/computeLayout'
 import { axesLabel } from '../layout/matrixCombos'
 import type { PipelineModel, StageNode } from '../model/types'
 import { CANVAS_PALETTES } from '../theme'
@@ -35,10 +34,14 @@ export interface StageCardData extends Record<string, unknown> {
   category: ReturnType<typeof categorize>
   /** Compact structural card which can become a sequential group. */
   expandable: boolean
+  /** A leaf card with commands that can be shown directly on the graph. */
+  stepsExpandable: boolean
+  stepsExpanded: boolean
   /** One-based order when directly hosted by a sequential container. */
   sequenceIndex?: number
   /** Injected by FlowCanvas while keeping this converter pure. */
   onToggleSequential?: (stageId: string) => void
+  onToggleSteps?: (stageId: string) => void
   /** Injected source-navigation action for the selected-node toolbar. */
   onJumpToSource?: (line: number) => void
 }
@@ -228,7 +231,7 @@ export function buildFlowGraph(
   const hostByStageId = new Map<string, string>()
   for (const stage of layout.nodes) {
     let hostId: string | null = null
-    const cardRect = { x: stage.x, y: stage.y, width: NODE_W, height: NODE_H }
+    const cardRect = { x: stage.x, y: stage.y, width: stage.width, height: stage.height }
     for (const box of boxes) {
       if (contains(box, cardRect)) hostId = box.id
     }
@@ -329,7 +332,7 @@ export function buildFlowGraph(
         id: stage.id,
         type: 'ghost',
         position: { x, y },
-        style: { width: NODE_W, height: NODE_H },
+        style: { width: stage.width, height: stage.height },
         ariaLabel: `Unparsed region ${stage.name}, lines ${startLine}-${endLine}`,
         draggable: false,
         selectable: false,
@@ -344,16 +347,23 @@ export function buildFlowGraph(
       continue
     }
 
+    const stepExpansionAria = stage.steps.length
+      ? options.expandedStepIds?.has(stage.id)
+        ? ', steps expanded'
+        : ', steps collapsed, expandable'
+      : ''
     nodes.push({
       id: stage.id,
       type: 'stage',
       position: { x, y },
-      style: { width: NODE_W, height: NODE_H },
-      ariaLabel: `${stage.name} stage, ${stageBadgeRow(stage)}, line ${stage.line}${stage.sequentialChildren?.length ? ', collapsed, expandable' : ''}`,
+      style: { width: stage.width, height: stage.height },
+      ariaLabel: `${stage.name} stage, ${stageBadgeRow(stage)}, line ${stage.line}${stage.sequentialChildren?.length ? ', collapsed, expandable' : ''}${stepExpansionAria}`,
       data: {
         stage,
         category: categorize(stage.name),
         expandable: Boolean(stage.sequentialChildren?.length),
+        stepsExpandable: stage.steps.length > 0,
+        stepsExpanded: options.expandedStepIds?.has(stage.id) ?? false,
         ...(sequenceIndexById.has(stage.id)
           ? { sequenceIndex: sequenceIndexById.get(stage.id) }
           : {}),

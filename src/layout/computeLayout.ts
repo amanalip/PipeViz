@@ -40,6 +40,8 @@ export interface LayoutOptions {
    * groups they want materialized, which is safe for very deep graphs.
    */
   expandedSequentialIds?: ReadonlySet<string>
+  /** Stable stage ids whose commands are visible inside enlarged cards. */
+  expandedStepIds?: ReadonlySet<string>
 }
 
 /** Card size and inter-column / inter-lane gaps for v1 (mockups §19). */
@@ -58,6 +60,10 @@ export const CONTAINER_PAD_X = 18
 export const CONTAINER_PAD_Y = 14
 export const GROUP_MIN_WIDTH = 300
 export const GROUP_MAX_WIDTH = 720
+export const STEP_CARD_MIN_WIDTH = 320
+export const STEP_CARD_MAX_WIDTH = 560
+export const STEP_CARD_BASE_HEIGHT = 66
+export const STEP_ROW_HEIGHT = 34
 
 /** Why an edge exists; drives styling at render time, never geometry. */
 export type EdgeKind = 'chain' | 'fan-out' | 'fan-in'
@@ -69,6 +75,8 @@ export type GroupKind = 'parallel' | 'matrix' | 'sequential'
 export interface PositionedStage extends StageNode {
   x: number
   y: number
+  width: number
+  height: number
 }
 
 /**
@@ -158,6 +166,7 @@ function cloneCellStages(stages: readonly StageNode[], lanePrefix: string): Stag
 interface ResolvedLayoutOptions {
   expandMatrix: boolean
   expandedSequentialIds?: ReadonlySet<string>
+  expandedStepIds?: ReadonlySet<string>
 }
 
 function branchesOf(stage: StageNode, options: ResolvedLayoutOptions): StageNode[] | undefined {
@@ -202,6 +211,25 @@ function branchKind(stage: StageNode, options: ResolvedLayoutOptions): 'parallel
 function sequentialExpanded(stage: StageNode, options: ResolvedLayoutOptions): boolean {
   if (!stage.sequentialChildren?.length) return false
   return options.expandedSequentialIds?.has(stage.id) ?? false
+}
+
+/** Deterministic expanded-card dimensions for complete, wrapping step text. */
+export function stageCardSize(stage: StageNode, options: LayoutOptions = {}): Box {
+  if (!stage.steps.length || !options.expandedStepIds?.has(stage.id)) {
+    return { width: NODE_W, height: NODE_H }
+  }
+  const labels = stage.steps.map((step) => `${step.name}${step.args ? ` ${step.args}` : ''}`)
+  const longest = Math.max(stage.name.length, ...labels.map((label) => label.length))
+  const width = Math.min(STEP_CARD_MAX_WIDTH, Math.max(STEP_CARD_MIN_WIDTH, 44 + longest * 6.5))
+  const usableWidth = width - 44
+  const wrappedLines = labels.reduce(
+    (total, label) => total + Math.max(1, Math.ceil((label.length * 6.5) / usableWidth)),
+    0,
+  )
+  return {
+    width: Math.ceil(width),
+    height: STEP_CARD_BASE_HEIGHT + stage.steps.length * STEP_ROW_HEIGHT + (wrappedLines - stage.steps.length) * 17,
+  }
 }
 
 /**
@@ -270,7 +298,7 @@ function measure(stage: StageNode, options: ResolvedLayoutOptions): Box {
     }
   }
 
-  return { width: NODE_W, height: NODE_H }
+  return stageCardSize(stage, options)
 }
 
 /** Bounding box of a sequential list: width sums with gaps, height is tallest. */
@@ -408,8 +436,9 @@ function placeStage(
   // Card y: centered inside the subtree's own band, which centers parents
   // against taller children automatically. A compact sequential parent is a
   // normal card and intentionally hides its descendants from this layout.
-  const cardY = ownTop + (box.height - NODE_H) / 2
-  ctx.nodes.push({ ...stage, x, y: cardY })
+  const cardSize = stageCardSize(stage, options)
+  const cardY = ownTop + (box.height - cardSize.height) / 2
+  ctx.nodes.push({ ...stage, x, y: cardY, ...cardSize })
   connect(ctx, entries, [stage.id], entryOrientation)
   return [stage.id]
 }
@@ -483,6 +512,7 @@ export function computeLayout(model: PipelineModel, options: LayoutOptions = {})
     ...(options.expandedSequentialIds !== undefined
       ? { expandedSequentialIds: options.expandedSequentialIds }
       : {}),
+    ...(options.expandedStepIds !== undefined ? { expandedStepIds: options.expandedStepIds } : {}),
   }
   const ctx: WalkContext = { nodes: [], containers: [], edges: [] }
 

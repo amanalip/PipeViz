@@ -185,6 +185,17 @@ function sequentialGroupIds(stages: readonly StageNode[], sink = new Set<string>
   return sink
 }
 
+/** Collect every parser-owned stage carrying graph-expandable commands. */
+function stageStepIds(stages: readonly StageNode[], sink = new Set<string>()): Set<string> {
+  for (const stage of stages) {
+    if (stage.steps.length) sink.add(stage.id)
+    stageStepIds(stage.parallelBranches ?? [], sink)
+    stageStepIds(stage.sequentialChildren ?? [], sink)
+    stageStepIds(stage.matrixCellStages ?? [], sink)
+  }
+  return sink
+}
+
 /**
  * App renders the three-region layout from the UI spec (plan section 10):
  * header / workspace (editor + canvas) / diagnostics bar.
@@ -226,6 +237,7 @@ export default function App() {
   const [expandedSequentialIds, setExpandedSequentialIds] = useState<Set<string>>(
     () => new Set(),
   )
+  const [expandedStepIds, setExpandedStepIds] = useState<Set<string>>(() => new Set())
   // Whole-source replacements and matrix shape changes request a fresh fit.
   // Ordinary debounced edits preserve the user's current camera.
   const [fitGraphVersion, setFitGraphVersion] = useState(0)
@@ -389,6 +401,7 @@ export default function App() {
       setSettledSource(shared) // settle immediately, like a shared-link boot
       setSelectedId(null)
       setExpandedSequentialIds(new Set())
+      setExpandedStepIds(new Set())
       setPipelineDetailsOpen(false)
       setSampleName(sample?.name ?? null)
       setFitGraphVersion((version) => version + 1)
@@ -434,8 +447,8 @@ export default function App() {
   // True while the live editor holds more than PipeViz will parse.
   const sourceTooLarge = source.length > SOURCE_LENGTH_LIMIT
   const layout = useMemo(
-    () => computeLayout(model, { expandMatrix, expandedSequentialIds }),
-    [model, expandMatrix, expandedSequentialIds],
+    () => computeLayout(model, { expandMatrix, expandedSequentialIds, expandedStepIds }),
+    [model, expandMatrix, expandedSequentialIds, expandedStepIds],
   )
   const availableSequentialIds = useMemo(() => {
     const ids = sequentialGroupIds(model.rootStages)
@@ -446,6 +459,13 @@ export default function App() {
     }
     for (const container of layout.containers) {
       if (container.kind === 'sequential') ids.add(container.id)
+    }
+    return ids
+  }, [layout, model])
+  const availableStepIds = useMemo(() => {
+    const ids = stageStepIds(model.rootStages)
+    for (const stage of layout.nodes) {
+      if (stage.steps.length) ids.add(stage.id)
     }
     return ids
   }, [layout, model])
@@ -554,6 +574,7 @@ export default function App() {
     setSettledSource(sample.source)
     setSelectedId(null)
     setExpandedSequentialIds(new Set())
+    setExpandedStepIds(new Set())
     setPipelineDetailsOpen(false)
     setFitGraphVersion((version) => version + 1)
   }
@@ -584,6 +605,7 @@ export default function App() {
       if (text.length > 0) {
         setPasteHint(false)
         setExpandedSequentialIds(new Set())
+        setExpandedStepIds(new Set())
         changeSource(text)
         editorApi.current?.focus()
         return
@@ -631,6 +653,7 @@ export default function App() {
       setSettledSource(text)
       setSelectedId(null)
       setExpandedSequentialIds(new Set())
+      setExpandedStepIds(new Set())
       setPipelineDetailsOpen(false)
       setFitGraphVersion((version) => version + 1)
       setUploadError(null)
@@ -808,13 +831,25 @@ export default function App() {
     flowApi.current?.revealGroup(stageId)
   }, [])
 
+  const toggleStepExpansion = useCallback((stageId: string) => {
+    setExpandedStepIds((current) => {
+      const next = new Set(current)
+      if (next.has(stageId)) next.delete(stageId)
+      else next.add(stageId)
+      return next
+    })
+    flowApi.current?.revealGroup(stageId)
+  }, [])
+
   const expandAllSequential = useCallback(() => {
     setExpandedSequentialIds(new Set(availableSequentialIds))
+    setExpandedStepIds(new Set(availableStepIds))
     window.requestAnimationFrame(() => window.requestAnimationFrame(() => flowApi.current?.fitGraph()))
-  }, [availableSequentialIds])
+  }, [availableSequentialIds, availableStepIds])
 
   const collapseAllSequential = useCallback(() => {
     setExpandedSequentialIds(new Set())
+    setExpandedStepIds(new Set())
   }, [])
 
   /** Current editor maximum, preserving a useful canvas beside it. */
@@ -880,7 +915,13 @@ export default function App() {
         <div className="brand">
           <img src="./logo.svg" alt="" aria-hidden="true" className="brand-mark" />
           <span className="brand-name">PipeViz</span>
-          <span className="brand-tagline">Jenkinsfile → graph</span>
+          <span className="brand-tagline" aria-label="Jenkinsfile to graph">
+            <span>Jenkinsfile</span>
+            <svg className="brand-flow-mark" viewBox="0 0 14 12" aria-hidden="true">
+              <path d="M1 6h10M8 2.5 11.5 6 8 9.5" />
+            </svg>
+            <span>graph</span>
+          </span>
         </div>
         <nav className="header-nav" aria-label="Input actions">
           <div className="header-actions">
@@ -1108,11 +1149,14 @@ export default function App() {
               onStageDoubleClick={jumpStageToSource}
               expandMatrix={expandMatrix}
               expandedSequentialIds={expandedSequentialIds}
+              expandedStepIds={expandedStepIds}
               onToggleSequential={toggleSequentialExpansion}
+              onToggleSteps={toggleStepExpansion}
               selectedId={selectedId}
               onExpandAllSequential={expandAllSequential}
               onCollapseAllSequential={collapseAllSequential}
               sequentialGroupCount={availableSequentialIds.size}
+              stepExpandableCount={availableStepIds.size}
               theme={theme}
               fitKey={fitGraphVersion}
             />

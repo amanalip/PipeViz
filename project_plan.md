@@ -283,9 +283,10 @@ Sanity properties asserted by tests: no two nodes overlap, columns are monotonic
 - Named left/right and top/bottom handles let the same stage card participate in horizontal outer flow and vertical sequential flow.
 - Parent-child subflows for parallel, matrix, and sequential containers, including arbitrarily nested mixed structures.
 - Canvas features: conditional `fitView`, local group reveal, `<Controls />`, semantically colored pannable `<MiniMap />`, dotted `<Background />`, and a canvas `<Panel />` containing search, Focus Path, Expand All, and Collapse All.
-- `<NodeToolbar />` exposes source navigation and structural actions on the selected node without crowding every card.
+- `<NodeToolbar />` exposes source navigation, structural actions, and command expansion on the selected node without crowding every card.
 - Search spotlights matching nodes but never deletes dependency context. Focus Path computes directed predecessors and successors so unrelated parallel lanes dim without implying that they do not exist.
 - Selection is controlled by stable IDs and survives theme changes, compatible edits, and card-to-container transformations. Viewport changes are preserved unless newly revealed content is clipped.
+- Stage cards can expand into complete wrapping command lists. Their calculated dimensions participate in the same recursive layout, containment, and overlap guarantees as compact cards.
 - Node positions, container dimensions, edges, and search/focus opacity use restrained transitions with a complete reduced-motion fallback.
 
 ## 10. UI Specification

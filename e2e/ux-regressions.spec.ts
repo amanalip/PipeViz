@@ -79,10 +79,35 @@ test.describe('high-impact UX regressions', () => {
     await expect(page.getByRole('group', { name: /Sequential group Quality Suite/ })).toBeVisible()
     await expect(page.getByRole('group', { name: /Sequential group Deep Checks/ })).toBeVisible()
     await expect(page.getByRole('group', { name: /Dead Code stage/ })).toBeVisible()
+    await expect(page.getByRole('group', { name: /Static Analysis stage/ }).getByRole('list', { name: 'Static Analysis steps' })).toContainText("npx 'tsc --noEmit'")
+    await expect(page.getByRole('group', { name: /Dead Code stage/ }).getByRole('list', { name: 'Dead Code steps' })).toContainText("npx 'knip'")
 
     await page.getByRole('button', { name: 'Collapse all' }).click()
     await expect(page.getByRole('group', { name: /Quality Suite stage/ })).toBeVisible()
     await expect(page.getByRole('group', { name: /Dead Code stage/ })).toBeHidden()
+  })
+
+  test('individual step cards expand complete commands without overlap', async ({ page }) => {
+    await loadSimpleSample(page)
+    const build = page.getByRole('group', { name: /Build stage/ })
+    const testStage = page.getByRole('group', { name: /Test stage/ })
+    await build.getByRole('button', { name: 'Expand Build steps' }).click()
+    await expect(build.getByRole('list', { name: 'Build steps' })).toContainText("sh 'make build'")
+    await expect(build).toHaveAttribute('aria-label', /steps expanded/)
+    const expanded = await build.boundingBox()
+    const after = await testStage.boundingBox()
+    if (!expanded || !after) throw new Error('Expanded step geometry missing')
+    expect(await build.evaluate((element) => Number.parseFloat(element.style.height))).toBeGreaterThan(72)
+    expect(after.x).toBeGreaterThan(expanded.x + expanded.width)
+  })
+
+  test('brand transformation uses the custom flow mark instead of a text arrow', async ({ page }) => {
+    await page.goto('/')
+    const tagline = page.getByLabel('Jenkinsfile to graph')
+    await expect(tagline).toContainText('Jenkinsfile')
+    await expect(tagline).toContainText('graph')
+    await expect(tagline).not.toContainText('→')
+    await expect(tagline.locator('svg.brand-flow-mark path')).toHaveCount(1)
   })
 
   test('the canvas toolbar does not block the first stage card', async ({ page }) => {

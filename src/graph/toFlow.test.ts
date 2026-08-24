@@ -96,14 +96,27 @@ describe('buildFlowGraph on the sequential sample (simple-ci)', () => {
   it('gives stage cards explicit aria labels naming content and line', () => {
     // Screen readers must not fall back to opaque node ids (a11y #21).
     for (const node of graph.nodes) {
-      expect(node.ariaLabel).toMatch(/^.+ stage, .+, line \d+$/)
+      expect(node.ariaLabel).toMatch(/^.+ stage, .+, line \d+, steps collapsed, expandable$/)
     }
     const checkout = graph.nodes.find((node) => node.id === 's0')
     const positioned = layout.nodes.find((node) => node.id === 's0')
     if (!positioned) throw new Error('layout lost s0')
     expect(checkout?.ariaLabel).toBe(
-      `${positioned.name} stage, ${stageBadgeRow(positioned)}, line ${positioned.line}`,
+      `${positioned.name} stage, ${stageBadgeRow(positioned)}, line ${positioned.line}, steps collapsed, expandable`,
     )
+  })
+
+  it('maps expanded commands to layout-sized cards and explicit state', () => {
+    const expandedStepIds = new Set(['s1'])
+    const expandedLayout = computeLayout(model, { expandedStepIds })
+    const expandedGraph = buildFlowGraph(model, expandedLayout, { expandedStepIds })
+    const build = expandedGraph.nodes.find((node) => node.id === 's1')
+    const positioned = expandedLayout.nodes.find((node) => node.id === 's1')
+    expect(positioned?.width).toBeGreaterThan(220)
+    expect(positioned?.height).toBeGreaterThan(72)
+    expect(build?.style).toEqual({ width: positioned?.width, height: positioned?.height })
+    expect(build?.ariaLabel).toContain('steps expanded')
+    expect(build?.type === 'stage' && build.data.stepsExpanded).toBe(true)
   })
 
   it('carries category guesses matching the stage names', () => {

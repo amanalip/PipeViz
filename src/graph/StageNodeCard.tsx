@@ -25,15 +25,19 @@ import type { StageCardNode } from './toFlow'
 /** Custom node renderer registered as `nodeTypes.stage` in FlowCanvas. */
 export function StageNodeCard({ data, selected }: NodeProps<StageCardNode>) {
   const { stage } = data
+  const toggleLabel = data.expandable
+    ? `${data.stepsExpanded ? 'Collapse' : 'Expand'} ${stage.name}`
+    : `${data.stepsExpanded ? 'Collapse' : 'Expand'} ${stage.name} steps`
   return (
     <div
-      className="stage-card"
+      className={data.stepsExpanded ? 'stage-card steps-expanded' : 'stage-card'}
       data-category={data.category}
       title={stage.name}
       onClick={(event) => {
         if (event.detail !== 2) return
         event.stopPropagation()
         if (data.expandable) data.onToggleSequential?.(stage.id)
+        else if (data.stepsExpandable) data.onToggleSteps?.(stage.id)
         else data.onJumpToSource?.(stage.line)
       }}
     >
@@ -41,6 +45,11 @@ export function StageNodeCard({ data, selected }: NodeProps<StageCardNode>) {
         {data.expandable && (
           <button type="button" onClick={() => data.onToggleSequential?.(stage.id)}>
             Expand group
+          </button>
+        )}
+        {data.stepsExpandable && (
+          <button type="button" onClick={() => data.onToggleSteps?.(stage.id)}>
+            {data.stepsExpanded ? 'Collapse steps' : 'Expand steps'}
           </button>
         )}
         <button type="button" onClick={() => data.onJumpToSource?.(stage.line)}>
@@ -57,24 +66,37 @@ export function StageNodeCard({ data, selected }: NodeProps<StageCardNode>) {
           <span className="sequence-order" aria-hidden="true">{data.sequenceIndex}</span>
         )}
         <span className="stage-card-title">{stage.name}</span>
-        {data.expandable && (
+        {(data.expandable || data.stepsExpandable) && (
           <button
             type="button"
             className="stage-expand-button nodrag nowheel"
-            aria-label={`Expand ${stage.name}, ${stage.sequentialChildren?.length ?? 0} nested stages`}
-            aria-expanded="false"
-            title="Expand nested sequential stages"
+            aria-label={data.expandable
+              ? `Expand ${stage.name}, ${stage.sequentialChildren?.length ?? 0} nested stages`
+              : toggleLabel}
+            aria-expanded={data.stepsExpanded}
+            title={data.expandable ? 'Expand nested sequential stages' : toggleLabel}
             onDoubleClick={(event) => event.stopPropagation()}
             onClick={(event) => {
               event.stopPropagation()
-              data.onToggleSequential?.(stage.id)
+              if (data.expandable) data.onToggleSequential?.(stage.id)
+              else data.onToggleSteps?.(stage.id)
             }}
           >
-            <span aria-hidden="true">⌄</span>
+            <span aria-hidden="true">{data.stepsExpanded ? '⌃' : '⌄'}</span>
           </button>
         )}
       </div>
       <span className="stage-card-badges">{stageBadgeRow(stage)}</span>
+      {data.stepsExpanded && (
+        <ol className="stage-step-list" aria-label={`${stage.name} steps`}>
+          {stage.steps.map((step, index) => (
+            <li key={`${step.line}-${index}`}>
+              <code>{step.name}{step.args ? ` ${step.args}` : ''}</code>
+              <span>line {step.line} · {step.kind}</span>
+            </li>
+          ))}
+        </ol>
+      )}
       <Handle id="source-right" type="source" position={Position.Right} className="card-handle" isConnectable={false} />
       <Handle id="source-bottom" type="source" position={Position.Bottom} className="card-handle" isConnectable={false} />
     </div>

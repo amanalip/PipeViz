@@ -39,8 +39,8 @@ interface Rect {
 const nodeRect = (node: PositionedStage): Rect => ({
   x: node.x,
   y: node.y,
-  w: NODE_W,
-  h: NODE_H,
+  w: node.width,
+  h: node.height,
 })
 
 function rectsOverlap(a: Rect, b: Rect): boolean {
@@ -207,8 +207,8 @@ describe('layout - matrix-build, expanded (M6 toggle)', () => {
       const node = req(byId(result).get(id))
       expect(node.x).toBeGreaterThanOrEqual(box.x)
       expect(node.y).toBeGreaterThanOrEqual(box.y)
-      expect(node.x + NODE_W).toBeLessThanOrEqual(box.x + box.width)
-      expect(node.y + NODE_H).toBeLessThanOrEqual(box.y + box.height)
+      expect(node.x + node.width).toBeLessThanOrEqual(box.x + box.width)
+      expect(node.y + node.height).toBeLessThanOrEqual(box.y + box.height)
     }
     const rects = result.nodes.map(nodeRect)
     for (let i = 0; i < rects.length; i++) {
@@ -398,7 +398,7 @@ describe('layout - unparsed-region ghosts (mockups §11)', () => {
     const result = computeLayout(swallowedModel())
     expect(result.nodes.every((n) => n.x >= 0 && n.y >= 0)).toBe(true)
     for (const node of result.nodes) {
-      expect(node.y + NODE_H).toBeLessThanOrEqual(result.height)
+      expect(node.y + node.height).toBeLessThanOrEqual(result.height)
     }
   })
 })
@@ -422,8 +422,8 @@ describe('layout - properties across every corpus sample', () => {
       for (const node of result.nodes) {
         expect(node.x).toBeGreaterThanOrEqual(0)
         expect(node.y).toBeGreaterThanOrEqual(0)
-        expect(node.x + NODE_W).toBeLessThanOrEqual(result.width)
-        expect(node.y + NODE_H).toBeLessThanOrEqual(result.height)
+        expect(node.x + node.width).toBeLessThanOrEqual(result.width)
+        expect(node.y + node.height).toBeLessThanOrEqual(result.height)
       }
       for (const box of result.containers) {
         expect(box.x).toBeGreaterThanOrEqual(0)
@@ -462,6 +462,27 @@ describe('layout - properties across every corpus sample', () => {
 })
 
 describe('layout - size growth', () => {
+  it('grows expanded step cards and keeps the following stage clear', () => {
+    const model = chainModel(['build', 'deploy'])
+    model.rootStages[0] = leaf('build', {
+      steps: [
+        {
+          name: 'sh',
+          args: "'npm run build -- --configuration production && npm run verify-artifacts'",
+          kind: 'known',
+          line: 3,
+        },
+      ],
+    })
+    const result = computeLayout(model, { expandedStepIds: new Set(['build']) })
+    const build = req(result.nodes.find((node) => node.id === 'build'))
+    const deploy = req(result.nodes.find((node) => node.id === 'deploy'))
+    expect(build.width).toBeGreaterThan(NODE_W)
+    expect(build.height).toBeGreaterThan(NODE_H)
+    expect(deploy.x).toBe(build.width + H_GAP)
+    expect(rectsOverlap(nodeRect(build), nodeRect(deploy))).toBe(false)
+  })
+
   it('grows linearly with sequential stage count', () => {
     for (const count of [1, 2, 5, 10, 20]) {
       const result = computeLayout(chainModel(Array.from({ length: count }, (_, i) => `s${i}`)))

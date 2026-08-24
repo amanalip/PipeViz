@@ -56,7 +56,7 @@ Shipped:
 - Metadata scope clarity: pipeline metadata appears once above the graph; stage cards badge only local overrides, with complete values available in the pipeline or stage inspector
 - Matrix expansion toggle: one card per axis combination (exclude rules applied), or the compact MATRIX summary card
 - Reusable structural groups: nested sequential stages collapse to an honest summary card and expand into numbered vertical chains; parallel and matrix groups share the same future-ready container system
-- Pipeline graph exploration: search stage names and metadata with `/`, highlight a selected execution path, expand or collapse all nested groups, and use node toolbars for structural actions and source navigation
+- Pipeline graph exploration: search stage names and metadata with `/`, highlight a selected execution path, expand or collapse nested groups and stage commands, and use node toolbars for structural actions and source navigation
 - Adapter-ready metadata: `PipelineDialect` identifies a source format and `MetadataFact` carries runtime, condition, security, artifact, cache, deployment, resource, and custom facts through shared badges and inspectors
 - Share links: the pipeline rides in the URL hash, so a pasted Jenkinsfile is one "Copy link" away from being shared; opening such a link restores editor, graph, and even sample provenance
 - Export PNG: download the current graph as an image, framed by React Flow's own camera math (no controls or minimap in the shot)
@@ -94,10 +94,10 @@ Versions verified against the npm registry on Saturday, 22 August 2026:
    - **Click the metadata summary** above the graph for the inherited pipeline agent, environment, tools, options, parameters, triggers, and pipeline post handlers,
    - **Click a card** for its steps, `when` text, stage agent override, environment, tools, options, input gate, and post handlers,
    - **Double-click a nested-stage card** to expand it into a sequential group; double-click the expanded group to collapse it,
-   - **Double-click a leaf card** to jump to its source line in the editor,
+   - **Double-click a leaf card** or use its chevron to expand the complete commands directly on the graph,
    - Use the selected-node toolbar for a keyboard-discoverable source or group action,
    - Search the graph with `/`, and use **Focus path** to isolate the selected stage's directed execution path,
-   - Use **Expand all / Collapse all** to inspect or summarize every nested sequential group,
+   - Use **Expand all / Collapse all** to inspect or summarize every nested sequential group and stage command list,
    - Pan/zoom the canvas; the minimap tracks the viewport,
    - **Expand matrix** swaps a matrix stage between the compact summary card and one card per axis combination,
    - **Copy JSON** exports the parsed model to your clipboard,

@@ -47,7 +47,7 @@ The floating pipeline, stage, and container inspectors are called toast cards in
 
 ## Geometry contract
 
-Every corpus input is checked in compact mode, fully expanded sequential mode, and fully expanded matrix plus sequential mode.
+Every corpus input is checked in compact mode, fully expanded sequential plus step mode, and fully expanded matrix plus sequential plus step mode.
 
 - Stage cards do not overlap other stage cards.
 - Containers may nest, but sibling containers cannot partially overlap.
@@ -69,11 +69,12 @@ Every corpus input is checked in compact mode, fully expanded sequential mode, a
 1. Single-click selects a card or group and opens its inspector.
 2. Double-click expands or collapses sequential structures. Double-clicking a leaf retains jump-to-source behavior.
 3. The visible chevron and selected-node toolbar provide discoverable alternatives to double-click.
-4. Expand All and Collapse All operate on stable structural IDs, including visible matrix-lane clones.
+4. Expand All and Collapse All operate on stable structural and step-card IDs, including visible matrix-lane clones.
 5. Graph search matches stage names, step text, conditions, agents, environment values, and structural metadata without deleting unmatched nodes or edges.
 6. Focus Path highlights directed predecessors and successors while dimming unrelated sibling lanes.
 7. Search, selection, focus, expansion, theme, and viewport state must not accidentally reset one another.
 8. Parallel, matrix, and sequential containers have distinct labels, minimap colors, and accessible names.
+9. Expanded step cards show complete command text, source line, and classification while contributing their real width and height to layout geometry.
 
 ## Editor theme contract
 
@@ -174,10 +175,11 @@ For each of the 68 inputs:
 9. For nested-stage inputs, exercise card chevrons, double-click, selected-node toolbars, Expand All, and Collapse All.
 10. Search for a stage and metadata value, then verify matching emphasis without graph disconnection.
 11. Select one parallel lane, enable Focus Path, and verify sibling lanes dim while the incoming and outgoing path remains emphasized.
+12. Expand representative one-step, multi-step, long-command, scripted, and matrix-cell cards. Verify every command, source line, and classification is readable on the graph.
 
 ## Live browser geometry audit
 
-For every compact, sequential-expanded, and matrix-expanded view, obtain the rendered rectangles for stage nodes, group containers, container headers, toolbar controls, and the canvas viewport.
+For every compact, sequential-and-step-expanded, and matrix-plus-sequential-and-step-expanded view, obtain the rendered rectangles for stage nodes, group containers, container headers, toolbar controls, and the canvas viewport.
 
 Check:
 

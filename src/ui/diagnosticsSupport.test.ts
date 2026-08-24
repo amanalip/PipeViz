@@ -65,12 +65,12 @@ describe('partialGraphNote', () => {
 
 describe('stageForDiagnostic', () => {
   const nodes: PositionedStage[] = [
-    { id: 's0', name: 'Checkout', line: 1, endLine: 4, steps: [], x: 0, y: 0 },
-    { id: 's1', name: 'Group', line: 6, endLine: 40, steps: [], x: 310, y: 0 },
+    { id: 's0', name: 'Checkout', line: 1, endLine: 4, steps: [], x: 0, y: 0, width: 220, height: 72 },
+    { id: 's1', name: 'Group', line: 6, endLine: 40, steps: [], x: 310, y: 0, width: 220, height: 72 },
     // A sequential child nested inside s1's span.
-    { id: 's1/sq0', name: 'Inner', line: 10, endLine: 20, steps: [], x: 620, y: 0 },
+    { id: 's1/sq0', name: 'Inner', line: 10, endLine: 20, steps: [], x: 620, y: 0, width: 220, height: 72 },
     // Ghost leaves have no meaningful span beyond their start line.
-    { id: 'u0', name: 'unparsed', line: 44, steps: [], ghost: true, x: 930, y: 0 },
+    { id: 'u0', name: 'unparsed', line: 44, steps: [], ghost: true, x: 930, y: 0, width: 220, height: 72 },
   ]
 
   it('prefers an exact opening-line match', () => {

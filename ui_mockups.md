@@ -131,7 +131,7 @@ always visible in the status bar.
 
 ```
 ┌────────────────────────────────────────────────────────────────────────────────────────┐
-│ ◉ PipeViz  ⟨ Jenkinsfile → graph ⟩         [ Samples ▾ ]  [ Upload ]  [ Copy JSON ]  [ GitHub ↗ ] │
+│ ◉ PipeViz  ⟨ Jenkinsfile [flow mark] graph ⟩ [ Samples ▾ ] [ Upload ] [ Copy JSON ] [ GitHub ↗ ] │
 ├────────────────────────────┬───────────────────────────────────────────────────────────┤
 │ PIPELINE SOURCE            │                                                           │
 │                            │            ╭─────────────────────────────────────╮        │
@@ -172,7 +172,7 @@ joined by chain edges. Debounced re-parse runs 400ms after typing stops.
 
 ```
 ┌────────────────────────────────────────────────────────────────────────────────────────┐
-│ ◉ PipeViz  ⟨ Jenkinsfile → graph ⟩         [ Samples ▾ ]  [ Upload ]  [ Copy JSON ]  [ GitHub ↗ ] │
+│ ◉ PipeViz  ⟨ Jenkinsfile [flow mark] graph ⟩ [ Samples ▾ ] [ Upload ] [ Copy JSON ] [ GitHub ↗ ] │
 ├────────────────────────────┬───────────────────────────────────────────────────────────┤
 │ PIPELINE SOURCE            │  sample · Simple CI                                       │
 │                            │                                                           │
@@ -295,6 +295,10 @@ Expanded container headers use a two-row title and metadata layout. Container
 width grows deterministically with the complete owner name and visible chips,
 so structural labels do not collapse into ambiguous ellipses.
 
+Expanded stage cards grow in both dimensions and list each complete command
+with its source line and classification. Long arguments wrap inside the card;
+the recursive layout uses the enlarged rectangle before placing neighbors.
+
 ---
 
 ## 8. State 03 · Parallel Pipeline + Selection
@@ -304,7 +308,7 @@ The hero shot. "Parallel tests" sample loaded; user clicked **Unit tests**
 
 ```
 ┌────────────────────────────────────────────────────────────────────────────────────────┐
-│ ◉ PipeViz  ⟨ Jenkinsfile → graph ⟩         [ Samples ▾ ]  [ Upload ]  [ Copy JSON ]  [ GitHub ↗ ] │
+│ ◉ PipeViz  ⟨ Jenkinsfile [flow mark] graph ⟩ [ Samples ▾ ] [ Upload ] [ Copy JSON ] [ GitHub ↗ ] │
 ├────────────────────────────┬───────────────────────────────────────────────────────────┤
 │ PIPELINE SOURCE            │  sample · Parallel tests                                  │
 │                            │                                                           │
@@ -350,7 +354,7 @@ clicking empty canvas closes it.
 
 ```
 ┌────────────────────────────────────────────────────────────────────────────────────────┐
-│ ◉ PipeViz  ⟨ Jenkinsfile → graph ⟩         [ Samples ▾ ]  [ Upload ]  [ Copy JSON ]  [ GitHub ↗] │
+│ ◉ PipeViz  ⟨ Jenkinsfile [flow mark] graph ⟩ [ Samples ▾ ] [ Upload ] [ Copy JSON ] [ GitHub ↗] │
 ├────────────────────────────┬───────────────────────────────────────────────────────────┤
 │ PIPELINE SOURCE            │  ╔════════════════════════════════╗                       │
 │ pipeline {                 │  ║ STAGE · Unit tests           ✕ ║                       │
@@ -435,7 +439,7 @@ that line.
 
 ```
 ┌────────────────────────────────────────────────────────────────────────────────────────┐
-│ ◉ PipeViz  ⟨ Jenkinsfile → graph ⟩         [ Samples ▾ ]  [ Upload ]  [ Copy JSON ]  [ GitHub ↗ ] │
+│ ◉ PipeViz  ⟨ Jenkinsfile [flow mark] graph ⟩ [ Samples ▾ ] [ Upload ] [ Copy JSON ] [ GitHub ↗ ] │
 ├────────────────────────────┬───────────────────────────────────────────────────────────┤
 │ PIPELINE SOURCE            │  parse failed: showing what parsed                       │
 │ // nightly (draft)         │                                                           │
@@ -479,7 +483,7 @@ Rules:
 
 ```
 ┌──────────────────────────────────────────────────────────────────────────────────────────────┐
-│ ◉ PipeViz  ⟨ Jenkinsfile → graph ⟩  [ Samples ▾ ] [ Upload ] [ Copy JSON ]                   │
+│ ◉ PipeViz  ⟨ Jenkinsfile [flow mark] graph ⟩ [ Samples ▾ ] [ Upload ] [ Copy JSON ]          │
 │                                     [ Copy link ] [ Export PNG ] [ Light mode ] [ GitHub ↗ ] │
 └──────────────────────────────────────────────────────────────────────────────────────────────┘
    │    │        │                          │         │          │           │           │
@@ -612,11 +616,11 @@ graceful degradation, not a mobile layout):
 | Click stage card | select ring + details panel opens; click bg or Esc closes |
 | Double-click nested-stage card | expands it into a sequential React Flow subflow |
 | Double-click expanded sequential group | collapses it to one summary card |
-| Double-click leaf card | selects the stage's first line in the editor |
+| Double-click leaf card | expands or collapses its complete command list; Source remains in the selected-node toolbar |
 | Click selected-node toolbar | expand/collapse the structure or jump to source |
 | Press `/` outside an editor/input | focuses graph search; matching nodes glow while context remains visible |
 | Toggle Focus path | directed predecessors and successors brighten; unrelated sibling lanes dim |
-| Expand All / Collapse All | materializes or summarizes every available sequential group |
+| Expand All / Collapse All | materializes or summarizes every available sequential group and command list |
 | Scroll / pinch on canvas | zoom toward cursor; Controls buttons mirror it |
 | Drag background | pan; minimap viewport rectangle follows |
 | Click minimap | recenters main camera there |
@@ -660,6 +664,7 @@ Reusable graph-system additions:
 | Concern | Module | File |
 |---|---|---|
 | Compact/expanded sequential geometry | recursive group layout | `src/layout/computeLayout.ts` |
+| Compact/expanded command-card geometry | wrapping stage card layout | `src/layout/computeLayout.ts`, `src/graph/StageNodeCard.tsx` |
 | Parent-child grouping and directional handles | React Flow conversion | `src/graph/toFlow.ts` |
 | Search, Focus Path, minimap semantics, bulk controls | canvas toolkit | `src/graph/FlowCanvas.tsx` |
 | Selected-node actions | NodeToolbar renderers | `src/graph/StageNodeCard.tsx`, `src/graph/FlowCanvas.tsx` |
